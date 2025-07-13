@@ -1,0 +1,6 @@
+@BoomyBuilder_HostAddress = http://localhost:5030
+
+GET {{BoomyBuilder_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
