@@ -16,7 +16,7 @@ namespace BoomyBuilder.Builder.ChoreoMaker
             {
                 foreach (var e in events)
                 {
-                    track[e.Beat] = e.Move;
+                    track[e.Beat] = new Move(e, buildOperator);
                 }
 
                 int totalBeats = track.Keys.Max();

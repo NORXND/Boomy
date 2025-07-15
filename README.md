@@ -37,3 +37,4 @@ NORXND - Tool creator and maintainer.
 MiloHax Team - For MiloLib and generally research on DC, Milo and other Harmonix stuff.
 
 This software uses MiloLib being a part of [MiloEditor](https://github.com/ihatecompvir/MiloEditor) by ihatecompvir
+This software uses [dds-reader](https://github.com/andburn/dds-reader) by Andrew Burnett

@@ -287,7 +287,7 @@ namespace MiloLib.Assets
                     break;
                 case "UILabelDir":
                     Debug.WriteLine("Reading UILabelDir " + name.value);
-                    UILabelDir uiLabelDir = new UILabelDir(0);
+                    Ham.UILabelDir uiLabelDir = new Ham.UILabelDir(0);
                     uiLabelDir.Read(reader, true, this, new Entry(type, name, uiLabelDir));
                     directory = uiLabelDir;
                     break;
@@ -456,7 +456,7 @@ namespace MiloLib.Assets
 
             writer.WriteInt32((entries.Count * 2) + 4);
             writer.WriteUInt32(stringTableSize);
-            
+
             if (revision >= 32)
             {
                 writer.WriteBoolean(false);
@@ -500,7 +500,7 @@ namespace MiloLib.Assets
                     ((CompositeCharacter)directory).Write(writer, true, this, new Entry(type, name, directory));
                     break;
                 case "UILabelDir":
-                    ((UILabelDir)directory).Write(writer, true, this, new Entry(type, name, directory));
+                    ((Ham.UILabelDir)directory).Write(writer, true, this, new Entry(type, name, directory));
                     break;
                 case "UIListDir":
                     ((UIListDir)directory).Write(writer, true, this, new Entry(type, name, directory));
@@ -835,7 +835,7 @@ namespace MiloLib.Assets
                 case "UILabelDir":
                     Debug.WriteLine("Reading entry UILabelDir " + entry.name.value);
                     entry.isProxy = true;
-                    entry.obj = new UILabelDir(0).Read(reader, true, this, entry);
+                    entry.obj = new Ham.UILabelDir(0).Read(reader, true, this, entry);
 
                     dir = new DirectoryMeta();
                     dir.platform = platform;
@@ -1456,7 +1456,7 @@ namespace MiloLib.Assets
                     entry.dir.Write(writer);
                     break;
                 case "UILabelDir":
-                    ((UILabelDir)entry.obj).Write(writer, true, this, entry);
+                    ((Ham.UILabelDir)entry.obj).Write(writer, true, this, entry);
                     entry.isProxy = false;
                     entry.dir.Write(writer);
                     break;
@@ -1821,7 +1821,7 @@ namespace MiloLib.Assets
                     dir.directory = new CharClipSet(rootDirRevision);
                     break;
                 case "UILabelDir":
-                    dir.directory = new UILabelDir(rootDirRevision);
+                    dir.directory = new Ham.UILabelDir(rootDirRevision);
                     break;
                 case "UIListDir":
                     dir.directory = new UIListDir(rootDirRevision);

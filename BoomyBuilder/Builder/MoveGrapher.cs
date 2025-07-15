@@ -35,7 +35,7 @@ namespace BoomyBuilder.Builder.MoveGrapher
                             {
                                 revision = 1,
                                 variantName = (Symbol)previousMove.Clip,
-                                clipName = (Symbol)previousMove.Data.Name,
+                                clipName = (Symbol)previousMove.Clip,
                                 unk = (Symbol)"",
                                 mAdjacencyFlag = 4,
                             };
@@ -52,7 +52,7 @@ namespace BoomyBuilder.Builder.MoveGrapher
                             {
                                 revision = 1,
                                 variantName = (Symbol)nextMove.Clip,
-                                clipName = (Symbol)nextMove.Data.Name,
+                                clipName = (Symbol)nextMove.Clip,
                                 unk = (Symbol)"",
                                 mAdjacencyFlag = 4,
                             };
@@ -86,15 +86,15 @@ namespace BoomyBuilder.Builder.MoveGrapher
                             revision = 1,
                             index = (Symbol)move.Clip,
                             positionOffset = new Vector3(0, 0, 0),
-                            hamMoveName = (Symbol)move.Data.MoveName,
-                            hamMoveMiloname = (Symbol)move.Data.MoveMiloname,
-                            linkedFrom = (Symbol)move.Data.LinkedFrom,
-                            linkedTo = (Symbol)move.Data.LinkedTo,
-                            genre = (Symbol)move.Data.Genre,
-                            era = (Symbol)move.Data.Era,
-                            songName = (Symbol)move.Data.SongName,
-                            avgBeatsPerSecond = move.Data.AvgBeatsPerSec,
-                            flags = move.Data.Flags,
+                            hamMoveName = (Symbol)move.HamMoveName,
+                            hamMoveMiloname = (Symbol)move.MiloName,
+                            linkedFrom = (Symbol)move.LinkedFrom,
+                            linkedTo = (Symbol)move.LinkedTo,
+                            genre = (Symbol)move.Genre,
+                            era = (Symbol)move.Era,
+                            songName = (Symbol)move.SongName,
+                            avgBeatsPerSecond = move.AvgBeatsPerSecond,
+                            flags = move.Flags,
                             nextCandidates = [.. nextCandidates.Values],
                             prevCandidates = [.. previousCandidates.Values],
                         };
@@ -120,10 +120,10 @@ namespace BoomyBuilder.Builder.MoveGrapher
 
                 MoveVariant variant = variantCandidates[eventName];
 
-                if (moveParents.Any(parent => parent.Key.value == move.Data.Name))
+                if (moveParents.Any(parent => parent.Key.value == move.MiloName))
                 {
-                    MoveParent moveParent = moveParents.First(parent => parent.Key.value == move.Data.Name).Value;
-                    
+                    MoveParent moveParent = moveParents.First(parent => parent.Key.value == move.MiloName).Value;
+
                     // Only add variant if not already present
                     if (!moveParent.moveVariants.Any(v => v.index.value == variant.index.value))
                     {
@@ -145,16 +145,16 @@ namespace BoomyBuilder.Builder.MoveGrapher
                     MoveParent newMoveParent = new()
                     {
                         revision = 0,
-                        name = (Symbol)move.Data.Name,
-                        difficulty = (MoveParent.Difficulty)move.Data.Difficulty,
+                        name = (Symbol)move.MiloName,
+                        difficulty = (MoveParent.Difficulty)move.difficulty,
                         genreFlags = [variant.genre],
                         eraFlags = [variant.era],
                         unkc = false,
-                        displayName = (Symbol)move.Data.DisplayName,
+                        displayName = (Symbol)move.DisplayName,
                         moveVariants = [variant]
                     };
 
-                    moveParents[(Symbol)move.Data.Name] = newMoveParent;
+                    moveParents[(Symbol)move.MiloName] = newMoveParent;
                 }
             }
 

@@ -37,7 +37,7 @@ namespace BoomyBuilder.Builder.Animator
 
                     key.keys.Add(new AnimEventSymbol()
                     {
-                        Text = (Symbol)move.Data.MoveName,
+                        Text = (Symbol)move.HamMoveName,
                         Pos = time
                     });
                 }

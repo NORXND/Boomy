@@ -7,7 +7,7 @@ using MiloLib.Assets.Rnd;
 
 namespace BoomyBuilder.Builder
 {
-    class BuildOperator
+    public class BuildOperator
     {
 
         public BuildRequest.BuildRequest Request;
@@ -55,7 +55,7 @@ namespace BoomyBuilder.Builder
             Directory.CreateDirectory(genDir);
 
             string miloOutputPath = Path.Combine(genDir, Path.GetFileName(Request.OutPath) + ".milo_xbox");
-            WorkingMilo.Save(miloOutputPath, MiloFile.Type.Uncompressed);
+            WorkingMilo.Save(miloOutputPath, MiloFile.Type.CompressedZlibAlt);
 
             return null;
         }

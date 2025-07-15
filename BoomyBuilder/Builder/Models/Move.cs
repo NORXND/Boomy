@@ -3,98 +3,101 @@ namespace BoomyBuilder.Builder.Models.Move
     using System.Collections.Generic;
 
     using System.Globalization;
+    using BoomyBuilder.Builder.Models.Timeline;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
 
     public partial class Move
     {
-        [JsonProperty("clip", Required = Required.Always)]
-        public required string Clip { get; set; }
-
-        [JsonProperty("assets", Required = Required.Always)]
-        public required Assets Assets { get; set; }
-
-        [JsonProperty("data", Required = Required.Always)]
-        public required MoveData Data { get; set; }
-    }
-
-    public partial class MoveData
-    {
-        [JsonProperty("difficulty", Required = Required.Always)]
-        public Difficulty Difficulty { get; set; }
-        [JsonProperty("genre_flags", Required = Required.Always)]
-        public List<string> GenreFlags { get; set; }
-        [JsonProperty("era_flags", Required = Required.Always)]
-        public List<string> EraFlags { get; set; }
-        [JsonProperty("display_name", Required = Required.Always)]
+        public string Clip { get; set; }
+        public Difficulty difficulty { get; set; }
         public string DisplayName { get; set; }
-
-        [JsonProperty("name", Required = Required.Always)]
-        public string Name { get; set; }
-
-        [JsonProperty("move_name", Required = Required.Always)]
-        public string MoveName { get; set; }
-        [JsonProperty("move_miloname", Required = Required.Always)]
-        public string MoveMiloname { get; set; }
-
-        [JsonProperty("linked_to", Required = Required.Always)]
-        public string LinkedTo { get; set; }
-        [JsonProperty("linked_from", Required = Required.Always)]
-        public string LinkedFrom { get; set; }
-
-        [JsonProperty("genre", Required = Required.Always)]
-        public string Genre { get; set; }
-        [JsonProperty("era", Required = Required.Always)]
-        public string Era { get; set; }
-        [JsonProperty("song_name", Required = Required.Always)]
+        public string HamMoveName { get; set; }
+        public string MiloName { get; set; }
         public string SongName { get; set; }
-
-        [JsonProperty("avg_beats_per_sec", Required = Required.Always)]
-        public float AvgBeatsPerSec { get; set; }
-
-        [JsonProperty("flags", Required = Required.Always)]
+        public float AvgBeatsPerSecond { get; set; }
+        public string Genre { get; set; }
+        public string Era { get; set; }
         public uint Flags { get; set; }
-    }
+        public string LinkedFrom { get; set; }
+        public string LinkedTo { get; set; }
 
-    public partial class Assets
-    {
-        [JsonProperty("clips", Required = Required.Always)]
-        public required List<string> Clips { get; set; }
-
-        [JsonProperty("move", Required = Required.Always)]
-        public required List<string> Move { get; set; }
-
-        [JsonProperty("move_data", Required = Required.Always)]
-        public required List<string> MoveData { get; set; }
-    }
-
-    public partial class Move
-    {
-        public static Move? FromJson(string json)
+        public class JsonedMove
         {
-            return JsonConvert.DeserializeObject<Move>(json, Converter.Settings);
+            [JsonProperty("name", Required = Required.Always)]
+            public string name;
+            [JsonProperty("difficulty", Required = Required.Always)]
+            public int difficulty;
+            [JsonProperty("display_name", Required = Required.Always)]
+            public string displayName;
+            [JsonProperty("ham_move_name", Required = Required.Always)]
+            public string hamMoveName;
+            [JsonProperty("milo_name", Required = Required.Always)]
+            public string miloName;
+            [JsonProperty("song_name", Required = Required.Always)]
+            public string songName;
+            [JsonProperty("clips", Required = Required.Always)]
+            public Dictionary<string, JsonedClips> clips;
         }
-    }
 
-    public static class Serialize
-    {
-        public static string ToJson(this Move self)
+        public class JsonedClips
         {
-            return JsonConvert.SerializeObject(self, Converter.Settings);
+            [JsonProperty("avg_beats_per_second", Required = Required.Always)]
+            public string avg_beats_per_second;
+            [JsonProperty("genre", Required = Required.Always)]
+            public string genre;
+            [JsonProperty("era", Required = Required.Always)]
+            public string era;
+            [JsonProperty("flags", Required = Required.Always)]
+            public uint flags;
+            [JsonProperty("linked_to", Required = Required.Always)]
+            public string linked_from;
+            [JsonProperty("linked_from", Required = Required.Always)]
+            public string linked_to;
         }
-    }
 
-    internal static class Converter
-    {
-        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
+        public Move(MoveEvent data, BuildOperator op)
         {
-            MissingMemberHandling = MissingMemberHandling.Error,
-            MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
-            DateParseHandling = DateParseHandling.None,
-            Converters =
+            string movePath = Path.Combine(op.Request.MovesPath, data.MoveOriginPath, data.MoveSongPath, data.MovePath, "move.json");
+
+            if (!File.Exists(movePath))
             {
-                new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
-            },
-        };
+                throw new Exception($"Move file not found: {movePath}");
+            }
+
+            using (StreamReader sr = File.OpenText(movePath))
+            {
+                JsonSerializer serializer = new JsonSerializer();
+                serializer.Converters.Add(new StringEnumConverter());
+
+                JsonedMove jsonedMove = (JsonedMove)serializer.Deserialize(sr, typeof(JsonedMove));
+
+                // Map basic properties from JsonedMove
+                DisplayName = jsonedMove.displayName;
+                HamMoveName = jsonedMove.hamMoveName;
+                MiloName = jsonedMove.miloName;
+                SongName = jsonedMove.songName;
+                difficulty = (Difficulty)jsonedMove.difficulty;
+
+                // Select the specific clip based on data.Clip
+                if (jsonedMove.clips.ContainsKey(data.Clip))
+                {
+                    JsonedClips selectedClip = jsonedMove.clips[data.Clip];
+
+                    // Map clip-specific properties
+                    Clip = data.Clip;
+                    AvgBeatsPerSecond = float.Parse(selectedClip.avg_beats_per_second, CultureInfo.InvariantCulture);
+                    Genre = selectedClip.genre;
+                    Era = selectedClip.era;
+                    Flags = selectedClip.flags;
+                    LinkedFrom = selectedClip.linked_from;
+                    LinkedTo = selectedClip.linked_to;
+                }
+                else
+                {
+                    throw new Exception($"Clip '{data.Clip}' not found in move file: {movePath}");
+                }
+            }
+        }
     }
 }

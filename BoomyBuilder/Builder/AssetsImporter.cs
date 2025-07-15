@@ -20,14 +20,30 @@ namespace BoomyBuilder.Builder
 
         public static void ImportAsset(BuildRequest.BuildRequest req, BuildOperator buildOperator)
         {
+            // Registry to track imported files by destination directory
+            Dictionary<DirectoryMeta, HashSet<string>> importedFiles = new Dictionary<DirectoryMeta, HashSet<string>>();
 
             void ImportAsset(string assetPath, DirectoryMeta dir)
             {
                 string name = Path.GetFileName(assetPath);
                 string ext = Path.GetExtension(assetPath);
 
+                // Initialize registry for this directory if not exists
+                if (!importedFiles.ContainsKey(dir))
+                {
+                    importedFiles[dir] = new HashSet<string>();
+                }
+
+                // Check if already imported in this session
+                if (importedFiles[dir].Contains(name))
+                {
+                    return;
+                }
+
+                // Check if already exists in directory
                 if (dir.entries.Any(entry => entry.name == name))
                 {
+                    importedFiles[dir].Add(name); // Mark as imported even if it already existed
                     return;
                 }
 
@@ -36,6 +52,9 @@ namespace BoomyBuilder.Builder
 
                 DirectoryMeta.Entry entry = DirectoryMeta.Entry.CreateDirtyAssetFromBytes(assetType, name, [.. fileBytes]);
                 dir.entries.Add(entry);
+
+                // Mark as imported
+                importedFiles[dir].Add(name);
 
                 using EndianReader reader = new(new MemoryStream(fileBytes), Endian.BigEndian);
                 switch (assetType)
@@ -49,30 +68,50 @@ namespace BoomyBuilder.Builder
                     case "DancerSequence":
                         entry.obj = new DancerSequence().Read(reader, false, dir, entry);
                         break;
-                    case "CharClip (Ham)":
+                    case "CharClip":
                         entry.obj = new CharClip().Read(reader, false, dir, entry);
                         break;
                 }
             }
 
 
-            void ImportMoveAssets(Move move)
+            void ImportMoveAssets(string movePath, string clip)
             {
-                // Clips
-                // WARNING: We assume there are clips and clips ONLY in clips directory. Putting no clips will explode your PC !!!
-                move.Assets.Clips.ForEach(asset =>
+                if (!Directory.Exists(movePath))
+                {
+                    throw new Exception($"Move path does not exist: {movePath}");
+                }
+
+                string[] allFiles = Directory.GetFiles(movePath);
+
+                // Clips - get all files with no extension
+                var clipFiles = allFiles.Where(file => Path.GetFileNameWithoutExtension(file) == clip).ToList();
+                clipFiles.ForEach(asset =>
                 {
                     DirectoryMeta dir = buildOperator.ClipsDir ?? throw new Exception("No clips directory set");
                     ImportAsset(asset, dir);
                 });
 
-                move.Assets.Move.ForEach(asset =>
+                // Move - get all .tex, .move, and .seq files
+                var moveFiles = allFiles.Where(file =>
+                {
+                    string ext = Path.GetExtension(file).ToLowerInvariant();
+                    return ext == ".tex" || ext == ".move" || ext == ".seq";
+                }).ToList();
+                moveFiles.ForEach(asset =>
                 {
                     DirectoryMeta dir = buildOperator.MovesDir ?? throw new Exception("No moves directory set");
                     ImportAsset(asset, dir);
                 });
 
-                move.Assets.MoveData.ForEach(asset =>
+                // MoveData - get all .tex, .move, .seq, and no extension files
+                var moveDataFiles = allFiles.Where(file =>
+                {
+                    string ext = Path.GetExtension(file).ToLowerInvariant();
+                    string name = Path.GetFileName(file);
+                    return ext == ".tex" || ext == ".move" || ext == ".seq" || name == clip;
+                }).ToList();
+                moveDataFiles.ForEach(asset =>
                 {
                     DirectoryMeta dir = buildOperator.MoveDataDir ?? throw new Exception("No move_data directory set");
                     ImportAsset(asset, dir);
@@ -80,9 +119,9 @@ namespace BoomyBuilder.Builder
             }
 
 
-            req.Timeline.Easy.Moves.ForEach(m => ImportMoveAssets(m.Move));
-            req.Timeline.Medium.Moves.ForEach(m => ImportMoveAssets(m.Move));
-            req.Timeline.Expert.Moves.ForEach(m => ImportMoveAssets(m.Move));
+            req.Timeline.Easy.Moves.ForEach(m => ImportMoveAssets(Path.Combine(buildOperator.Request.MovesPath, m.MoveOriginPath, m.MoveSongPath, m.MovePath), m.Clip));
+            req.Timeline.Medium.Moves.ForEach(m => ImportMoveAssets(Path.Combine(buildOperator.Request.MovesPath, m.MoveOriginPath, m.MoveSongPath, m.MovePath), m.Clip));
+            req.Timeline.Expert.Moves.ForEach(m => ImportMoveAssets(Path.Combine(buildOperator.Request.MovesPath, m.MoveOriginPath, m.MoveSongPath, m.MovePath), m.Clip));
         }
     }
 }

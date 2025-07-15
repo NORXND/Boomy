@@ -11,11 +11,11 @@ namespace BoomyBuilder.Builder.BuildRequest
         [JsonProperty("path", Required = Required.Always)]
         public required string Path { get; set; }
 
+        [JsonProperty("moves_path", Required = Required.Always)]
+        public required string MovesPath { get; set; }
+
         [JsonProperty("out_path", Required = Required.Always)]
         public required string OutPath { get; set; }
-
-        [JsonProperty("song_meta", Required = Required.Always)]
-        public required SongMeta SongMeta { get; set; }
 
         [JsonProperty("timeline", Required = Required.Always)]
         public required Timeline Timeline { get; set; }

@@ -1,7 +1,7 @@
 namespace BoomyBuilder.Builder.Models.Timeline
 {
     using System.Collections.Generic;
-
+    using System.ComponentModel.DataAnnotations;
     using System.Globalization;
     using BoomyBuilder.Builder.Models.Move;
     using Newtonsoft.Json;
@@ -40,8 +40,17 @@ namespace BoomyBuilder.Builder.Models.Timeline
         [JsonProperty("beat", Required = Required.Always)]
         public int Beat { get; set; }
 
+        [JsonProperty("clip", Required = Required.Always)]
+        public string Clip { get; set; }
+
+        [JsonProperty("move_origin", Required = Required.Always)]
+        public string MoveOriginPath { get; set; }
+
+        [JsonProperty("move_song", Required = Required.Always)]
+        public string MoveSongPath { get; set; }
+
         [JsonProperty("move", Required = Required.Always)]
-        public required Move Move { get; set; }
+        public required string MovePath { get; set; }
     }
 
     public partial class Timeline

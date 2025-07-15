@@ -303,386 +303,68 @@ namespace MiloLib.Assets.Rnd
         public Symbol unkSym3 = new Symbol(0, "");
 
 
-
+        public List<byte> binaryData = new List<byte>();
 
 
         public RndMat Read(EndianReader reader, bool standalone, DirectoryMeta parent, DirectoryMeta.Entry entry)
         {
-            uint combinedRevision = reader.ReadUInt32();
-            if (BitConverter.IsLittleEndian) (revision, altRevision) = ((ushort)(combinedRevision & 0xFFFF), (ushort)((combinedRevision >> 16) & 0xFFFF));
-            else (altRevision, revision) = ((ushort)(combinedRevision & 0xFFFF), (ushort)((combinedRevision >> 16) & 0xFFFF));
-
-            if (revision <= 9)
+            if (standalone)
             {
-            }
-            else if (revision <= 21)
-            {
-                textureCount = reader.ReadUInt32();
-                for (int i = 0; i < textureCount; i++)
+                while (reader.BaseStream.Position < reader.BaseStream.Length - 4)
                 {
-                    textures.Add(new TextureEntry().Read(reader));
-                }
-            }
+                    uint potentialMarker = reader.ReadUInt32();
+                    uint endMarker = reader.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD;
 
-            base.Read(reader, false, parent, entry);
-
-            blend = (Blend)reader.ReadInt32();
-            color = new HmxColor4().Read(reader);
-
-            if (revision <= 21)
-            {
-                reader.ReadByte();
-                reader.ReadUInt16();
-                reader.ReadInt32();
-                reader.ReadUInt16();
-                reader.ReadUInt32();
-                reader.ReadUInt16();
-
-                if (standalone)
-                {
-                    if ((reader.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD) != reader.ReadUInt32()) throw new Exception("Got to end of standalone asset but didn't find the expected end bytes, read likely did not succeed");
-                }
-                return this;
-            }
-
-            preLit = reader.ReadBoolean();
-            useEnviron = reader.ReadBoolean();
-            zMode = (ZMode)reader.ReadInt32();
-            alphaCut = reader.ReadBoolean();
-            if (revision > 0x25)
-                alphaThreshold = reader.ReadInt32();
-            alphaWrite = reader.ReadBoolean();
-            texGen = (TexGen)reader.ReadInt32();
-            texWrap = (TexWrap)reader.ReadInt32();
-            texXfm = new Matrix().Read(reader);
-            diffuseTex = Symbol.Read(reader);
-            nextPass = Symbol.Read(reader);
-            intensify = reader.ReadBoolean();
-
-            cull = reader.ReadBoolean();
-            emissiveMultiplier = reader.ReadFloat();
-            specularRGB = new HmxColor3().Read(reader);
-            specularPower = reader.ReadFloat();
-            normalMap = Symbol.Read(reader);
-            emissiveMap = Symbol.Read(reader);
-            specularMap = Symbol.Read(reader);
-            if (revision < 51)
-            {
-                unkSymbol2 = Symbol.Read(reader);
-            }
-
-            environMap = Symbol.Read(reader);
-
-            if (revision > 25)
-            {
-                if (revision == 68)
-                {
-                    unkShort = reader.ReadUInt16();
-                }
-            }
-
-            perPixelLit = reader.ReadBoolean();
-            if (revision >= 27 && revision < 50)
-            {
-                unkBool1 = reader.ReadBoolean();
-            }
-
-            if (revision > 27)
-                stencilMode = (StencilMode)reader.ReadInt32();
-
-            if (revision < 33)
-            {
-            }
-            else
-            {
-                fur = Symbol.Read(reader);
-            }
-
-            if (revision >= 34 && revision < 49)
-            {
-                unkBool2 = reader.ReadBoolean();
-                unkColor3 = new HmxColor3().Read(reader);
-                unkFloat3 = reader.ReadFloat();
-
-                if (revision > 34)
-                {
-                    unkSym3 = Symbol.Read(reader);
-                }
-            }
-
-            if (revision <= 28)
-            {
-                if (standalone)
-                {
-                    if ((reader.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD) != reader.ReadUInt32()) throw new Exception("Got to end of standalone asset but didn't find the expected end bytes, read likely did not succeed");
-                }
-                return this;
-            }
-
-
-
-
-            if (revision > 35)
-            {
-                deNormal = reader.ReadFloat();
-                anisotropy = reader.ReadFloat();
-            }
-
-            if (revision > 38)
-            {
-                normalDetailTiling = reader.ReadFloat();
-                normalDetailStrength = reader.ReadFloat();
-                normalDetailMap = Symbol.Read(reader);
-            }
-
-            pointLights = reader.ReadBoolean();
-            if (revision < 0x3F)
-                projLights = reader.ReadBoolean();
-            fog = reader.ReadBoolean();
-            fadeout = reader.ReadBoolean();
-            colorAdjust = reader.ReadBoolean();
-
-            if (revision > 47)
-            {
-                rimRGB = new HmxColor3().Read(reader);
-                rimPower = reader.ReadFloat();
-
-                rimMap = Symbol.Read(reader);
-                rimAlwaysShow = reader.ReadBoolean();
-            }
-
-            if (revision > 48)
-                screenAligned = reader.ReadBoolean();
-
-            if (revision > 0x32)
-            {
-                shaderVariation = (ShaderVariation)reader.ReadInt32();
-                specular2RGB = new HmxColor3().Read(reader);
-                specular2Power = reader.ReadFloat();
-            }
-
-            if (revision >= 52 && revision <= 67)
-            {
-                if (revision < 0x35)
-                    unkBool = reader.ReadBoolean();
-                else
-                    unkInt3 = reader.ReadInt32();
-
-                if (revision >= 53 && revision <= 59)
-                {
-                    unkColor2 = new HmxColor4().Read(reader);
-                }
-
-                if (revision >= 0x3C)
-                {
-                    colorsCount = reader.ReadUInt32();
-                    for (int i = 0; i < colorsCount; i++)
+                    if (potentialMarker == endMarker)
                     {
-                        colors.Add(new HmxColor4().Read(reader));
+                        // Found the marker, go back 4 bytes so we can read it again in the check below
+                        reader.BaseStream.Position -= 4;
+                        break;
+                    }
+                    else
+                    {
+                        // Go back 3 bytes to continue searching (overlapping check)
+                        reader.BaseStream.Position -= 3;
 
+                        // Add only the first byte we read
+                        binaryData.Add((byte)(potentialMarker >> 24));
                     }
                 }
 
-            }
+                // Check for the end marker
+                if ((reader.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD) != reader.ReadUInt32())
+                    throw new Exception("Got to end of standalone asset but didn't find the expected end bytes, read likely did not succeed");
 
-            if (revision >= 54 && revision <= 61)
+                return this;
+            }
+            else
             {
-                unkSym2 = Symbol.Read(reader);
-            }
+                while (reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    try
+                    {
+                        binaryData.Add(reader.ReadByte());
+                    }
+                    catch (EndOfStreamException)
+                    {
+                        break;
+                    }
+                }
 
-            if (revision >= 55 && revision <= 62)
-                perfSettings.ps3ForceTrilinear = reader.ReadBoolean();
-
-            if (revision == 0x38)
-            {
-                unkInt1 = reader.ReadInt32();
-                unkInt2 = reader.ReadInt32();
+                return this;
             }
-
-            if (revision > 0x3E)
-            {
-                perfSettings.Read(reader, revision);
-            }
-
-            if (revision > 0x3F)
-            {
-                refractEnabled = reader.ReadBoolean();
-                refractStrength = reader.ReadFloat();
-                refractNormalMap = Symbol.Read(reader);
-            }
-
-            if (standalone)
-            {
-                if ((reader.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD) != reader.ReadUInt32()) throw new Exception("Got to end of standalone asset but didn't find the expected end bytes, read likely did not succeed");
-            }
-            return this;
 
         }
         public override void Write(EndianWriter writer, bool standalone, DirectoryMeta parent, DirectoryMeta.Entry? entry)
         {
-            writer.WriteUInt32(BitConverter.IsLittleEndian ? (uint)((altRevision << 16) | revision) : (uint)((revision << 16) | altRevision));
-
-            base.Write(writer, false, parent, entry);
-
-            writer.WriteInt32((int)blend);
-            color.Write(writer);
-            writer.WriteBoolean(preLit);
-            writer.WriteBoolean(useEnviron);
-            writer.WriteInt32((int)zMode);
-            writer.WriteBoolean(alphaCut);
-            if (revision > 0x25)
-                writer.WriteInt32(alphaThreshold);
-            writer.WriteBoolean(alphaWrite);
-            writer.WriteInt32((int)texGen);
-            writer.WriteInt32((int)texWrap);
-            texXfm.Write(writer);
-            Symbol.Write(writer, diffuseTex);
-            Symbol.Write(writer, nextPass);
-            writer.WriteBoolean(intensify);
-
-            writer.WriteBoolean(cull);
-            writer.WriteFloat(emissiveMultiplier);
-            specularRGB.Write(writer);
-            writer.WriteFloat(specularPower);
-            Symbol.Write(writer, normalMap);
-            Symbol.Write(writer, emissiveMap);
-            Symbol.Write(writer, specularMap);
-            if (revision < 51)
+            // Write the binary data
+            foreach (byte b in binaryData)
             {
-                Symbol.Write(writer, unkSymbol2);
+                writer.WriteByte(b);
             }
-            Symbol.Write(writer, environMap);
-
-            if (revision > 25)
-            {
-                if (revision == 68)
-                    writer.WriteUInt16(unkShort);
-            }
-
-            writer.WriteBoolean(perPixelLit);
-
-            if (revision >= 27 && revision < 50)
-            {
-                writer.WriteBoolean(unkBool1);
-            }
-
-            writer.WriteInt32((int)stencilMode);
-            if (revision < 33)
-            {
-            }
-            else
-            {
-                Symbol.Write(writer, fur);
-            }
-
-            if (revision >= 34 && revision < 49)
-            {
-                writer.WriteBoolean(unkBool2);
-                unkColor3.Write(writer);
-                writer.WriteFloat(unkFloat3);
-
-                if (revision > 34)
-                {
-                    Symbol.Write(writer, unkSym3);
-                }
-            }
-
-            if (revision <= 28)
-            {
-                if (standalone)
-                {
-                    writer.WriteUInt32(writer.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD);
-                }
-                return;
-            }
-
-            writer.WriteFloat(deNormal);
-            writer.WriteFloat(anisotropy);
-            writer.WriteFloat(normalDetailTiling);
-            writer.WriteFloat(normalDetailStrength);
-            Symbol.Write(writer, normalDetailMap);
-
-            writer.WriteBoolean(pointLights);
-            if (revision < 0x3F)
-                writer.WriteBoolean(projLights);
-            writer.WriteBoolean(fog);
-            writer.WriteBoolean(fadeout);
-            writer.WriteBoolean(colorAdjust);
-
-            if (revision > 47)
-            {
-                rimRGB.Write(writer);
-                writer.WriteFloat(rimPower);
-
-                Symbol.Write(writer, rimMap);
-                writer.WriteBoolean(rimAlwaysShow);
-            }
-
-            if (revision > 48)
-                writer.WriteBoolean(screenAligned);
-
-            if (revision > 0x32)
-            {
-                writer.WriteInt32((int)shaderVariation);
-                specular2RGB.Write(writer);
-                writer.WriteFloat(specular2Power);
-            }
-
-            if (revision >= 52 && revision <= 67)
-            {
-                if (revision < 0x35)
-                    writer.WriteBoolean(unkBool);
-                else
-                    writer.WriteInt32(unkInt3);
-
-                if (revision >= 53 && revision <= 59)
-                {
-                    unkColor2.Write(writer);
-                }
-
-                if (revision >= 0x3C)
-                {
-                    writer.WriteUInt32((uint)colors.Count);
-                    foreach (var color in colors)
-                    {
-                        color.Write(writer);
-                    }
-                }
-
-            }
-
-            if (revision >= 54 && revision <= 61)
-            {
-                Symbol.Write(writer, unkSym2);
-            }
-
-            if (revision >= 55 && revision <= 62)
-                writer.WriteBoolean(perfSettings.ps3ForceTrilinear);
-
-            if (revision == 0x38)
-            {
-                writer.WriteInt32(unkInt1);
-                writer.WriteInt32(unkInt2);
-            }
-
-            if (revision > 0x3E)
-            {
-                perfSettings.Write(writer, revision);
-            }
-
-            if (revision > 0x3F)
-            {
-                writer.WriteBoolean(refractEnabled);
-                writer.WriteFloat(refractStrength);
-                Symbol.Write(writer, refractNormalMap);
-            }
-
-
 
             if (standalone)
-            {
-                writer.WriteUInt32(writer.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD);
-            }
+                writer.WriteBlock(new byte[4] { 0xAD, 0xDE, 0xAD, 0xDE });
         }
 
         public static RndMat New(ushort revision, ushort altRevision)
