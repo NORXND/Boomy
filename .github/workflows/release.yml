@@ -9,7 +9,7 @@ jobs:
     build:
         strategy:
             matrix:
-                os: [windows-latest, macos-latest, ubuntu-latest]
+                os: [windows-latest, macos-latest]
                 include:
                     - os: windows-latest
                       platform: win32
@@ -19,10 +19,6 @@ jobs:
                       platform: darwin
                       arch: x64
                       dotnet-runtime: osx-x64
-                    - os: ubuntu-latest
-                      platform: linux
-                      arch: x64
-                      dotnet-runtime: linux-x64
 
         runs-on: ${{ matrix.os }}
 
