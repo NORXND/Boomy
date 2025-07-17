@@ -1,3 +1,20 @@
 {
-  "extends": "@react-native/typescript-config"
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "react",
+		"target": "ESNext",
+		"module": "commonjs",
+		"allowJs": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"noImplicitAny": true,
+		"sourceMap": true,
+		"baseUrl": ".",
+		"outDir": "dist",
+		"moduleResolution": "node",
+		"resolveJsonModule": true,
+		"paths": {
+			"@/*": ["./src/app/*"]
+		}
+	}
 }

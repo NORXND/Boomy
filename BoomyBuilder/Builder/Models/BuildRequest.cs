@@ -14,6 +14,12 @@ namespace BoomyBuilder.Builder.BuildRequest
         [JsonProperty("moves_path", Required = Required.Always)]
         public required string MovesPath { get; set; }
 
+        [JsonProperty("milo_template_path", Required = Required.Always)]
+        public required string MiloTemplatePath { get; set; }
+
+        [JsonProperty("barks_template_path", Required = Required.Always)]
+        public required string BarksTemplatePath { get; set; }
+
         [JsonProperty("out_path", Required = Required.Always)]
         public required string OutPath { get; set; }
 

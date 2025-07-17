@@ -21,14 +21,14 @@ namespace BoomyBuilder.Builder.ChoreoMaker
 
                 int totalBeats = track.Keys.Max();
 
-                for (int i = 0; i < totalBeats; i++)
+                for (int i = 1; i <= totalBeats; i++)
                 {
-                    if (i == 0 && !track.ContainsKey(i))
+                    if (i == 1 && !track.ContainsKey(i))
                     {
-                        throw new Exception("No move found at beat 0!");
+                        throw new BoomyException("No move found at beat 1!");
                     }
 
-                    if (i > 0 && !track.ContainsKey(i))
+                    if (i > 1 && !track.ContainsKey(i))
                     {
                         track[i] = track[i - 1];
                     }

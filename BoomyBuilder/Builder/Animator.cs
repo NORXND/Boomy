@@ -17,7 +17,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = beat * 60;
+                    float time = (beat - 1) * 60;
                     Move move = track[beat];
 
                     key.keys.Add(new AnimEventSymbol()
@@ -32,7 +32,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = beat * 60;
+                    float time = (beat - 1) * 60;
                     Move move = track[beat];
 
                     key.keys.Add(new AnimEventSymbol()
@@ -47,7 +47,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = beat * 60;
+                    float time = (beat - 1) * 60;
                     CameraPosition position = track[beat];
 
 

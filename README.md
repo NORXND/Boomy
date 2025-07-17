@@ -10,13 +10,13 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 
 **Boomy Editor** - React Native interactive editor for creating choreographies.
 **Boomy Builder** - Song builder backend API, builds the song milo.
-**Boomy Deps** - Dependencies including modified `MiloLib`.
+**Boomy Deps** - Dependencies including modified `MiloLib` and `makemogg`.
 
 ## Supported Features
 
 -   [ ] Song Metadata
--   [ ] Moves Editor
--   [ ] Camera Shots Editor
+-   [x] Moves Editor
+-   [x] Camera Shots Editor
 -   [ ] Practice Sections Editor
 -   [ ] Importing existing DC3 songs
 -   [ ] Importing existing DC1 / DC2 songs
@@ -25,7 +25,7 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 
 ## Song Compatibility
 
--   [ ] Performance Mode
+-   [x] Performance Mode
 -   [ ] Rehearse (Break It Down)
 -   [ ] Keep The Beat
 -   [ ] Strike A Pose
@@ -37,4 +37,4 @@ NORXND - Tool creator and maintainer.
 MiloHax Team - For MiloLib and generally research on DC, Milo and other Harmonix stuff.
 
 This software uses MiloLib being a part of [MiloEditor](https://github.com/ihatecompvir/MiloEditor) by ihatecompvir
-This software uses [dds-reader](https://github.com/andburn/dds-reader) by Andrew Burnett
+This software uses [makemogg](https://github.com/maxton/makemogg) by maxton

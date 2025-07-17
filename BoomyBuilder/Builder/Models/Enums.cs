@@ -222,14 +222,28 @@ namespace BoomyBuilder.Builder.Models
         Area1Near,
         [EnumMember(Value = "Area1_MOVEMENT")]
         Area1Movement,
+        [EnumMember(Value = "Area1_WIDE")]
+        Area1Wide,
         [EnumMember(Value = "Area1_FAR")]
         Area1Far,
         [EnumMember(Value = "Area2_NEAR")]
         Area2Near,
         [EnumMember(Value = "Area2_MOVEMENT")]
         Area2Movement,
+        [EnumMember(Value = "Area2_WIDE")]
+        Area2Wide,
         [EnumMember(Value = "Area2_FAR")]
         Area2Far,
+        [EnumMember(Value = "Area3_NEAR")]
+        Area3Near,
+        [EnumMember(Value = "Area3_MOVEMENT")]
+        Area3Movement,
+        [EnumMember(Value = "Area3_WIDE")]
+        Area3Wide,
+        [EnumMember(Value = "Area3_FAR")]
+        Area3Far,
+        [EnumMember(Value = "DC_PLAYER_FREESTYLE")]
+        DCPlayerFreestyle,
     }
 
     public enum Difficulty

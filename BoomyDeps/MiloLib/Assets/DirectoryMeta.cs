@@ -1163,6 +1163,10 @@ namespace MiloLib.Assets
                     Debug.WriteLine("Reading entry SynthSample " + entry.name.value);
                     entry.obj = new SynthSample().Read(reader, true, this, entry);
                     break;
+                case "Sound":
+                    Debug.WriteLine("Reading entry Sound " + entry.name.value);
+                    entry.obj = new Sound().Read(reader, true, this, entry);
+                    break;
                 case "Tex":
                     Debug.WriteLine("Reading entry Tex " + entry.name.value);
                     entry.obj = new RndTex().Read(reader, true, this, entry);
@@ -1663,6 +1667,9 @@ namespace MiloLib.Assets
                     break;
                 case "SynthSample":
                     ((SynthSample)entry.obj).Write(writer, true, this, entry);
+                    break;
+                case "Sound":
+                    ((Sound)entry.obj).Write(writer, true, this, entry);
                     break;
                 case "Tex":
                     ((RndTex)entry.obj).Write(writer, true, this, entry);

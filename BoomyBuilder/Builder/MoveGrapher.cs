@@ -26,7 +26,7 @@ namespace BoomyBuilder.Builder.MoveGrapher
                     Dictionary<string, MoveCandidate> previousCandidates = [];
                     Dictionary<string, MoveCandidate> nextCandidates = [];
 
-                    if (beat != 0)
+                    if (beat != 1)
                     {
                         Move previousMove = track[beat - 1];
                         if (!previousCandidates.ContainsKey(previousMove.Clip))
@@ -43,7 +43,7 @@ namespace BoomyBuilder.Builder.MoveGrapher
                         }
                     }
 
-                    if (beat != track.Count - 1)
+                    if (beat != track.Count)
                     {
                         Move nextMove = track[beat + 1];
                         if (!nextCandidates.ContainsKey(nextMove.Clip))
@@ -166,7 +166,7 @@ namespace BoomyBuilder.Builder.MoveGrapher
 
             void CreateMoveArray(DTBArrayParent array, Dictionary<int, Move> track)
             {
-                for (var i = 0; i < track.Count; i++)
+                for (var i = 1; i <= track.Count; i++)
                 {
                     Move move = track[i];
                     array.children.Add(new DTBNode() { type = NodeType.Symbol, value = (Symbol)move.Clip });

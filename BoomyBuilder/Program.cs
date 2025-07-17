@@ -1,26 +1,27 @@
-using BoomyBuilder.Builder;
+﻿using BoomyBuilder.Builder;
 
-var builder = WebApplication.CreateBuilder(args);
-
-var app = builder.Build();
-
-app.MapGet("/", () =>
+namespace BoomyBuilder
 {
-    return "OK!";
-});
-
-app.MapPost("/build/v1", async (HttpContext context) =>
-{
-    string body = "";
-    using (StreamReader stream = new StreamReader(context.Request.Body))
+    public class Program
     {
-        body = await stream.ReadToEndAsync();
+        public async Task<object> Build(dynamic data)
+        {
+            try
+            {
+                BuildOperator buildOperator = new(data);
+                buildOperator.Build();
+                return "[>>>__BUILD_SUCCESS__<<<]";
+            }
+            catch (Exception ex)
+            {
+                if (ex is BoomyException)
+                {
+                    // If it is BoomyException, just a return a friendly message without a stack trace
+                    return ex.Message;
+                }
+
+                return ex.ToString();
+            }
+        }
     }
-
-    BuildOperator buildOperator = new(body);
-    buildOperator.Build();
-
-    return "OK!";
-});
-
-app.Run();
+}

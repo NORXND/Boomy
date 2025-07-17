@@ -18,7 +18,7 @@ namespace BoomyBuilder.Builder
             {"", "CharClip"},
         };
 
-        public static void ImportAsset(BuildRequest.BuildRequest req, BuildOperator buildOperator)
+        public static void ImportAsset(BuildRequest.BuildRequest req, BuildOperator buildOperator, List<HamMove> hamMoves)
         {
             // Registry to track imported files by destination directory
             Dictionary<DirectoryMeta, HashSet<string>> importedFiles = new Dictionary<DirectoryMeta, HashSet<string>>();
@@ -64,6 +64,7 @@ namespace BoomyBuilder.Builder
                         break;
                     case "HamMove":
                         entry.obj = new HamMove().Read(reader, false, dir, entry);
+                        hamMoves.Add((HamMove)entry.obj);
                         break;
                     case "DancerSequence":
                         entry.obj = new DancerSequence().Read(reader, false, dir, entry);
