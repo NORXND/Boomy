@@ -10,7 +10,7 @@ namespace BoomyBuilder
             {
                 BuildOperator buildOperator = new(data);
                 buildOperator.Build();
-                return "[>>>__BUILD_SUCCESS__<<<]";
+                return "OK";
             }
             catch (Exception ex)
             {

@@ -209,11 +209,8 @@ const electronAPI = {
 			'edge:callBoomyBuilder',
 			buildRequest
 		);
-		if (result.success) {
-			return result.data;
-		} else {
-			throw new Error(result.error);
-		}
+
+		return result;
 	},
 
 	// Convert OGG to MOGG using makemogg.exe (Windows only)

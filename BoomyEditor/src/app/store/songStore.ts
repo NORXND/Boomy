@@ -353,10 +353,12 @@ export const useSongStore = create<SongState>()(
 						description: `Output: ${result.outputPath}`,
 					});
 				} catch (error) {
-					toast.error(`Error converting to MOGG`, {
-						description: error.toString(),
-					});
-					return;
+					toast.error(
+						`Error converting to MOGG. Build will fail you did not build it manually!`,
+						{
+							description: error.toString(),
+						}
+					);
 				}
 
 				try {
@@ -414,6 +416,8 @@ export const useSongStore = create<SongState>()(
 
 					const buildResult =
 						await window.electronAPI.callBoomyBuilder(buildRequest);
+
+					console.log('BoomyBuilder result:', buildResult);
 
 					set({ isLoading: false });
 

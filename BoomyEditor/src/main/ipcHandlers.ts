@@ -250,11 +250,18 @@ export function setupEdgeHandlers() {
 							reject(error);
 						} else {
 							console.log('Edge.js call result:', result);
-							resolve(result);
+
+							if (result == 'OK') {
+								resolve(result);
+							} else {
+								reject();
+							}
 						}
 					}
 				);
 			});
+
+			console.log('Edge.js call completed successfully:', result);
 
 			return {
 				success: true,
