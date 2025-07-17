@@ -1,10 +1,20 @@
+import { ImportedMoves } from '@/components/ImportedMoves';
+import {
+	ResizableHandle,
+	ResizablePanel,
+	ResizablePanelGroup,
+} from '@/components/ui/resizable';
+
 export function PracticeSections() {
 	return (
-		<div className="p-4">
-			<h2 className="text-xl font-bold mb-4">Practice Sections</h2>
-			<p className="text-muted-foreground">
-				Practice sections editor - coming soon
-			</p>
+		<div className="p-4 max-h-full h-full">
+			<ResizablePanelGroup direction="horizontal">
+				<ResizablePanel>{/* <SectionEditor /> */}</ResizablePanel>
+				<ResizableHandle />
+				<ResizablePanel>
+					<ImportedMoves />
+				</ResizablePanel>
+			</ResizablePanelGroup>
 		</div>
 	);
 }

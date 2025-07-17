@@ -4,23 +4,33 @@ namespace BoomyBuilder
 {
     public class Program
     {
-        public async Task<object> Build(dynamic data)
+        public static async Task<int> Main(string[] args)
         {
             try
             {
-                BuildOperator buildOperator = new(data);
-                buildOperator.Build();
-                return "OK";
+                string inputJson;
+                if (args.Length > 0 && File.Exists(args[0]))
+                {
+                    inputJson = await File.ReadAllTextAsync(args[0]);
+                }
+                else
+                {
+                    // Read from stdin
+                    using var reader = new StreamReader(Console.OpenStandardInput());
+                    inputJson = await reader.ReadToEndAsync();
+                }
+
+                BuildOperator buildOperator = new(inputJson);
+                var result = buildOperator.Build();
+                var output = new { success = true, result };
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(output));
+                return 0;
             }
             catch (Exception ex)
             {
-                if (ex is BoomyException)
-                {
-                    // If it is BoomyException, just a return a friendly message without a stack trace
-                    return ex.Message;
-                }
-
-                return ex.ToString();
+                var output = new { success = false, error = ex is BoomyException ? ex.Message : ex.ToString() };
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(output));
+                return 1;
             }
         }
     }

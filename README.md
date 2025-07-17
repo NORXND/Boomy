@@ -31,6 +31,14 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 -   [ ] Strike A Pose
 -   [ ] Make Your Move
 
+### Cotributing
+
+Boomy Builder building:
+
+Windows: `dotnet publish -c Release -r win-x64`
+Linux: `dotnet publish -c Release -r linux-x64`
+macOS: `dotnet publish -c Release -r osx-x64`
+
 ## Credits
 
 NORXND - Tool creator and maintainer.

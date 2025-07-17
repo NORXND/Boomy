@@ -4,21 +4,16 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PreserveCompilationContext>true</PreserveCompilationContext>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <OutputType>Exe</OutputType>
     <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
-    <OutputType>Library</OutputType>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <ProjectReference Include="..\BoomyDeps\MiloLib\MiloLib.csproj"/>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="EdgeJs">
-      <HintPath>..\BoomyEditor\node_modules\electron-edge-js\lib\bootstrap\bin\Release\EdgeJs.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup>

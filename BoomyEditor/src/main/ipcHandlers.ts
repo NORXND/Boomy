@@ -4,15 +4,6 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 
 // Import edge using require for better compatibility
-let edge: any;
-try {
-	process.env.EDGE_USE_CORECLR = '1';
-	edge = require('electron-edge-js');
-	console.log('electron-edge-js loaded successfully');
-} catch (error) {
-	console.error('Failed to load electron-edge-js:', error);
-	edge = null;
-}
 
 const resourcesPath = process.resourcesPath || path.join(__dirname, '..');
 
@@ -170,103 +161,110 @@ export function setupFileSystemHandlers() {
 export function setupEdgeHandlers() {
 	ipcMain.handle('edge:callBoomyBuilder', async (_, buildRequest: any) => {
 		try {
-			// Check if edge is available
-			if (!edge) {
-				return {
-					success: false,
-					error: 'electron-edge-js is not available. The module may not be properly compiled for this Electron version.',
-				};
-			}
+			// Determine executable name and possible paths per platform
+			let exeName = 'BoomyBuilder';
+			if (process.platform === 'win32') exeName += '.exe';
 
-			// Find the BoomyBuilder.dll - look in common build locations
-			const possiblePaths = [
-				path.join(
-					process.cwd(),
-					'..',
-					'BoomyBuilder',
-					'bin',
-					'Debug',
-					'net8.0',
-					'BoomyBuilder.dll'
-				),
-				path.join(__dirname, 'BoomyBuilder.dll'),
-				path.join(resourcesPath, 'net8.0', 'BoomyBuilder.dll'),
-			];
+			const debugPath = path.join(
+				process.cwd(),
+				'..',
+				'BoomyBuilder',
+				'bin',
+				'Debug',
+				'net8.0',
+				exeName
+			);
+			const releasePath = path.join(
+				process.cwd(),
+				'..',
+				'BoomyBuilder',
+				'bin',
+				'Release',
+				'net8.0',
+				exeName
+			);
+			const prodPath = path.join(resourcesPath, 'publish', exeName);
 
-			let builderDllPath: string | null = null;
+			const possiblePaths = [prodPath, releasePath, debugPath];
 
-			// Find the first existing dll path
-			for (const dllPath of possiblePaths) {
+			let builderExePath: string | null = null;
+			for (const exePath of possiblePaths) {
 				try {
-					await fs.access(dllPath);
-					builderDllPath = dllPath;
+					await fs.access(exePath);
+					builderExePath = exePath;
 					break;
 				} catch {
 					// Continue searching
 				}
 			}
 
-			if (!builderDllPath) {
+			if (!builderExePath) {
 				return {
 					success: false,
-					error: 'BoomyBuilder.dll not found. Make sure BoomyBuilder is built first.',
+					error: `${exeName} not found. Make sure BoomyBuilder is built first.`,
 				};
 			}
 
-			console.log('Found BoomyBuilder.dll at:', builderDllPath);
+			console.log(`Found BoomyBuilder executable at: ${builderExePath}`);
 
-			// Create the edge function to call C# method
-			// Based on your BuildOperator.cs, we need to call the static BuildFromJson method
-			const buildSong = edge.func({
-				assemblyFile: builderDllPath,
-				typeName: 'BoomyBuilder.Program',
-				methodName: 'Build',
-			});
-
+			// Prepare request JSON
 			const request = buildRequest;
 			request['milo_template_path'] = path.join(
-				path.dirname(builderDllPath),
+				path.dirname(builderExePath),
 				'Assets',
 				'template.milo_xbox'
 			);
 			request['barks_template_path'] = path.join(
-				path.dirname(builderDllPath),
+				path.dirname(builderExePath),
 				'Assets',
 				'barks_template.milo_xbox'
 			);
 
-			console.log(
-				'Edge function created, calling with request:',
-				JSON.stringify(request, null, 2)
-			);
+			// Spawn the process and send JSON via stdin
+			return await new Promise((resolve) => {
+				const child = spawn(builderExePath, [], {
+					stdio: ['pipe', 'pipe', 'pipe'],
+				});
+				let stdout = '';
+				let stderr = '';
 
-			// Call the C# method with the build request
-			const result = await new Promise((resolve, reject) => {
-				buildSong(
-					JSON.stringify(request),
-					(error: any, result: any) => {
-						if (error) {
-							console.error('Edge.js call error:', error);
-							reject(error);
-						} else {
-							console.log('Edge.js call result:', result);
-
-							if (result == 'OK') {
-								resolve(result);
-							} else {
-								reject();
-							}
+				child.stdout.on('data', (data) => {
+					stdout += data.toString();
+				});
+				child.stderr.on('data', (data) => {
+					stderr += data.toString();
+				});
+				child.on('close', async (code) => {
+					let output;
+					let parseError = false;
+					try {
+						output = JSON.parse(stdout.trim());
+						resolve(output);
+					} catch (e) {
+						parseError = true;
+						output = {
+							success: false,
+							error: 'Failed to parse BoomyBuilder output',
+							details: stdout + stderr,
+						};
+					}
+					if (parseError || (output && output.success === false)) {
+						try {
+							await fs.writeFile(
+								'build.log',
+								`STDIN:\n${JSON.stringify(
+									request
+								)}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`
+							);
+						} catch (logErr) {
+							console.error('Failed to write build.log:', logErr);
 						}
 					}
-				);
+					if (parseError) resolve(output);
+				});
+				child.stdin.write(JSON.stringify(request));
+				child.stdin.end();
 			});
-
-			console.log('Edge.js call completed successfully:', result);
-
-			return {
-				success: true,
-				data: result,
-			};
 		} catch (error) {
 			return {
 				success: false,

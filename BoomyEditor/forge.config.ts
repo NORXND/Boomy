@@ -6,28 +6,49 @@ import { MakerRpm } from '@electron-forge/maker-rpm';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import path from 'path';
-import fs from 'fs';
 
 const config: ForgeConfig = {
 	packagerConfig: {
 		asar: true,
-		extraResource: [
-			'../BoomyDeps/makemogg/',
-			'../BoomyBuilder/bin/Release/net8.0/',
-		],
-
-		ignore: ['node_modules/electron-edge-js', 'node_modules/edge-cs'],
+		extraResource: (() => {
+			const base = ['../BoomyDeps/makemogg/'];
+			switch (process.platform) {
+				case 'win32':
+					base.push(
+						'../BoomyBuilder/bin/Release/net8.0/win-x64/publish'
+					);
+					break;
+				case 'darwin':
+					base.push(
+						'../BoomyBuilder/bin/Release/net8.0/osx-x64/publish'
+					);
+					break;
+				case 'linux':
+					base.push(
+						'../BoomyBuilder/bin/Release/net8.0/linux-x64/publish'
+					);
+					break;
+				default:
+					base.push(
+						'../BoomyBuilder/bin/Release/net8.0/win-x64/publish'
+					);
+			}
+			return base;
+		})(),
+		icon: 'icons/icon',
 	},
 	rebuildConfig: {
-		// Ensure native modules are rebuilt for Electron
-		force: true,
+		onlyModules: [],
 	},
 	makers: [
 		new MakerSquirrel({}),
 		new MakerZIP({}, ['darwin']),
 		new MakerRpm({}),
-		new MakerDeb({}),
+		new MakerDeb({
+			options: {
+				icon: 'icons/icon.png',
+			},
+		}),
 	],
 	plugins: [
 		new VitePlugin({
@@ -65,80 +86,7 @@ const config: ForgeConfig = {
 			[FuseV1Options.OnlyLoadAppFromAsar]: true,
 		}),
 	],
-	hooks: {
-		// Rebuild native modules before packaging
-		prePackage: async (forgeConfig, platform, arch) => {
-			console.log('Rebuilding native modules for Electron...');
-			const { execSync } = require('child_process');
-			try {
-				execSync('npx @electron/rebuild -f -w electron-edge-js', {
-					stdio: 'inherit',
-					cwd: __dirname,
-				});
-				console.log('Native modules rebuilt successfully!');
-			} catch (error) {
-				console.error('Failed to rebuild native modules:', error);
-				throw error;
-			}
-		},
-
-		// Ensure native modules are properly copied for production builds
-		postPackage: async (forgeConfig, options) => {
-			console.log('Copying edge modules for production build');
-			const outdir = options.outputPaths[0];
-			console.log('Output directory:', outdir);
-
-			// Ensure the edge modules are available in the app resources
-			const appNodeModulesPath = path.join(
-				outdir,
-				'resources',
-				'app',
-				'node_modules'
-			);
-
-			const resourcesNodeModulesPath = path.join(
-				outdir,
-				'resources',
-				'node_modules'
-			);
-
-			const modulesToCopy = ['edge-cs', 'electron-edge-js'];
-
-			// Create target directories if they don't exist
-			if (!fs.existsSync(resourcesNodeModulesPath)) {
-				fs.mkdirSync(resourcesNodeModulesPath, { recursive: true });
-			}
-
-			for (const moduleName of modulesToCopy) {
-				const sourcePath = path.join(
-					__dirname,
-					'node_modules',
-					moduleName
-				);
-
-				// Copy to resources/node_modules
-				const resourcesTargetPath = path.join(
-					resourcesNodeModulesPath,
-					moduleName
-				);
-
-				if (fs.existsSync(sourcePath)) {
-					console.log(
-						`Copying ${moduleName} from:`,
-						sourcePath,
-						'to:',
-						resourcesTargetPath
-					);
-					fs.cpSync(sourcePath, resourcesTargetPath, {
-						recursive: true,
-					});
-				} else {
-					console.warn(`Source path does not exist: ${sourcePath}`);
-				}
-			}
-			console.log('Edge modules copied successfully!');
-		},
-	},
+	hooks: {},
 };
 
 export default config;
