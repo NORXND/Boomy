@@ -31,7 +31,13 @@ export function EditorSidebar() {
 
 	const handleBuildAndSave = () => {
 		if (currentSong && !isSaving) {
-			buildAndSave();
+			buildAndSave(true);
+		}
+	};
+
+	const handleBuildAndSaveUncompressed = () => {
+		if (currentSong && !isSaving) {
+			buildAndSave(false);
 		}
 	};
 
@@ -131,7 +137,6 @@ export function EditorSidebar() {
 								Camera Shots
 							</SidebarMenuButton>
 							<SidebarMenuButton
-								disabled
 								onClick={() =>
 									handleSectionClick('practice-sections')
 								}
@@ -141,7 +146,7 @@ export function EditorSidebar() {
 										: ''
 								}
 							>
-								Practice Sections (TODO)
+								Practice Sections (Experimental)
 							</SidebarMenuButton>
 							<SidebarMenuButton disabled>
 								Dancer Faces (TODO)
@@ -174,6 +179,17 @@ export function EditorSidebar() {
 							>
 								<h1 className="font-bold">
 									{isSaving ? 'Building...' : 'Build & Save'}
+								</h1>
+							</SidebarMenuButton>
+							<SidebarMenuButton
+								size="lg"
+								onClick={handleBuildAndSaveUncompressed}
+								disabled={!currentSong || isSaving}
+							>
+								<h1 className="font-bold">
+									{isSaving
+										? 'Building...'
+										: 'Build & Save (No Compression)'}
 								</h1>
 							</SidebarMenuButton>
 						</SidebarMenuItem>

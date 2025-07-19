@@ -95,7 +95,7 @@ namespace MiloLib.Assets.Ham
 
         public int unk94;
 
-        public Symbol mDancerSeq = new(0, "");
+        public Symbol mDancerSeq { get; set; } = new(0, "");
 
         [Name("Confusability ID"), Description("id used when comparing to other moves"), MinVersion(49)]
         public uint mConfusabilityID;

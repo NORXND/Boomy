@@ -28,11 +28,6 @@ namespace BoomyBuilder.Builder.Camerator
                     {
                         throw new BoomyException("No camera found at beat 1!");
                     }
-
-                    if (i > 1 && !track.ContainsKey(i))
-                    {
-                        track[i] = track[i - 1];
-                    }
                 }
             }
 

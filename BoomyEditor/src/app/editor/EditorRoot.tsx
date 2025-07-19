@@ -8,6 +8,7 @@ import { CameraShots } from './CameraShots';
 import { PracticeSections } from './PracticeSections';
 import { useSongStore } from '../store/songStore';
 import { useEffect } from 'react';
+import { TimelineProvider } from '@/contexts/TimelineContext';
 
 const SECTION_NAMES = {
 	'moves-library': 'Moves Library',
@@ -62,7 +63,7 @@ function EditorContent() {
 					<EditorMenuBar />
 					<h1>{SECTION_NAMES[activeSection]}</h1>
 				</div> */}
-				{renderActiveSection()}
+				<TimelineProvider>{renderActiveSection()}</TimelineProvider>
 			</main>
 		</SidebarProvider>
 	);

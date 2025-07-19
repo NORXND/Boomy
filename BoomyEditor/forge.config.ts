@@ -36,6 +36,7 @@ const config: ForgeConfig = {
 			return base;
 		})(),
 		icon: 'icons/icon',
+		executableName: 'boomyedit',
 	},
 	rebuildConfig: {
 		onlyModules: [],

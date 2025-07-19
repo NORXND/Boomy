@@ -28,7 +28,15 @@ interface MoveFileExplorerProps {
 	) => void;
 }
 
-const GAME_CATEGORIES = ['dc1', 'dc2', 'dc3', 'dc1_dlc', 'dc2_dlc', 'dc3_dlc'];
+const GAME_CATEGORIES = [
+	'dc1',
+	'dc2',
+	'dc3',
+	'dc1_dlc',
+	'dc2_dlc',
+	'dc3_dlc',
+	'dcs',
+];
 
 const CATEGORY_LABELS = {
 	dc1: 'Dance Central 1',
@@ -37,6 +45,7 @@ const CATEGORY_LABELS = {
 	dc1_dlc: 'Dance Central 1 DLCs',
 	dc2_dlc: 'Dance Central 2 DLCs',
 	dc3_dlc: 'Dance Central 3 DLCs',
+	dcs: 'Dance Central Spotlight',
 };
 
 export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {

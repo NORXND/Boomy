@@ -23,10 +23,43 @@ namespace BoomyBuilder.Builder
             // Registry to track imported files by destination directory
             Dictionary<DirectoryMeta, HashSet<string>> importedFiles = new Dictionary<DirectoryMeta, HashSet<string>>();
 
-            void ImportAsset(string assetPath, DirectoryMeta dir)
+            void ImportAsset(string assetPath, DirectoryMeta dir, bool cutSeq = false)
             {
+
                 string name = Path.GetFileName(assetPath);
                 string ext = Path.GetExtension(assetPath);
+                string assetType = AssetTypes[ext];
+
+                // Remove _songname for HamMove and Tex
+                if (cutSeq && (assetType == "HamMove" || assetType == "Tex"))
+                {
+                    // Remove extension for manipulation
+                    string nameNoExt = Path.GetFileNameWithoutExtension(name);
+                    // Find last underscore (before songname)
+                    int lastUnderscore = nameNoExt.LastIndexOf('_');
+                    if (lastUnderscore > 0)
+                    {
+                        // For Tex, preserve _sm if present
+                        if (assetType == "Tex" && nameNoExt.EndsWith("_sm"))
+                        {
+                            // Remove _songname before _sm
+                            int smIndex = nameNoExt.LastIndexOf("_sm");
+                            string beforeSm = nameNoExt.Substring(0, smIndex);
+                            int lastUSBeforeSm = beforeSm.LastIndexOf('_');
+                            if (lastUSBeforeSm > 0)
+                            {
+                                nameNoExt = beforeSm.Substring(0, lastUSBeforeSm) + nameNoExt.Substring(smIndex);
+                            }
+                        }
+                        else
+                        {
+                            // Remove _songname
+                            nameNoExt = nameNoExt.Substring(0, lastUnderscore);
+                        }
+                    }
+                    name = nameNoExt + ext;
+                }
+
 
                 // Initialize registry for this directory if not exists
                 if (!importedFiles.ContainsKey(dir))
@@ -48,7 +81,7 @@ namespace BoomyBuilder.Builder
                 }
 
                 byte[] fileBytes = File.ReadAllBytes(assetPath);
-                string assetType = AssetTypes[ext];
+
 
                 DirectoryMeta.Entry entry = DirectoryMeta.Entry.CreateDirtyAssetFromBytes(assetType, name, [.. fileBytes]);
                 dir.entries.Add(entry);
@@ -64,6 +97,46 @@ namespace BoomyBuilder.Builder
                         break;
                     case "HamMove":
                         entry.obj = new HamMove().Read(reader, false, dir, entry);
+
+                        if (cutSeq)
+                        {
+                            // If cutSeq is true, set mDancerSeq to a default value
+                            var hamMoveObj = (HamMove)entry.obj;
+                            hamMoveObj.mDancerSeq = new Symbol(0, "");
+
+                            // Also update tex value to strip _songname (preserving _sm if present)
+                            string texName = hamMoveObj.tex.value;
+                            if (!string.IsNullOrEmpty(texName))
+                            {
+                                string texNoExt = Path.GetFileNameWithoutExtension(texName);
+                                string texExt = Path.GetExtension(texName);
+                                int lastUnderscore = texNoExt.LastIndexOf('_');
+                                if (lastUnderscore > 0)
+                                {
+                                    if (texNoExt.EndsWith("_sm"))
+                                    {
+                                        int smIndex = texNoExt.LastIndexOf("_sm");
+                                        string beforeSm = texNoExt.Substring(0, smIndex);
+                                        int lastUSBeforeSm = beforeSm.LastIndexOf('_');
+                                        if (lastUSBeforeSm > 0)
+                                        {
+                                            texNoExt = beforeSm.Substring(0, lastUSBeforeSm) + texNoExt.Substring(smIndex);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        texNoExt = texNoExt.Substring(0, lastUnderscore);
+                                    }
+                                }
+                                hamMoveObj.tex = new Symbol(0, texNoExt + texExt);
+                            }
+
+                            foreach (var key in hamMoveObj.propKeys)
+                            {
+                                key.target = entry.name;
+                            }
+                        }
+
                         hamMoves.Add((HamMove)entry.obj);
                         break;
                     case "DancerSequence":
@@ -73,6 +146,7 @@ namespace BoomyBuilder.Builder
                         entry.obj = new CharClip().Read(reader, false, dir, entry);
                         break;
                 }
+                entry.dirty = false;
             }
 
 
@@ -93,16 +167,16 @@ namespace BoomyBuilder.Builder
                     ImportAsset(asset, dir);
                 });
 
-                // Move - get all .tex, .move, and .seq files
+                // Move - get all .tex, .move
                 var moveFiles = allFiles.Where(file =>
                 {
                     string ext = Path.GetExtension(file).ToLowerInvariant();
-                    return ext == ".tex" || ext == ".move" || ext == ".seq";
+                    return ext == ".tex" || ext == ".move";
                 }).ToList();
                 moveFiles.ForEach(asset =>
                 {
                     DirectoryMeta dir = buildOperator.MovesDir ?? throw new Exception("No moves directory set");
-                    ImportAsset(asset, dir);
+                    ImportAsset(asset, dir, cutSeq: true);
                 });
 
                 // MoveData - get all .tex, .move, .seq, and no extension files

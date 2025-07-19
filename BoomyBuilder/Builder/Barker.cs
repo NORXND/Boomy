@@ -58,7 +58,7 @@ namespace BoomyBuilder.Builder
                                     byte[] fileBytes = File.ReadAllBytes(assetPath);
                                     string assetType = AssetTypes[fext];
 
-                                    DirectoryMeta.Entry entry = DirectoryMeta.Entry.CreateDirtyAssetFromBytes(assetType, name, [.. fileBytes]);
+                                    DirectoryMeta.Entry entry = DirectoryMeta.Entry.CreateDirtyAssetFromBytes(assetType, name + fext, [.. fileBytes]);
                                     barksMilo.dirMeta.entries.Add(entry);
 
                                     using EndianReader reader = new(new MemoryStream(fileBytes), Endian.BigEndian);
@@ -77,7 +77,7 @@ namespace BoomyBuilder.Builder
                     }
                 }
 
-                barksMilo.Save(Path.Combine(barkGenDir, "barks.milo_xbox"), MiloFile.Type.Uncompressed);
+                barksMilo.Save(Path.Combine(barkGenDir, "barks.milo_xbox"), buildOperator.Request.Compress ? MiloFile.Type.CompressedZlibAlt : MiloFile.Type.Uncompressed);
             }
         }
     }

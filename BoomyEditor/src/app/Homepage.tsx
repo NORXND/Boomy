@@ -40,7 +40,7 @@ export function Homepage() {
 				<img src="Boombox.svg" alt="Boombox" className="h-24" />
 				<h1 className="text-8xl font-bold">Boomy</h1>
 			</div>
-			<h2 className="text-4xl">v0.1.3</h2>
+			<h2 className="text-4xl">v0.2.0</h2>
 			<div className="h-8"></div>
 			<div className="flex gap-4">
 				<RandomIdGenerator

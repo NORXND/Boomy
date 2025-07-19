@@ -1313,8 +1313,6 @@ namespace MiloLib.Assets
 
         public void WriteEntry(EndianWriter writer, DirectoryMeta.Entry entry)
         {
-            // handle dirty assets
-
             entry.OnBeforeWrite(writer);
 
             if (entry.dirty)

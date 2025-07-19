@@ -49,6 +49,13 @@ export interface CameraEventForSave {
 	position: CameraPosition; // C# model uses "position" instead of "camera"
 }
 
+export interface TempoChange {
+	tick: number;
+	bpm: number;
+}
+
+export type PracticeSection = MoveEvent[];
+
 export interface Song {
 	move_lib: string;
 	timeline: {
@@ -64,6 +71,11 @@ export interface Song {
 			moves: MoveEvent[];
 			cameras: CameraEvent[];
 		};
+	};
+	practice: {
+		easy: PracticeSection[];
+		medium: PracticeSection[];
+		expert: PracticeSection[];
 	};
 	audioPath: string;
 	midiPath: string;

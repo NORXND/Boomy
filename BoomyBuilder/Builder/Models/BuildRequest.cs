@@ -1,8 +1,10 @@
 namespace BoomyBuilder.Builder.BuildRequest
 {
     using System.Globalization;
+    using BoomyBuilder.Builder.Models.Practice;
     using BoomyBuilder.Builder.Models.SongMeta;
     using BoomyBuilder.Builder.Models.Timeline;
+    using BoomyBuilder.Builder.Utils;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
 
@@ -25,6 +27,15 @@ namespace BoomyBuilder.Builder.BuildRequest
 
         [JsonProperty("timeline", Required = Required.Always)]
         public required Timeline Timeline { get; set; }
+
+        [JsonProperty("tempo_change", Required = Required.Always)]
+        public required List<TempoChange> TempoChange { get; set; }
+
+        [JsonProperty("practice", Required = Required.Always)]
+        public required Practice Practice { get; set; }
+
+        [JsonProperty("compress", Required = Required.Always)]
+        public required bool Compress { get; set; }
     }
 
     public partial class BuildRequest

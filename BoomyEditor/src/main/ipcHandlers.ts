@@ -165,6 +165,23 @@ export function setupEdgeHandlers() {
 			let exeName = 'BoomyBuilder';
 			if (process.platform === 'win32') exeName += '.exe';
 
+			const platformsMap = {
+				win32: 'win-x64',
+				darwin: 'osx-x64',
+				linux: 'linux-x64',
+			};
+
+			const platformKey = ((): 'win32' | 'darwin' | 'linux' => {
+				if (
+					process.platform === 'win32' ||
+					process.platform === 'darwin' ||
+					process.platform === 'linux'
+				) {
+					return process.platform;
+				}
+				return 'win32';
+			})();
+
 			const debugPath = path.join(
 				process.cwd(),
 				'..',
@@ -172,6 +189,7 @@ export function setupEdgeHandlers() {
 				'bin',
 				'Debug',
 				'net8.0',
+				platformsMap[platformKey],
 				exeName
 			);
 			const releasePath = path.join(
@@ -181,6 +199,7 @@ export function setupEdgeHandlers() {
 				'bin',
 				'Release',
 				'net8.0',
+				platformsMap[platformKey],
 				exeName
 			);
 			const prodPath = path.join(resourcesPath, 'publish', exeName);

@@ -153,10 +153,16 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 
 		console.log('Loading audio from:', audioPath);
 
+		let audioUrl: string | null = null;
+		let isMounted = true;
+		// For cleanup: store previous audioUrl
+		let prevAudioUrl = audioElementRef.current?.src || null;
+
 		try {
 			// Dispose of existing player
 			if (playerRef.current) {
 				playerRef.current.dispose();
+				playerRef.current = null;
 			}
 			if (audioElementRef.current) {
 				audioElementRef.current.pause();
@@ -171,7 +177,7 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 				audioPath
 			);
 			const blob = new Blob([audioBuffer], { type: 'audio/mpeg' });
-			const audioUrl = URL.createObjectURL(blob);
+			audioUrl = URL.createObjectURL(blob);
 
 			console.log('Created blob URL:', audioUrl);
 
@@ -203,26 +209,47 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 
 			// Set up event listeners
 			audioElement.onended = () => {
-				console.log('Audio playback ended');
 				setIsPlaying(false);
 				if (animationFrameRef.current) {
 					cancelAnimationFrame(animationFrameRef.current);
 				}
 			};
 
-			setDuration(audioElement.duration);
-			setAudioReady(true);
+			if (isMounted) {
+				setDuration(audioElement.duration);
+				setAudioReady(true);
+			}
 			console.log(
 				'Audio loaded successfully, duration:',
 				audioElement.duration
 			);
 
-			// Cleanup blob URL
-			URL.revokeObjectURL(audioUrl);
+			// Cleanup previous blob URL if any
+			if (prevAudioUrl && prevAudioUrl.startsWith('blob:')) {
+				URL.revokeObjectURL(prevAudioUrl);
+			}
 		} catch (err) {
 			console.error('Audio loading error:', err);
-			setError(`Failed to load audio: ${err}`);
+			if (isMounted) setError(`Failed to load audio: ${err}`);
+			// Cleanup new blob URL if error
+			if (audioUrl) URL.revokeObjectURL(audioUrl);
 		}
+
+		// Cleanup function for Strict Mode double-invoke
+		return () => {
+			isMounted = false;
+			if (audioElementRef.current) {
+				audioElementRef.current.pause();
+				audioElementRef.current = null;
+			}
+			if (playerRef.current) {
+				playerRef.current.dispose();
+				playerRef.current = null;
+			}
+			if (audioUrl) {
+				URL.revokeObjectURL(audioUrl);
+			}
+		};
 	}, [audioPath]);
 
 	const calculateCursorPosition = useCallback(
@@ -603,31 +630,14 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 					const { moveKey, clipPath, clipName, moveData } = dragData;
 					const [category, song, move] = moveKey.split('/');
 
-					// Remove any existing moves in this measure for this difficulty
-					const measureStartBeat = timeToBeat(measure.startTime);
-					const measureEndBeat = timeToBeat(
-						measure.startTime + measure.duration
-					);
-
+					// Remove any existing move in this cell (measure) for this difficulty
 					if (currentSong) {
 						const events = currentSong.timeline[difficulty].moves;
-						const eventsToRemove = events
-							.map((event, index) => ({
-								...event,
-								originalIndex: index,
-							}))
-							.filter(
-								(event) =>
-									event.beat >= measureStartBeat &&
-									event.beat < measureEndBeat
-							);
-
-						// Remove existing events in reverse order to maintain indices
-						for (let i = eventsToRemove.length - 1; i >= 0; i--) {
-							removeMoveEvent(
-								difficulty,
-								eventsToRemove[i].originalIndex
-							);
+						const eventIndex = events.findIndex(
+							(event) => event.beat == measure.number
+						);
+						if (eventIndex !== -1) {
+							removeMoveEvent(difficulty, eventIndex);
 						}
 					}
 
@@ -765,6 +775,10 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 	const loadMoveImages = useCallback(async () => {
 		if (!currentSong || !currentSong.move_lib) return;
 
+		let isMounted = true;
+		// For cleanup: track created object URLs
+		const createdUrls: string[] = [];
+
 		const newImageCache: Record<string, string> = {};
 		const newDataCache: Record<string, any> = {};
 		const moveLibPath = currentSong.move_lib;
@@ -812,19 +826,46 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 					const blob = new Blob([imageBuffer], { type: 'image/png' });
 					const url = URL.createObjectURL(blob);
 					newImageCache[moveKey] = url;
+					createdUrls.push(url);
 				}
 			} catch (err) {
 				console.warn('Failed to load move image for', moveKey, err);
 			}
 		}
 
-		setMoveImageCache(newImageCache);
-		setMoveDataCache(newDataCache);
+		if (isMounted) {
+			setMoveImageCache((prev) => {
+				// Cleanup previous URLs
+				Object.values(prev).forEach((url) => {
+					if (url && url.startsWith('blob:')) {
+						URL.revokeObjectURL(url);
+					}
+				});
+				return newImageCache;
+			});
+			setMoveDataCache(newDataCache);
+		} else {
+			// If unmounted, cleanup new URLs
+			createdUrls.forEach((url) => URL.revokeObjectURL(url));
+		}
+
+		// Cleanup function for Strict Mode double-invoke
+		return () => {
+			isMounted = false;
+			createdUrls.forEach((url) => URL.revokeObjectURL(url));
+		};
 	}, [currentSong]);
 
 	// Load move images when song changes
 	useEffect(() => {
-		loadMoveImages();
+		let cleanup: (() => void) | undefined;
+		(async () => {
+			const maybeCleanup = await loadMoveImages();
+			if (typeof maybeCleanup === 'function') cleanup = maybeCleanup;
+		})();
+		return () => {
+			if (cleanup) cleanup();
+		};
 	}, [loadMoveImages]);
 
 	const calculateTimelineData = (midi: Midi): TimelineData => {
@@ -963,11 +1004,24 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 
 	// Load MIDI and audio when component mounts or paths change
 	useEffect(() => {
-		loadMidiFile();
+		let cleanup: (() => void) | undefined;
+		(async () => {
+			await loadMidiFile();
+		})();
+		return () => {
+			if (cleanup) cleanup();
+		};
 	}, [loadMidiFile]);
 
 	useEffect(() => {
-		loadAudioFile();
+		let cleanup: (() => void) | undefined;
+		(async () => {
+			const maybeCleanup = await loadAudioFile();
+			if (typeof maybeCleanup === 'function') cleanup = maybeCleanup;
+		})();
+		return () => {
+			if (cleanup) cleanup();
+		};
 	}, [loadAudioFile]);
 
 	// Cleanup on unmount
@@ -975,10 +1029,31 @@ export function TimelineRoot({ type }: TimelineRootProps) {
 		return () => {
 			if (playerRef.current) {
 				playerRef.current.dispose();
+				playerRef.current = null;
 			}
 			if (animationFrameRef.current) {
 				cancelAnimationFrame(animationFrameRef.current);
 			}
+			if (audioElementRef.current) {
+				audioElementRef.current.pause();
+				// Revoke object URL if present
+				if (
+					audioElementRef.current.src &&
+					audioElementRef.current.src.startsWith('blob:')
+				) {
+					URL.revokeObjectURL(audioElementRef.current.src);
+				}
+				audioElementRef.current = null;
+			}
+			// Clean up move image cache URLs
+			setMoveImageCache((prev) => {
+				Object.values(prev).forEach((url) => {
+					if (url && url.startsWith('blob:')) {
+						URL.revokeObjectURL(url);
+					}
+				});
+				return {};
+			});
 		};
 	}, []);
 

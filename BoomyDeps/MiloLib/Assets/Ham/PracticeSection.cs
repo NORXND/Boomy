@@ -23,17 +23,17 @@ namespace MiloLib.Assets.Ham
         public class PracticeStep
         {
             [Name("Step Type"), Description("Type of step. Options are: learn, review, freestyle")]
-            Symbol mType = new(0, "");
+            public Symbol mType = new(0, "");
             [Name("Start"), Description("Start of sequence")]
-            Symbol mStart = new(0, "");
+            public Symbol mStart = new(0, "");
             [Name("End"), Description("End of sequence")]
-            Symbol mEnd = new(0, "");
+            public Symbol mEnd = new(0, "");
             // min version 1
             [Name("Boundary"), Description("True if this step is the START of a subsection"), MinVersion(1)]
-            bool mBoundary;
+            public bool mBoundary;
             // min version 3
             [Name("Name Override"), Description("Name to display on the PracticeChoosePanel, if left blank it tries to automatically pick one"), MinVersion(1)]
-            Symbol mNameOverride = new(0, ""); // String in milo's code
+            public Symbol mNameOverride = new(0, ""); // String in milo's code
 
             public PracticeStep Read(EndianReader reader, uint stepRev)
             {
@@ -110,7 +110,7 @@ namespace MiloLib.Assets.Ham
             Symbol.Write(writer, mDisplayName);
             writer.WriteUInt32((uint)mDifficulty);
 
-            writer.WriteUInt32(numSteps);
+            writer.WriteUInt32((uint)mSteps.Count);
             foreach (var step in mSteps)
             {
                 step.Write(writer, revision);
@@ -118,7 +118,7 @@ namespace MiloLib.Assets.Ham
 
             if (revision > 1)
             {
-                writer.WriteUInt32(numSeqs);
+                writer.WriteUInt32((uint)mSeqs.Count);
                 foreach (var seq in mSeqs)
                 {
                     seq.Write(writer, false, parent, entry);

@@ -26,7 +26,27 @@ const DIFFICULTY_LABELS = {
 	2: 'Expert',
 };
 
-export function ImportedMoves() {
+interface ImportedMovesProps {
+	className?: string;
+	title?: string;
+	filterByDifficulty?: 'easy' | 'medium' | 'expert';
+	filterByChoreography?: boolean;
+	showRemoveButtons?: boolean;
+	showSearch?: boolean;
+	maxHeight?: string;
+	filterScoredOnly?: boolean;
+}
+
+export function ImportedMoves({
+	className,
+	title = 'Imported Moves',
+	filterByDifficulty,
+	filterByChoreography = false,
+	showRemoveButtons = true,
+	showSearch = true,
+	maxHeight,
+	filterScoredOnly = false,
+}: ImportedMovesProps = {}) {
 	const { currentSong, removeClipFromLibrary, removeMoveFromLibrary } =
 		useSongStore();
 	const [moveDataCache, setMoveDataCache] = useState<
@@ -132,16 +152,76 @@ export function ImportedMoves() {
 		return flagNames;
 	};
 
-	// Filter moves based on search query
+	// Filter moves based on search query and props
 	const filteredMoves = useMemo(() => {
-		if (!currentSong?.moveLibrary || !searchQuery.trim()) {
-			return currentSong?.moveLibrary || {};
+		let movesToFilter = currentSong?.moveLibrary || {};
+
+		// First, apply choreography filtering if requested
+		if (
+			filterByChoreography &&
+			currentSong?.timeline &&
+			filterByDifficulty
+		) {
+			const choreographyMoves =
+				currentSong.timeline[filterByDifficulty]?.moves || [];
+			const choreographyMoveKeys = new Set(
+				choreographyMoves.map(
+					(move) =>
+						`${move.move_origin}/${move.move_song}/${move.move}`
+				)
+			);
+
+			// Filter to only include moves that are in the choreography
+			movesToFilter = Object.fromEntries(
+				Object.entries(movesToFilter).filter(([moveKey]) =>
+					choreographyMoveKeys.has(moveKey)
+				)
+			);
+		}
+
+		// Apply difficulty filtering if requested
+		if (filterByDifficulty && !filterByChoreography) {
+			const difficultyMap = { easy: 0, medium: 1, expert: 2 };
+			const targetDifficulty = difficultyMap[filterByDifficulty];
+
+			movesToFilter = Object.fromEntries(
+				Object.entries(movesToFilter).filter(([moveKey]) => {
+					const moveData = moveDataCache[moveKey];
+					return moveData?.difficulty === targetDifficulty;
+				})
+			);
+		}
+
+		// Apply scored-only filtering if requested
+		if (filterScoredOnly) {
+			movesToFilter = Object.fromEntries(
+				Object.entries(movesToFilter)
+					.map(([moveKey, clips]) => {
+						const moveData = moveDataCache[moveKey];
+						if (!moveData) return [moveKey, clips];
+
+						// Filter clips to only include scored ones
+						const scoredClips = clips.filter((clipPath) => {
+							const clipName = clipPath.split('/').pop() || '';
+							const clip = moveData.clips[clipName];
+							return clip && (clip.flags & 2) !== 0; // Check for scored flag
+						});
+
+						return [moveKey, scoredClips];
+					})
+					.filter(([_, clips]) => clips.length > 0) // Remove moves with no scored clips
+			);
+		}
+
+		// Apply search filtering if there's a search query
+		if (!searchQuery.trim()) {
+			return movesToFilter;
 		}
 
 		const query = searchQuery.toLowerCase().trim();
 		const filtered: Record<string, string[]> = {};
 
-		Object.entries(currentSong.moveLibrary).forEach(([moveKey, clips]) => {
+		Object.entries(movesToFilter).forEach(([moveKey, clips]) => {
 			const moveData = moveDataCache[moveKey];
 			const [category, song, move] = moveKey.split('/');
 
@@ -183,7 +263,15 @@ export function ImportedMoves() {
 		});
 
 		return filtered;
-	}, [currentSong?.moveLibrary, moveDataCache, searchQuery]);
+	}, [
+		currentSong?.moveLibrary,
+		moveDataCache,
+		searchQuery,
+		filterByDifficulty,
+		filterByChoreography,
+		currentSong?.timeline,
+		filterScoredOnly,
+	]);
 
 	if (
 		!currentSong?.moveLibrary ||
@@ -205,31 +293,36 @@ export function ImportedMoves() {
 	const hasFilteredResults = Object.keys(filteredMoves).length > 0;
 
 	return (
-		<div className="h-full flex flex-col overflow-hidden">
+		<div
+			className={cn('h-full flex flex-col overflow-hidden', className)}
+			style={maxHeight ? { maxHeight } : undefined}
+		>
 			{/* Header with search */}
 			<div className="flex-shrink-0 p-4 border-b space-y-3">
-				<h2 className="text-lg font-semibold">Imported Moves</h2>
+				<h2 className="text-lg font-semibold">{title}</h2>
 
 				{/* Search input */}
-				<div className="relative">
-					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-					<input
-						type="text"
-						placeholder="Search moves, clips, genres, eras, flags..."
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full pl-10 pr-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-					/>
-					{searchQuery && (
-						<button
-							onClick={() => setSearchQuery('')}
-							className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-muted transition-colors"
-							title="Clear search"
-						>
-							<X className="h-3 w-3" />
-						</button>
-					)}
-				</div>
+				{showSearch && (
+					<div className="relative">
+						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+						<input
+							type="text"
+							placeholder="Search moves, clips, genres, eras, flags..."
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							className="w-full pl-10 pr-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+						/>
+						{searchQuery && (
+							<button
+								onClick={() => setSearchQuery('')}
+								className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-muted transition-colors"
+								title="Clear search"
+							>
+								<X className="h-3 w-3" />
+							</button>
+						)}
+					</div>
+				)}
 
 				{/* Results count */}
 				<div className="text-xs text-muted-foreground">
@@ -239,6 +332,14 @@ export function ImportedMoves() {
 									Object.keys(currentSong.moveLibrary).length
 							  } moves found`
 							: `No moves found for "${searchQuery}"`
+						: filterByChoreography && filterByDifficulty
+						? `${
+								Object.keys(filteredMoves).length
+						  } moves in ${filterByDifficulty} choreography`
+						: filterByDifficulty
+						? `${
+								Object.keys(filteredMoves).length
+						  } ${filterByDifficulty} moves`
 						: `${
 								Object.keys(currentSong.moveLibrary).length
 						  } moves total`}
@@ -318,15 +419,19 @@ export function ImportedMoves() {
 												</div>
 											</div>
 
-											<button
-												onClick={() =>
-													handleMoveRemove(moveKey)
-												}
-												className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
-												title="Remove all clips from this move"
-											>
-												<X className="h-4 w-4" />
-											</button>
+											{showRemoveButtons && (
+												<button
+													onClick={() =>
+														handleMoveRemove(
+															moveKey
+														)
+													}
+													className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
+													title="Remove all clips from this move"
+												>
+													<X className="h-4 w-4" />
+												</button>
+											)}
 										</div>
 
 										{/* Clips list */}
@@ -408,18 +513,20 @@ export function ImportedMoves() {
 																)}
 															</div>
 														</div>
-														<button
-															onClick={() =>
-																handleClipRemove(
-																	moveKey,
-																	clipPath
-																)
-															}
-															className="flex-shrink-0 p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
-															title="Remove this clip"
-														>
-															<X className="h-3 w-3" />
-														</button>
+														{showRemoveButtons && (
+															<button
+																onClick={() =>
+																	handleClipRemove(
+																		moveKey,
+																		clipPath
+																	)
+																}
+																className="flex-shrink-0 p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
+																title="Remove this clip"
+															>
+																<X className="h-3 w-3" />
+															</button>
+														)}
 													</div>
 												);
 											})}

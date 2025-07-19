@@ -100,6 +100,11 @@ function OpenSongDialog({
 					cameras: [],
 				},
 			},
+			practice: {
+				easy: [],
+				medium: [],
+				expert: [],
+			},
 			moveLibrary: {},
 		};
 

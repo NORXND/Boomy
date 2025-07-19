@@ -6,8 +6,11 @@ import type {
 	CameraEvent,
 	TimelineForSave,
 	CameraEventForSave,
+	PracticeSection,
+	TempoChange,
 } from '../types/song';
 import { toast } from 'sonner';
+import { extractTempoChangesFromMidi } from '../utils/midiUtils';
 
 interface SongState {
 	// Current song data
@@ -26,6 +29,8 @@ interface SongState {
 	// Move library - imported clips grouped by move
 	moveLibrary: Record<string, string[]>; // moveKey -> clipPaths[]
 
+	tempoChanges: TempoChange[];
+
 	// Loading state
 	isLoading: boolean;
 	error: string | null;
@@ -39,6 +44,7 @@ interface SongState {
 		midiPath?: string
 	) => void;
 	updateSong: (song: Partial<Song>) => void;
+	extractTempoChanges: () => Promise<void>;
 	addMoveEvent: (
 		difficulty: 'easy' | 'medium' | 'expert',
 		moveEvent: MoveEvent
@@ -69,7 +75,7 @@ interface SongState {
 	setError: (error: string | null) => void;
 	clearSong: () => void;
 	saveSong: () => Promise<void>;
-	buildAndSave: () => Promise<void>;
+	buildAndSave: (compression: boolean) => Promise<void>;
 	// Move library actions
 	addClipToLibrary: (
 		category: string,
@@ -88,6 +94,31 @@ interface SongState {
 		song: string,
 		move: string
 	) => void;
+
+	// Practice section actions
+	addPracticeSection: (
+		difficulty: 'easy' | 'medium' | 'expert',
+		name: string
+	) => void;
+	removePracticeSection: (
+		difficulty: 'easy' | 'medium' | 'expert',
+		index: number
+	) => void;
+	updatePracticeSection: (
+		difficulty: 'easy' | 'medium' | 'expert',
+		index: number,
+		section: Partial<PracticeSection>
+	) => void;
+	addMoveToPracticeSection: (
+		difficulty: 'easy' | 'medium' | 'expert',
+		sectionIndex: number,
+		moveEvent: MoveEvent
+	) => boolean;
+	removeMoveFromPracticeSection: (
+		difficulty: 'easy' | 'medium' | 'expert',
+		sectionIndex: number,
+		moveIndex: number
+	) => void;
 }
 
 export const useSongStore = create<SongState>()(
@@ -104,9 +135,10 @@ export const useSongStore = create<SongState>()(
 			moveLibrary: {} as Record<string, string[]>,
 			isLoading: false,
 			error: null as string | null,
+			tempoChanges: [] as TempoChange[],
 
 			// Actions
-			loadSong: (song, path, name, audioPath, midiPath) => {
+			loadSong: async (song, path, name, audioPath, midiPath) => {
 				console.log('Loading song:', name, path);
 
 				// Convert camera events from saved format to runtime format
@@ -140,8 +172,20 @@ export const useSongStore = create<SongState>()(
 					);
 				}
 
+				let tempoChanges: TempoChange[] = [];
+				if (midiPath) {
+					tempoChanges = await extractTempoChangesFromMidi(midiPath);
+				}
+
 				set({
-					currentSong: convertedSong,
+					currentSong: {
+						...convertedSong,
+						practice: convertedSong.practice || {
+							easy: [],
+							medium: [],
+							expert: [],
+						},
+					},
 					songPath: path,
 					songName: name,
 					audioPath: audioPath || null,
@@ -150,6 +194,7 @@ export const useSongStore = create<SongState>()(
 					isLoaded: true,
 					isLoading: false,
 					error: null,
+					tempoChanges: tempoChanges,
 				});
 			},
 
@@ -302,7 +347,7 @@ export const useSongStore = create<SongState>()(
 						},
 					};
 
-					// Update song with current audio paths
+					// Update song with current audio paths and tempo changes
 					const songToSave = {
 						...currentSong,
 						timeline: timelineForSave,
@@ -327,6 +372,8 @@ export const useSongStore = create<SongState>()(
 						description:
 							'Song data and timeline files have been saved.',
 					});
+
+					set({ isLoading: false, error: null });
 				} catch (error) {
 					const errorMsg = `Failed to save song: ${error}`;
 					set({
@@ -337,8 +384,34 @@ export const useSongStore = create<SongState>()(
 				}
 			},
 
-			buildAndSave: async () => {
-				const { currentSong, songPath, audioPath } = get();
+			extractTempoChanges: async () => {
+				const { currentSong, midiPath } = get();
+
+				if (!currentSong || !midiPath) {
+					toast.error('No song or MIDI file loaded');
+					return;
+				}
+
+				try {
+					// Extract tempo changes using our utility function
+					const tempoChanges = await extractTempoChangesFromMidi(
+						midiPath
+					);
+
+					// Update the song with the tempo changes
+					const updatedSong = { ...currentSong, tempoChanges };
+					set({ currentSong: updatedSong });
+
+					return tempoChanges;
+				} catch (error) {
+					const errorMsg = `Failed to extract tempo changes: ${error}`;
+					toast.error(errorMsg, { id: 'extract-tempo' });
+				}
+			},
+
+			buildAndSave: async (compression: boolean) => {
+				const { currentSong, songPath, audioPath, tempoChanges } =
+					get();
 
 				if (!currentSong || !songPath) {
 					toast.error('No song loaded to build');
@@ -407,6 +480,9 @@ export const useSongStore = create<SongState>()(
 						moves_path: currentSong.move_lib, // Default moves path
 						out_path: `${songPath}/build`, // Output to build subfolder
 						timeline: timelineForBuild,
+						practice: currentSong.practice,
+						tempo_change: tempoChanges,
+						compress: compression,
 					};
 
 					// Call BoomyBuilder via Edge.js instead of saving build-request.json
@@ -525,6 +601,131 @@ export const useSongStore = create<SongState>()(
 					};
 				});
 			},
+
+			// Practice section actions
+			addPracticeSection: (difficulty, _name) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedSong = { ...currentSong };
+
+					// Initialize practice property if it doesn't exist
+					if (!updatedSong.practice) {
+						updatedSong.practice = {
+							easy: [],
+							medium: [],
+							expert: [],
+						};
+					}
+
+					// Auto-generate section name based on index (sections are auto-numbered)
+					const sectionCount =
+						updatedSong.practice[difficulty].length + 1;
+
+					// Add the new section
+					const newSection: PracticeSection = [];
+
+					updatedSong.practice[difficulty].push(newSection);
+					set({ currentSong: updatedSong });
+					toast.success(`Added practice section ${sectionCount}`);
+				}
+			},
+
+			removePracticeSection: (difficulty, index) => {
+				const { currentSong } = get();
+				if (currentSong?.practice?.[difficulty]) {
+					const updatedSong = { ...currentSong };
+					const sectionNumber = index + 1;
+					updatedSong.practice[difficulty].splice(index, 1);
+					set({ currentSong: updatedSong });
+					toast.success(`Removed Section ${sectionNumber}`);
+				}
+			},
+
+			updatePracticeSection: (difficulty, index, sectionUpdate) => {
+				const { currentSong } = get();
+				if (currentSong?.practice?.[difficulty]?.[index]) {
+					const updatedSong = { ...currentSong };
+
+					// Since PracticeSection is now an array of MoveEvents,
+					// we need to handle this differently based on what's in sectionUpdate
+					if (Array.isArray(sectionUpdate)) {
+						// If sectionUpdate is an array, replace the entire section
+						updatedSong.practice[difficulty][index] = sectionUpdate;
+					} else {
+						// Otherwise, log a warning as this doesn't match our data model
+						console.warn(
+							'Attempted to update a practice section with non-array data:',
+							sectionUpdate
+						);
+					}
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			addMoveToPracticeSection: (difficulty, sectionIndex, moveEvent) => {
+				const { currentSong } = get();
+				if (currentSong?.practice?.[difficulty]?.[sectionIndex]) {
+					// Check if this move already exists in any section of this difficulty
+					const isDuplicate = currentSong.practice[difficulty].some(
+						(section, idx) =>
+							Array.isArray(section) &&
+							section.some(
+								(move) =>
+									move.move === moveEvent.move &&
+									move.move_song === moveEvent.move_song &&
+									move.clip === moveEvent.clip
+							)
+					);
+
+					if (isDuplicate) {
+						toast.error(
+							'This move already exists in a practice section'
+						);
+						return false;
+					}
+
+					const updatedSong = { ...currentSong };
+
+					// Ensure the section is an array
+					if (
+						!Array.isArray(
+							updatedSong.practice[difficulty][sectionIndex]
+						)
+					) {
+						updatedSong.practice[difficulty][sectionIndex] = [];
+					}
+
+					updatedSong.practice[difficulty][sectionIndex].push(
+						moveEvent
+					);
+					set({ currentSong: updatedSong });
+					return true;
+				}
+				return false;
+			},
+
+			removeMoveFromPracticeSection: (
+				difficulty,
+				sectionIndex,
+				moveIndex
+			) => {
+				const { currentSong } = get();
+				if (
+					currentSong?.practice?.[difficulty]?.[sectionIndex] &&
+					Array.isArray(
+						currentSong.practice[difficulty][sectionIndex]
+					) &&
+					currentSong.practice[difficulty][sectionIndex][moveIndex]
+				) {
+					const updatedSong = { ...currentSong };
+					updatedSong.practice[difficulty][sectionIndex].splice(
+						moveIndex,
+						1
+					);
+					set({ currentSong: updatedSong });
+					toast.success('Move removed from practice section');
+				}
+			},
 		}),
 		{
 			name: 'song-store', // unique name for devtools
@@ -553,3 +754,13 @@ export const useCameras = (difficulty: 'easy' | 'medium' | 'expert') =>
 	useSongStore(
 		(state) => state.currentSong?.timeline[difficulty].cameras || []
 	);
+
+// Practice section selectors
+export const usePracticeSections = (difficulty: 'easy' | 'medium' | 'expert') =>
+	useSongStore((state) => {
+		// Get the practice sections
+		const sections = state.currentSong?.practice?.[difficulty] || [];
+
+		// Filter out any sections that aren't arrays
+		return sections.filter((section) => Array.isArray(section));
+	});

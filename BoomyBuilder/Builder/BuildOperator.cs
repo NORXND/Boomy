@@ -1,9 +1,11 @@
 using BoomyBuilder.Builder.Models;
 using BoomyBuilder.Builder.Models.Move;
+using BoomyBuilder.Builder.Utils;
 using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Ham;
 using MiloLib.Assets.Rnd;
+using static BoomyBuilder.Builder.PracticeSectioner.PracticeSectioner;
 
 namespace BoomyBuilder.Builder
 {
@@ -67,12 +69,17 @@ namespace BoomyBuilder.Builder
             Dictionary<Difficulty, Dictionary<int, Move>> choreography = ChoreoMaker.ChoreoMaker.ParseChoreography(this);
             Dictionary<Difficulty, Dictionary<int, CameraPosition>> camPositions = Camerator.Camerator.ParseCameraEvents(Request.Timeline);
             MoveGrapher.MoveGrapher.BuildMoveGraph(graph, choreography);
-            Animator.Animator.BuildSongAnim(easyAnim, mediumAnim, expertAnim, choreography, camPositions);
+
+            Dictionary<Difficulty, List<PracticeStepResult>> practiceSections = CreatePracticeSection(this, MovesDir, MoveDataDir, choreography);
+
+            Sequentioner.Sequentioner.CreateSequences(this, MovesDir, MoveDataDir, choreography, practiceSections);
+            TempoMapConverter tempoMapConverter = new(tempoMap: Request.TempoChange);
+            Animator.Animator.BuildSongAnim(easyAnim, mediumAnim, expertAnim, choreography, camPositions, practiceSections, tempoMapConverter);
 
 
             // Save milo file
             string miloOutputPath = Path.Combine(genDir, inputFolderName + ".milo_xbox");
-            WorkingMilo.Save(miloOutputPath, MiloFile.Type.Uncompressed);
+            WorkingMilo.Save(miloOutputPath, Request.Compress ? MiloFile.Type.CompressedZlibAlt : MiloFile.Type.Uncompressed);
 
             // Copy .mogg file (required)
             string moggSourcePath = Path.Combine(Request.Path, inputFolderName + ".mogg");
