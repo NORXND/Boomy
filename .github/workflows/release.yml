@@ -183,82 +183,14 @@ jobs:
                   tag="${{ github.ref }}"
                   version=${tag#refs/tags/v}
                   echo "version=$version" >> $GITHUB_OUTPUT
-            - name: Create Release
-              id: create_release
-              uses: actions/create-release@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v1
               with:
-                  tag_name: ${{ github.ref_name }}
-                  release_name: Release ${{ steps.version.outputs.version }}
-                  draft: false
-                  prerelease: false
-                  body: |
-                      ## Boomy Release ${{ steps.version.outputs.version }}
-                      This release was automatically generated from tag ${{ github.ref_name }}.
-            - name: Unpack all artifacts
-              run: |
-                  mkdir -p unpacked
-                  for artifact in ./artifacts/*/*; do
-                      case "${artifact##*.}" in
-                          zip)
-                              unzip "$artifact" -d unpacked
-                              ;;
-                          deb|rpm|exe)
-                              cp "$artifact" unpacked/
-                              ;;
-                          *)
-                              echo "Skipping unsupported file type: $artifact"
-                              ;;
-                      esac
-                  done
-            - name: Upload all release assets
-              shell: bash
+                  generate_release_notes: true
+                  files: |
+                      ./artifacts/**/*.zip
+                      ./artifacts/**/*.deb
+                      ./artifacts/**/*.rpm
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
-                  VERSION: ${{ steps.version.outputs.version }}
-              run: |
-                  upload_file() {
-                    local file_path="$1"
-                    local asset_name="$2"
-                    local content_type="$3"
-                    upload_url="${UPLOAD_URL%\{*}?name=${asset_name}"
-                    echo "Uploading $asset_name from $file_path"
-                    curl -X POST \
-                      -H "Authorization: token $GITHUB_TOKEN" \
-                      -H "Content-Type: $content_type" \
-                      --data-binary @"$file_path" \
-                      "$upload_url" || echo "Failed to upload $asset_name"
-                  }
-                  for artifact in artifacts/*/*; do
-                    if [[ -f "$artifact" ]]; then
-                      filename=$(basename "$artifact")
-                      ext="${filename##*.}"
-                      # Only upload .deb, .rpm, .exe, and .zip (on macOS) files
-                      case "$ext" in
-                        exe)
-                          content_type="application/vnd.microsoft.portable-executable"
-                          upload_file "$artifact" "$filename" "$content_type"
-                          ;;
-                        deb)
-                          content_type="application/vnd.debian.binary-package"
-                          upload_file "$artifact" "$filename" "$content_type"
-                          ;;
-                        rpm)
-                          content_type="application/x-rpm"
-                          upload_file "$artifact" "$filename" "$content_type"
-                          ;;
-                        zip)
-                          # Only upload .zip if running on macOS
-                          if [[ "$(uname)" == "Darwin" ]]; then
-                            content_type="application/zip"
-                            upload_file "$artifact" "$filename" "$content_type"
-                          fi
-                          ;;
-                        *)
-                          # Skip all other file types
-                          ;;
-                      esac
-                    fi
-                  done
