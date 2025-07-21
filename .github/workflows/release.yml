@@ -48,14 +48,18 @@ jobs:
               with:
                   name: boomy-win32-x64
                   path: |
-                      BoomyEditor/out/**/*.exe
+                      BoomyEditor/out/make/**/*.exe
+
+            - name: Zip BoomyExporter output
+              run: |
+                  zip -r BoomyExporter/bin/Release/net8.0/win-x64/publish/boomyexporter-win-x64.zip BoomyExporter/bin/Release/net8.0/win-x64/publish/*
 
             - name: Upload BoomyExporter artifact
               uses: actions/upload-artifact@v4
               with:
                   name: boomyexporter-win-x64
                   path: |
-                      BoomyExporter/bin/Release/net8.0/win-x64/publish/**/*.zip
+                      BoomyExporter/bin/Release/net8.0/win-x64/publish/boomyexporter-win-x64.zip
     build-linux:
         runs-on: ubuntu-latest
         continue-on-error: true
@@ -97,15 +101,19 @@ jobs:
               with:
                   name: boomy-linux-x64
                   path: |
-                      BoomyEditor/out/**/*.deb
-                      BoomyEditor/out/**/*.rpm
+                      BoomyEditor/out/make/**/*.deb
+                      BoomyEditor/out/make/**/*.rpm
+
+            - name: Zip BoomyExporter output
+              run: |
+                  zip -r BoomyExporter/bin/Release/net8.0/linux-x64/publish/boomyexporter-linux-x64.zip BoomyExporter/bin/Release/net8.0/linux-x64/publish/*
 
             - name: Upload BoomyExporter artifact
               uses: actions/upload-artifact@v4
               with:
                   name: boomyexporter-linux-x64
                   path: |
-                      BoomyExporter/bin/Release/net8.0/linux-x64/publish/**/*.zip
+                      BoomyExporter/bin/Release/net8.0/linux-x64/publish/boomyexporter-linux-x64.zip
     build-macos:
         runs-on: macos-latest
         continue-on-error: true
@@ -147,14 +155,18 @@ jobs:
               with:
                   name: boomy-darwin-x64
                   path: |
-                      BoomyEditor/out/**/*.zip
+                      BoomyEditor/out/make/**/*.zip
+
+            - name: Zip BoomyExporter output
+              run: |
+                  zip -r BoomyExporter/bin/Release/net8.0/osx-x64/publish/boomyexporter-osx-x64.zip BoomyExporter/bin/Release/net8.0/osx-x64/publish/*
 
             - name: Upload BoomyExporter artifact
               uses: actions/upload-artifact@v4
               with:
                   name: boomyexporter-osx-x64
                   path: |
-                      BoomyExporter/bin/Release/net8.0/osx-x64/publish/**/*.zip
+                      BoomyExporter/bin/Release/net8.0/osx-x64/publish/boomyexporter-osx-x64.zip
     release:
         needs: [build-windows, build-linux, build-macos]
         runs-on: ubuntu-latest
@@ -187,6 +199,22 @@ jobs:
                   body: |
                       ## Boomy Release ${{ steps.version.outputs.version }}
                       This release was automatically generated from tag ${{ github.ref_name }}.
+            - name: Unpack all artifacts
+              run: |
+                  mkdir -p unpacked
+                  for artifact in ./artifacts/*/*; do
+                      case "${artifact##*.}" in
+                          zip)
+                              unzip "$artifact" -d unpacked
+                              ;;
+                          deb|rpm|exe)
+                              cp "$artifact" unpacked/
+                              ;;
+                          *)
+                              echo "Skipping unsupported file type: $artifact"
+                              ;;
+                      esac
+                  done
             - name: Upload all release assets
               shell: bash
               env:
