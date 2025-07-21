@@ -9,7 +9,6 @@ on:
 jobs:
     build-windows:
         runs-on: windows-latest
-        continue-on-error: true
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -32,8 +31,8 @@ jobs:
             - name: Build .NET solution
               run: dotnet build Boomy.sln -c Release --no-restore
 
-            - name: Publish BoomyBuilder (win-x64)
-              run: dotnet publish BoomyBuilder/BoomyBuilder.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=false
+            - name: Publish BoomyBuilder and BoomyExporter (win-x64)
+              run: dotnet publish Boomy.sln -c Release -r win-x64 --self-contained
 
             - name: Install Node.js dependencies
               working-directory: BoomyEditor
@@ -52,7 +51,7 @@ jobs:
 
             - name: Zip BoomyExporter output
               run: |
-                  zip -r BoomyExporter/bin/Release/net8.0/win-x64/publish/boomyexporter-win-x64.zip BoomyExporter/bin/Release/net8.0/win-x64/publish/*
+                  Compress-Archive -Path BoomyExporter/bin/Release/net8.0/win-x64/publish/* -DestinationPath BoomyExporter/bin/Release/net8.0/win-x64/publish/boomyexporter-win-x64.zip
 
             - name: Upload BoomyExporter artifact
               uses: actions/upload-artifact@v4
@@ -62,7 +61,6 @@ jobs:
                       BoomyExporter/bin/Release/net8.0/win-x64/publish/boomyexporter-win-x64.zip
     build-linux:
         runs-on: ubuntu-latest
-        continue-on-error: true
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -85,8 +83,8 @@ jobs:
             - name: Build .NET solution
               run: dotnet build Boomy.sln -c Release --no-restore
 
-            - name: Publish BoomyBuilder (linux-x64)
-              run: dotnet publish BoomyBuilder/BoomyBuilder.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=false
+            - name: Publish BoomyBuilder and BoomyExporter (linux-x64)
+              run: dotnet publish Boomy.sln -c Release -r linux-x64 --self-contained
 
             - name: Install Node.js dependencies
               working-directory: BoomyEditor
@@ -116,7 +114,6 @@ jobs:
                       BoomyExporter/bin/Release/net8.0/linux-x64/publish/boomyexporter-linux-x64.zip
     build-macos:
         runs-on: macos-latest
-        continue-on-error: true
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -139,8 +136,8 @@ jobs:
             - name: Build .NET solution
               run: dotnet build Boomy.sln -c Release --no-restore
 
-            - name: Publish BoomyBuilder (osx-x64)
-              run: dotnet publish BoomyBuilder/BoomyBuilder.csproj -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=false
+            - name: Publish BoomyBuilder and BoomyExporter (osx-x64)
+              run: dotnet publish Boomy.sln -c Release -r osx-x64 --self-contained
 
             - name: Install Node.js dependencies
               working-directory: BoomyEditor
