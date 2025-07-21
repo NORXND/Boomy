@@ -64,6 +64,12 @@ namespace BoomyBuilder.Builder.Models.SongMeta
 
         [JsonProperty("bpm", Required = Required.Always)]
         public int Bpm { get; set; }
+
+        [JsonProperty("song_length", Required = Required.Always)]
+        public int SongLength { get; set; }
+
+        [JsonProperty("cover_image_path")]
+        public string? CoverImagePath { get; set; }
     }
 
     public partial class MidiEvent

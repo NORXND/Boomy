@@ -1,0 +1,39 @@
+(%SONGNAME%
+   (name "%SONGTITLE%")
+   (artist "%SONGARTIST%")
+   (song_id %SONGID%)
+   (game_origin %SONGORIGIN%)
+   (song
+      (name "songs/%SONGNAME%/%SONGNAME%")
+      (tracks
+         (
+            (drum (0 1))
+         )
+      )
+      (pans (%PANSVAL1% %PANSVAL2%))
+      (vols (%VOLSVAL1% %VOLSVAL2%))
+   )
+   (preview %PREVIEWSTART% %PREVIEWEND%)
+   (rank %RANK%)
+   (format 3)
+   (version 11)
+   (rating %RATING%)
+   (album_name "%ALBUM%")
+   (gender %GENDER%)
+   (bpm %BPM%)
+   (song_length %SONGLENGTH%)
+   (midi_events
+      %FOR I IN MIDIEVENTS%
+      (%KEY% %SOUND%)
+      %ENDFOR%
+   )
+   (default_character %DEFAULTCHAR%)
+   (default_character_alt %DEFAULTARTCHAR%)
+   (backup_character %BACKUPCHAR%)
+   (backup_character_alt %BACKUPCHARALT%)
+   (default_venue %VENUE%)
+   (backup_venue %BACKUPVENUE%)
+   (is_complete TRUE)
+   (dj_intensity_rank %INTENSITY%)
+   (year_released %YEAR%)
+)

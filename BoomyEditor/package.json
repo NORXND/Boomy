@@ -1,20 +1,27 @@
 {
   "name": "boomyeditor",
   "productName": "BoomyEditor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Dance Central 3 Song Editor",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "publish": "electron-forge publish",
+    "publish": "electron-forge publish --dry-run",
     "lint": "eslint --ext .ts,.tsx ."
   },
   "keywords": [],
   "author": {
     "name": "NORXND",
     "email": "norxnd@norxnd.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NORXND/Boomy"
+  },
+  "bugs": {
+    "url": "https://github.com/NORXND/Boomy/issues"
   },
   "license": "MIT",
   "devDependencies": {
@@ -27,6 +34,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
     "@electron-forge/plugin-fuses": "^7.8.1",
     "@electron-forge/plugin-vite": "^7.8.1",
+    "@electron-forge/publisher-github": "^7.8.1",
     "@electron/fuses": "^1.8.0",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react-dom": "^19.1.6",
@@ -45,10 +53,12 @@
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
     "@radix-ui/react-accordion": "^1.2.11",
+    "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-menubar": "^1.1.15",
     "@radix-ui/react-scroll-area": "^1.2.9",
+    "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
@@ -59,6 +69,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron-squirrel-startup": "^1.0.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.525.0",
     "next-themes": "^0.4.6",
     "path-browserify": "^1.0.1",
@@ -71,6 +82,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "tone": "^15.1.22",
+    "update-electron-app": "^3.1.1",
     "zod": "^4.0.5",
     "zustand": "^5.0.6"
   }

@@ -16,11 +16,17 @@ namespace BoomyBuilder.Builder.BuildRequest
         [JsonProperty("moves_path", Required = Required.Always)]
         public required string MovesPath { get; set; }
 
+        [JsonProperty("song_meta", Required = Required.Always)]
+        public required SongMeta SongMeta { get; set; }
+
         [JsonProperty("milo_template_path", Required = Required.Always)]
         public required string MiloTemplatePath { get; set; }
 
         [JsonProperty("barks_template_path", Required = Required.Always)]
         public required string BarksTemplatePath { get; set; }
+
+        [JsonProperty("songs_dta_path", Required = Required.Always)]
+        public required string SongsDtaPath { get; set; }
 
         [JsonProperty("out_path", Required = Required.Always)]
         public required string OutPath { get; set; }
@@ -36,6 +42,9 @@ namespace BoomyBuilder.Builder.BuildRequest
 
         [JsonProperty("compress", Required = Required.Always)]
         public required bool Compress { get; set; }
+
+        [JsonProperty("package", Required = Required.Always)]
+        public required bool Package { get; set; }
     }
 
     public partial class BuildRequest

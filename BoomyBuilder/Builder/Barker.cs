@@ -61,7 +61,7 @@ namespace BoomyBuilder.Builder
                                     DirectoryMeta.Entry entry = DirectoryMeta.Entry.CreateDirtyAssetFromBytes(assetType, name + fext, [.. fileBytes]);
                                     barksMilo.dirMeta.entries.Add(entry);
 
-                                    using EndianReader reader = new(new MemoryStream(fileBytes), Endian.BigEndian);
+                                    using MiloLib.Utils.EndianReader reader = new(new MemoryStream(fileBytes), Endian.BigEndian);
                                     switch (assetType)
                                     {
                                         case "Sound":

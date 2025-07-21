@@ -14,10 +14,10 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 
 ## Supported Features
 
--   [ ] Song Metadata
+-   [x] Song Metadata
 -   [x] Moves Editor
 -   [x] Camera Shots Editor
--   [ ] Practice Sections Editor
+-   [x] Practice Sections Editor
 -   [ ] Importing existing DC3 songs
 -   [ ] Importing existing DC1 / DC2 songs
 -   [ ] Exporting moves from DC3 songs
@@ -45,4 +45,9 @@ NORXND - Tool creator and maintainer.
 MiloHax Team - For MiloLib and generally research on DC, Milo and other Harmonix stuff.
 
 This software uses MiloLib being a part of [MiloEditor](https://github.com/ihatecompvir/MiloEditor) by ihatecompvir
-This software uses [makemogg](https://github.com/maxton/makemogg) by maxton
+
+Boomy also uses parts, snippets based on many awesome open source projects like:
+[xbox360-lib](https://github.com/unknownv2/xbox360-lib/)
+[makemogg](https://github.com/maxton/makemogg)
+[moggulator](https://github.com/LocalH/moggulator)
+[nautilus](https://github.com/trojannemo/Nautilus)

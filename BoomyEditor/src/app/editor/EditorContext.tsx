@@ -12,6 +12,7 @@ type EditorSection =
 	| 'move-choreography'
 	| 'camera-shots'
 	| 'practice-sections'
+	| 'song-data'
 	| null;
 
 interface EditorContextType {

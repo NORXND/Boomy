@@ -48,8 +48,14 @@ jobs:
               with:
                   name: boomy-win32-x64
                   path: |
-                      BoomyEditor/out/**/*
+                      BoomyEditor/out/**/*.exe
 
+            - name: Upload BoomyExporter artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: boomyexporter-win-x64
+                  path: |
+                      BoomyExporter/bin/Release/net8.0/win-x64/publish/**/*.zip
     build-linux:
         runs-on: ubuntu-latest
         continue-on-error: true
@@ -91,8 +97,15 @@ jobs:
               with:
                   name: boomy-linux-x64
                   path: |
-                      BoomyEditor/out/**/*
+                      BoomyEditor/out/**/*.deb
+                      BoomyEditor/out/**/*.rpm
 
+            - name: Upload BoomyExporter artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: boomyexporter-linux-x64
+                  path: |
+                      BoomyExporter/bin/Release/net8.0/linux-x64/publish/**/*.zip
     build-macos:
         runs-on: macos-latest
         continue-on-error: true
@@ -134,8 +147,14 @@ jobs:
               with:
                   name: boomy-darwin-x64
                   path: |
-                      BoomyEditor/out/**/*
+                      BoomyEditor/out/**/*.zip
 
+            - name: Upload BoomyExporter artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: boomyexporter-osx-x64
+                  path: |
+                      BoomyExporter/bin/Release/net8.0/osx-x64/publish/**/*.zip
     release:
         needs: [build-windows, build-linux, build-macos]
         runs-on: ubuntu-latest
@@ -155,7 +174,6 @@ jobs:
                   tag="${{ github.ref }}"
                   version=${tag#refs/tags/v}
                   echo "version=$version" >> $GITHUB_OUTPUT
-
             - name: Create Release
               id: create_release
               uses: actions/create-release@v1
@@ -169,7 +187,6 @@ jobs:
                   body: |
                       ## Boomy Release ${{ steps.version.outputs.version }}
                       This release was automatically generated from tag ${{ github.ref_name }}.
-
             - name: Upload all release assets
               shell: bash
               env:
@@ -189,19 +206,34 @@ jobs:
                       --data-binary @"$file_path" \
                       "$upload_url" || echo "Failed to upload $asset_name"
                   }
-
                   for artifact in artifacts/*/*; do
                     if [[ -f "$artifact" ]]; then
                       filename=$(basename "$artifact")
                       ext="${filename##*.}"
+                      # Only upload .deb, .rpm, .exe, and .zip (on macOS) files
                       case "$ext" in
-                        exe) content_type="application/vnd.microsoft.portable-executable" ;;
-                        dmg) content_type="application/x-apple-diskimage" ;;
-                        AppImage) content_type="application/x-executable" ;;
-                        deb) content_type="application/vnd.debian.binary-package" ;;
-                        rpm) content_type="application/x-rpm" ;;
-                        *) content_type="application/octet-stream" ;;
+                        exe)
+                          content_type="application/vnd.microsoft.portable-executable"
+                          upload_file "$artifact" "$filename" "$content_type"
+                          ;;
+                        deb)
+                          content_type="application/vnd.debian.binary-package"
+                          upload_file "$artifact" "$filename" "$content_type"
+                          ;;
+                        rpm)
+                          content_type="application/x-rpm"
+                          upload_file "$artifact" "$filename" "$content_type"
+                          ;;
+                        zip)
+                          # Only upload .zip if running on macOS
+                          if [[ "$(uname)" == "Darwin" ]]; then
+                            content_type="application/zip"
+                            upload_file "$artifact" "$filename" "$content_type"
+                          fi
+                          ;;
+                        *)
+                          # Skip all other file types
+                          ;;
                       esac
-                      upload_file "$artifact" "$filename" "$content_type"
                     fi
                   done

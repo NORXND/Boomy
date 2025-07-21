@@ -11,7 +11,7 @@ const config: ForgeConfig = {
 	packagerConfig: {
 		asar: true,
 		extraResource: (() => {
-			const base = ['../BoomyDeps/makemogg/'];
+			const base = [];
 			switch (process.platform) {
 				case 'win32':
 					base.push(
@@ -36,7 +36,7 @@ const config: ForgeConfig = {
 			return base;
 		})(),
 		icon: 'icons/icon',
-		executableName: 'boomyedit',
+		executableName: 'boomyeditor',
 	},
 	rebuildConfig: {
 		onlyModules: [],

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSongStore } from '../store/songStore';
@@ -25,6 +25,26 @@ const DIFFICULTY_LABELS = {
 	1: 'Medium',
 	2: 'Expert',
 };
+
+// Extend window type for caching
+declare global {
+	interface Window {
+		__searchIndexCache?: Record<string, any>;
+	}
+}
+
+// Helper to load and cache search index
+async function loadSearchIndex(indexPath: string): Promise<any> {
+	if (window.__searchIndexCache && window.__searchIndexCache[indexPath]) {
+		return window.__searchIndexCache[indexPath];
+	}
+	const exists = await window.electronAPI.pathExists(indexPath);
+	if (!exists) return null;
+	const index = await window.electronAPI.readJsonFile(indexPath);
+	if (!window.__searchIndexCache) window.__searchIndexCache = {};
+	window.__searchIndexCache[indexPath] = index;
+	return index;
+}
 
 interface ImportedMovesProps {
 	className?: string;
@@ -54,10 +74,11 @@ export function ImportedMoves({
 	>({});
 	const [imageCache, setImageCache] = useState<Record<string, string>>({});
 	const [searchQuery, setSearchQuery] = useState('');
+	const [searchIndex, setSearchIndex] = useState<any | null>(null);
 
 	const moveLibPath = currentSong?.move_lib;
 
-	// Load move data for each imported move
+	// Load move data for each imported move and search index
 	useEffect(() => {
 		if (!moveLibPath || !currentSong?.moveLibrary) return;
 
@@ -68,10 +89,11 @@ export function ImportedMoves({
 		if (moveKeys.length === 0) {
 			setMoveDataCache({});
 			setImageCache({});
+			setSearchIndex(null);
 			return;
 		}
 
-		const loadMoveData = async () => {
+		const loadMoveDataAndIndex = async () => {
 			const newMoveDataCache: Record<string, MoveData> = {};
 			const newImageCache: Record<string, string> = {};
 
@@ -85,7 +107,6 @@ export function ImportedMoves({
 					const jsonExists = await window.electronAPI.pathExists(
 						jsonPath
 					);
-
 					if (jsonExists) {
 						const jsonData = await window.electronAPI.readJsonFile(
 							jsonPath
@@ -98,7 +119,6 @@ export function ImportedMoves({
 					const imageExists = await window.electronAPI.pathExists(
 						imagePath
 					);
-
 					if (imageExists) {
 						try {
 							const imageBuffer =
@@ -123,11 +143,16 @@ export function ImportedMoves({
 				}
 			}
 
+			// Load and cache search index
+			const indexPath = `${moveLibPath}/indexes/search_index.min.json`;
+			const index = await loadSearchIndex(indexPath);
+			setSearchIndex(index);
+
 			setMoveDataCache(newMoveDataCache);
 			setImageCache(newImageCache);
 		};
 
-		loadMoveData();
+		loadMoveDataAndIndex();
 	}, [currentSong?.moveLibrary, moveLibPath]);
 
 	const handleClipRemove = (moveKey: string, clipPath: string) => {
@@ -152,11 +177,11 @@ export function ImportedMoves({
 		return flagNames;
 	};
 
-	// Filter moves based on search query and props
+	// Filter moves using search index
 	const filteredMoves = useMemo(() => {
 		let movesToFilter = currentSong?.moveLibrary || {};
 
-		// First, apply choreography filtering if requested
+		// Choreography filtering
 		if (
 			filterByChoreography &&
 			currentSong?.timeline &&
@@ -170,8 +195,6 @@ export function ImportedMoves({
 						`${move.move_origin}/${move.move_song}/${move.move}`
 				)
 			);
-
-			// Filter to only include moves that are in the choreography
 			movesToFilter = Object.fromEntries(
 				Object.entries(movesToFilter).filter(([moveKey]) =>
 					choreographyMoveKeys.has(moveKey)
@@ -179,11 +202,10 @@ export function ImportedMoves({
 			);
 		}
 
-		// Apply difficulty filtering if requested
+		// Difficulty filtering
 		if (filterByDifficulty && !filterByChoreography) {
 			const difficultyMap = { easy: 0, medium: 1, expert: 2 };
 			const targetDifficulty = difficultyMap[filterByDifficulty];
-
 			movesToFilter = Object.fromEntries(
 				Object.entries(movesToFilter).filter(([moveKey]) => {
 					const moveData = moveDataCache[moveKey];
@@ -192,73 +214,55 @@ export function ImportedMoves({
 			);
 		}
 
-		// Apply scored-only filtering if requested
+		// Scored-only filtering
 		if (filterScoredOnly) {
 			movesToFilter = Object.fromEntries(
 				Object.entries(movesToFilter)
 					.map(([moveKey, clips]) => {
 						const moveData = moveDataCache[moveKey];
 						if (!moveData) return [moveKey, clips];
-
-						// Filter clips to only include scored ones
 						const scoredClips = clips.filter((clipPath) => {
 							const clipName = clipPath.split('/').pop() || '';
 							const clip = moveData.clips[clipName];
-							return clip && (clip.flags & 2) !== 0; // Check for scored flag
+							return clip && (clip.flags & 2) !== 0;
 						});
-
 						return [moveKey, scoredClips];
 					})
-					.filter(([_, clips]) => clips.length > 0) // Remove moves with no scored clips
+					.filter(([_, clips]) => clips.length > 0)
 			);
 		}
 
-		// Apply search filtering if there's a search query
-		if (!searchQuery.trim()) {
+		// Use search index for filtering
+		if (!searchQuery.trim() || !searchIndex) {
 			return movesToFilter;
 		}
 
 		const query = searchQuery.toLowerCase().trim();
 		const filtered: Record<string, string[]> = {};
 
+		// Assume searchIndex has a structure: { moves: { moveKey: { text: string, clips: { clipName: string } } } }
 		Object.entries(movesToFilter).forEach(([moveKey, clips]) => {
-			const moveData = moveDataCache[moveKey];
-			const [category, song, move] = moveKey.split('/');
+			const moveIndex = searchIndex.moves?.[moveKey];
+			if (!moveIndex) return;
 
-			// Search in move metadata
-			const searchableText = [
-				moveData?.display_name || '',
-				moveData?.name || '',
-				moveData?.song_name || '',
-				DIFFICULTY_LABELS[
-					moveData?.difficulty as keyof typeof DIFFICULTY_LABELS
-				] || '',
-				category,
-				song,
-				move,
-			]
-				.join(' ')
-				.toLowerCase();
-
-			// Search in clip data
-			const clipMatches = clips.some((clipPath) => {
-				const clipName = clipPath.split('/').pop() || '';
-				const clip = moveData?.clips[clipName];
-
-				const clipSearchableText = [
-					clipName,
-					clip?.genre || '',
-					clip?.era || '',
-					...(clip ? decodeFlags(clip.flags) : []),
-				]
-					.join(' ')
-					.toLowerCase();
-
-				return clipSearchableText.includes(query);
-			});
-
-			if (searchableText.includes(query) || clipMatches) {
+			// Search in move text
+			if (
+				moveIndex.text &&
+				moveIndex.text.toLowerCase().includes(query)
+			) {
 				filtered[moveKey] = clips;
+				return;
+			}
+
+			// Search in clips
+			const matchedClips = clips.filter((clipPath) => {
+				const clipName = clipPath.split('/').pop() || '';
+				const clipIndex = moveIndex.clips?.[clipName];
+				if (!clipIndex) return false;
+				return clipIndex.toLowerCase().includes(query);
+			});
+			if (matchedClips.length > 0) {
+				filtered[moveKey] = matchedClips;
 			}
 		});
 
@@ -271,6 +275,7 @@ export function ImportedMoves({
 		filterByChoreography,
 		currentSong?.timeline,
 		filterScoredOnly,
+		searchIndex,
 	]);
 
 	if (

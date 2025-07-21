@@ -46,6 +46,23 @@ namespace MiloLib.Assets.Ham
 
             mFilterVersion = Symbol.Read(reader);
 
+            if (mFilterVersion.value.Length == 0)
+            {
+                mFilterVersion = Symbol.Read(reader);
+
+                if (mFilterVersion.value.Length == 0)
+                {
+                    mFilterVersion = Symbol.Read(reader);
+
+                    if (mFilterVersion.value.Length == 0)
+                    {
+                        mFilterVersion = Symbol.Read(reader);
+                    }
+                }
+            }
+
+
+
             if (standalone)
                 if ((reader.Endianness == Endian.BigEndian ? 0xADDEADDE : 0xDEADDEAD) != reader.ReadUInt32()) throw new Exception("Got to end of standalone asset but didn't find the expected end bytes, read likely did not succeed");
 

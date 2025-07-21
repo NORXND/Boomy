@@ -9,12 +9,14 @@ import { PracticeSections } from './PracticeSections';
 import { useSongStore } from '../store/songStore';
 import { useEffect } from 'react';
 import { TimelineProvider } from '@/contexts/TimelineContext';
+import MetadataEditor from './MetadataEditor';
 
 const SECTION_NAMES = {
 	'moves-library': 'Moves Library',
 	'move-choreography': 'Move Choreography',
 	'camera-shots': 'Camera Shots',
 	'practice-sections': 'Practice Sections',
+	'song-data': 'Song Data',
 };
 
 function EditorContent() {
@@ -46,6 +48,8 @@ function EditorContent() {
 				return <CameraShots />;
 			case 'practice-sections':
 				return <PracticeSections />;
+			case 'song-data':
+				return <MetadataEditor />;
 			default:
 				return (
 					<div className="flex-1 flex items-center justify-center text-muted-foreground">

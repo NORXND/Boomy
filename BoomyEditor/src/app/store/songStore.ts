@@ -12,7 +12,9 @@ import type {
 import { toast } from 'sonner';
 import { extractTempoChangesFromMidi } from '../utils/midiUtils';
 
-interface SongState {
+import { SongMeta } from '../types/song';
+
+export interface SongState {
 	// Current song data
 	currentSong: Song | null;
 	songPath: string | null;
@@ -21,6 +23,7 @@ interface SongState {
 	// Song metadata
 	songName: string | null;
 	songVersion: string | null;
+	songMeta: SongMeta | null;
 
 	// Audio paths
 	audioPath: string | null;
@@ -75,6 +78,7 @@ interface SongState {
 	setError: (error: string | null) => void;
 	clearSong: () => void;
 	saveSong: () => Promise<void>;
+	updateSongMeta: (metaUpdate: SongMeta) => void;
 	buildAndSave: (compression: boolean) => Promise<void>;
 	// Move library actions
 	addClipToLibrary: (
@@ -130,6 +134,7 @@ export const useSongStore = create<SongState>()(
 			isLoaded: false,
 			songName: null as string | null,
 			songVersion: null as string | null,
+			songMeta: null as SongMeta | null,
 			audioPath: null as string | null,
 			midiPath: null as string | null,
 			moveLibrary: {} as Record<string, string[]>,
@@ -177,6 +182,7 @@ export const useSongStore = create<SongState>()(
 					tempoChanges = await extractTempoChangesFromMidi(midiPath);
 				}
 
+				// Update the song state with metadata
 				set({
 					currentSong: {
 						...convertedSong,
@@ -191,6 +197,7 @@ export const useSongStore = create<SongState>()(
 					audioPath: audioPath || null,
 					midiPath: midiPath || null,
 					moveLibrary: song.moveLibrary || {},
+					songMeta: convertedSong.meta || null,
 					isLoaded: true,
 					isLoading: false,
 					error: null,
@@ -301,12 +308,26 @@ export const useSongStore = create<SongState>()(
 					songPath: null,
 					songName: null,
 					songVersion: null,
+					songMeta: null,
 					audioPath: null,
 					midiPath: null,
 					isLoaded: false,
 					isLoading: false,
 					error: null,
 				});
+			},
+
+			updateSongMeta: (metaUpdate: Partial<SongMeta>) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedMeta = currentSong.meta
+						? { ...currentSong.meta, ...metaUpdate }
+						: (metaUpdate as SongMeta);
+					set({
+						currentSong: { ...currentSong, meta: updatedMeta },
+						songMeta: updatedMeta,
+					});
+				}
 			},
 
 			saveSong: async () => {
@@ -347,16 +368,17 @@ export const useSongStore = create<SongState>()(
 						},
 					};
 
-					// Update song with current audio paths and tempo changes
+					// Update song with current audio paths, tempo changes, and metadata
 					const songToSave = {
 						...currentSong,
 						timeline: timelineForSave,
+						meta: get().songMeta,
 					};
 
 					// Save version info
 					await window.electronAPI.writeFile(
 						`${songPath}/.boomy`,
-						'song1'
+						'song2'
 					);
 
 					// Save song data
@@ -735,6 +757,7 @@ export const useSongStore = create<SongState>()(
 
 // Selectors for common use cases
 export const useSongData = () => useSongStore((state) => state.currentSong);
+export const useSongMeta = () => useSongStore((state) => state.songMeta);
 export const useSongPath = () => useSongStore((state) => state.songPath);
 export const useSongName = () => useSongStore((state) => state.songName);
 export const useAudioPath = () => useSongStore((state) => state.audioPath);

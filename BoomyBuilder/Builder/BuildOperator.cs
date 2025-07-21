@@ -1,11 +1,13 @@
 using BoomyBuilder.Builder.Models;
 using BoomyBuilder.Builder.Models.Move;
+using BoomyBuilder.Builder.SongMetadata;
 using BoomyBuilder.Builder.Utils;
 using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Ham;
 using MiloLib.Assets.Rnd;
 using static BoomyBuilder.Builder.PracticeSectioner.PracticeSectioner;
+using System.Threading.Tasks;
 
 namespace BoomyBuilder.Builder
 {
@@ -27,7 +29,7 @@ namespace BoomyBuilder.Builder
             Request = converted;
         }
 
-        public string? Build()
+        public async Task<string?> Build()
         {
             WorkingMilo = new MiloFile(Request.MiloTemplatePath);
 
@@ -38,8 +40,10 @@ namespace BoomyBuilder.Builder
             // Create output directory structure
             Directory.CreateDirectory(Request.OutPath);
 
+            string songsDir = Path.Combine(Request.OutPath, "songs");
+
             // Create song subfolder
-            string songDir = Path.Combine(Request.OutPath, inputFolderName);
+            string songDir = Path.Combine(songsDir, inputFolderName);
             Directory.CreateDirectory(songDir);
 
             // Create gen subfolder
@@ -83,6 +87,7 @@ namespace BoomyBuilder.Builder
 
             // Copy .mogg file (required)
             string moggSourcePath = Path.Combine(Request.Path, inputFolderName + ".mogg");
+            string oggSourcePath = Path.Combine(Request.Path, inputFolderName + ".ogg");
             string moggDestPath = Path.Combine(songDir, inputFolderName + ".mogg");
             if (File.Exists(moggSourcePath))
             {
@@ -90,7 +95,14 @@ namespace BoomyBuilder.Builder
             }
             else
             {
-                throw new BoomyException($"Required .mogg file not found: {moggSourcePath}. Please build it.");
+                if (File.Exists(oggSourcePath))
+                {
+                    BoomyConverters.Mogg.MoggCreator.CreateMoggFile(oggSourcePath, moggDestPath);
+                }
+                else
+                {
+                    throw new BoomyException($"Required .mogg file not found: {moggSourcePath}. Please build it.");
+                }
             }
 
             // Copy .mid file (required)
@@ -105,27 +117,72 @@ namespace BoomyBuilder.Builder
                 throw new BoomyException($"Required .mid file not found: {midSourcePath}");
             }
 
-            // Copy _keep.png_xbox file (optional)
-            string keepPngSourcePath = Path.Combine(Request.Path, inputFolderName + "_keep.png_xbox");
+            // Handle cover image conversion and copying
             string keepPngDestPath = Path.Combine(genDir, inputFolderName + "_keep.png_xbox");
-            if (File.Exists(keepPngSourcePath))
+
+            // First check if there's a cover image path in metadata
+            if (!string.IsNullOrEmpty(Request.SongMeta.CoverImagePath))
             {
-                File.Copy(keepPngSourcePath, keepPngDestPath, true);
+                string coverImagePath = Request.SongMeta.CoverImagePath;
+
+                // Make absolute path if it's relative
+                if (!Path.IsPathRooted(coverImagePath))
+                {
+                    coverImagePath = Path.Combine(Request.Path, coverImagePath);
+                }
+
+                // Check if the cover image exists and convert it
+                if (File.Exists(coverImagePath) && Path.GetExtension(coverImagePath).ToLower() == ".png")
+                {
+                    try
+                    {
+                        await BoomyConverters.ArtCover.PngToXboxHmxConverter.ConvertAsync(coverImagePath, keepPngDestPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new BoomyException($"Failed to convert cover image: {ex.Message}");
+                    }
+                }
+                else if (File.Exists(coverImagePath))
+                {
+                    throw new BoomyException($"Cover image must be a PNG file: {coverImagePath}");
+                }
+                else
+                {
+                    throw new BoomyException($"Cover image not found: {coverImagePath}");
+                }
+            }
+            else
+            {
+                // Fallback to old behavior - look for _keep.png_xbox file
+                string keepPngSourcePath = Path.Combine(Request.Path, inputFolderName + "_keep.png_xbox");
+                if (File.Exists(keepPngSourcePath))
+                {
+                    File.Copy(keepPngSourcePath, keepPngDestPath, true);
+                }
+                else
+                {
+                    // Try to find and convert a PNG file with the old naming convention
+                    string keepPngPath = Path.Combine(Request.Path, inputFolderName + "_keep.png");
+                    if (File.Exists(keepPngPath))
+                    {
+                        try
+                        {
+                            await BoomyConverters.ArtCover.PngToXboxHmxConverter.ConvertAsync(keepPngPath, keepPngDestPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new BoomyException($"Failed to convert cover image: {ex.Message}");
+                        }
+                    }
+                }
             }
 
-            // Handle songs.dta file
-            string songsDtaSourcePath = Path.Combine(Request.Path, "songs.dta");
-            string songsDtaPath = Path.Combine(Request.OutPath, "songs.dta");
+            SongMetadataGenerator.GenerateSongsDta(Request.SongsDtaPath, Request.SongMeta, songsDir);
 
-            if (File.Exists(songsDtaSourcePath))
+            if (Request.Package)
             {
-                // Copy existing songs.dta from source
-                File.Copy(songsDtaSourcePath, songsDtaPath, true);
-            }
-            else if (!File.Exists(songsDtaPath))
-            {
-                // Create empty songs.dta if it doesn't exist in either location
-                File.WriteAllText(songsDtaPath, "");
+                BoomyConverters.PackageCreator.PackageCreator.CreatePackage(Request.OutPath, Path.Combine(Request.Path, inputFolderName), $"{Request.SongMeta.Artist} - {Request.SongMeta.Name}", "A custom DC3 DLC created with Boomy!");
             }
 
             return null;

@@ -2,11 +2,20 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { setupAllHandlers } from './main/ipcHandlers';
+const { updateElectronApp, UpdateSourceType } = require('update-electron-app');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
 	app.quit();
 }
+
+updateElectronApp({
+	updateSource: {
+		type: UpdateSourceType.ElectronPublicUpdateService,
+		repo: 'NORXND/Boomy',
+	},
+	updateInterval: '1 hour',
+});
 
 const createWindow = () => {
 	// Create the browser window.

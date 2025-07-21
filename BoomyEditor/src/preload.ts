@@ -195,7 +195,21 @@ const electronAPI = {
 		}
 	},
 
-	// Open external URL
+	// Write file as buffer (for binary files)
+	writeFileBuffer: async (
+		filePath: string,
+		buffer: Uint8Array | Buffer | number[]
+	): Promise<void> => {
+		const result = await ipcRenderer.invoke(
+			'fs:writeFileBuffer',
+			filePath,
+			Array.from(buffer)
+		);
+		if (!result.success) {
+			throw new Error(result.error);
+		}
+	},
+
 	openExternal: async (url: string): Promise<void> => {
 		const result = await ipcRenderer.invoke('shell:openExternal', url);
 		if (!result.success) {
@@ -229,6 +243,26 @@ const electronAPI = {
 			return result.data;
 		} else {
 			throw new Error(result.error);
+		}
+	},
+
+	// Show Save As dialog
+	selectSavePath: async (options: {
+		title?: string;
+		fileTypes?: Array<{ name: string; extensions: string[] }>;
+		defaultPath?: string;
+	}): Promise<string | null> => {
+		try {
+			const result = await ipcRenderer.invoke(
+				'dialog:selectSavePath',
+				options
+			);
+			if (result.canceled) {
+				return null;
+			}
+			return result.filePath || null;
+		} catch (error) {
+			throw new Error(`Failed to select save path: ${error}`);
 		}
 	},
 };

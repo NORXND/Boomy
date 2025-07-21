@@ -89,7 +89,7 @@ namespace BoomyBuilder.Builder
                 // Mark as imported
                 importedFiles[dir].Add(name);
 
-                using EndianReader reader = new(new MemoryStream(fileBytes), Endian.BigEndian);
+                using MiloLib.Utils.EndianReader reader = new(new MemoryStream(fileBytes), Endian.BigEndian);
                 switch (assetType)
                 {
                     case "Tex":

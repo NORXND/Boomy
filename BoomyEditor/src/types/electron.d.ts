@@ -28,6 +28,12 @@ export interface ElectronAPI {
 		title?: string;
 	}) => Promise<string | string[] | null>;
 
+	selectSavePath: (options: {
+		title?: string;
+		fileTypes?: Array<{ name: string; extensions: string[] }>;
+		defaultPath?: string;
+	}) => Promise<string | null>;
+
 	// Check if path exists
 	pathExists: (path: string) => Promise<boolean>;
 
@@ -42,6 +48,12 @@ export interface ElectronAPI {
 
 	// Write file content
 	writeFile: (filePath: string, content: string) => Promise<void>;
+
+	// Write file content as buffer (for binary files)
+	writeFileBuffer: (
+		filePath: string,
+		buffer: Uint8Array | Buffer | number[]
+	) => Promise<void>;
 
 	// Delete file
 	deleteFile: (filePath: string) => Promise<void>;

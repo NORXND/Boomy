@@ -13,7 +13,8 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <ProjectReference Include="..\BoomyDeps\MiloLib\MiloLib.csproj"/>
+    <ProjectReference Include="..\BoomyDeps\MiloLib\MiloLib.csproj" />
+    <ProjectReference Include="..\BoomyConverters\BoomyConverters.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,6 +24,17 @@ export function setupDialogHandlers() {
 		const result = await dialog.showOpenDialog(options);
 		return result;
 	});
+
+	ipcMain.handle('dialog:selectSavePath', async (event, options) => {
+		const result = await dialog.showSaveDialog({
+			title: options.title,
+			defaultPath: options.defaultPath,
+			filters: options.fileTypes || [
+				{ name: 'All Files', extensions: ['*'] },
+			],
+		});
+		return result;
+	});
 }
 
 // Shell handlers
@@ -155,6 +166,22 @@ export function setupFileSystemHandlers() {
 			};
 		}
 	});
+
+	ipcMain.handle(
+		'fs:writeFileBuffer',
+		async (event, filePath, bufferArray) => {
+			try {
+				const buffer = Buffer.from(bufferArray);
+				await fs.writeFile(filePath, buffer);
+				return { success: true };
+			} catch (error) {
+				return {
+					success: false,
+					error: `Failed to write binary file: ${error}`,
+				};
+			}
+		}
+	);
 }
 
 // Edge.js handlers for calling C# code
@@ -204,7 +231,7 @@ export function setupEdgeHandlers() {
 			);
 			const prodPath = path.join(resourcesPath, 'publish', exeName);
 
-			const possiblePaths = [prodPath, releasePath, debugPath];
+			const possiblePaths = [debugPath, releasePath, prodPath];
 
 			let builderExePath: string | null = null;
 			for (const exePath of possiblePaths) {
@@ -237,6 +264,11 @@ export function setupEdgeHandlers() {
 				path.dirname(builderExePath),
 				'Assets',
 				'barks_template.milo_xbox'
+			);
+			request['songs_dta_path'] = path.join(
+				path.dirname(builderExePath),
+				'Assets',
+				'songs.dta'
 			);
 
 			// Spawn the process and send JSON via stdin
