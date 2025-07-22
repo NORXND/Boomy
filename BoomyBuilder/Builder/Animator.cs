@@ -195,12 +195,12 @@ namespace BoomyBuilder.Builder.Animator
                         usedMoveNamesBefore.Add(startName);
                     }
 
-                    float startPos = (float)tempoConverter.MeasureToFrame(beat, beatOffset: -4);
+                    float startPos = (float)tempoConverter.MeasureToFrame(beat);
                     float endPos = startPos;
                     if (animEnd == startName + "_loop_end" || animEnd == startName + "_end")
-                        endPos = (float)tempoConverter.MeasureToFrame(beat + 1, beatOffset: -4);
+                        endPos = (float)tempoConverter.MeasureToFrame(beat + 1);
                     else if (!string.IsNullOrEmpty(nextName))
-                        endPos = (float)tempoConverter.MeasureToFrame(nextBeat, beatOffset: -4);
+                        endPos = (float)tempoConverter.MeasureToFrame(nextBeat);
 
                     key.keys.Add(new AnimEventSymbol()
                     {
