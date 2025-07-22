@@ -54,7 +54,8 @@ export interface TempoChange {
 	bpm: number;
 }
 
-export type PracticeSection = MoveEvent[];
+// PracticeSection now contains beats (measures) of selected moves, not indices
+export type PracticeSection = number[]; // each number is a beat (measure) of a move in the timeline
 
 export interface Song {
 	move_lib: string;
@@ -261,4 +262,56 @@ export interface Track {
 	name: string;
 	start: number;
 	end: number;
+}
+
+export interface SearchIndex {
+	games: {
+		name: string;
+		song_count: number;
+		move_count: number;
+	}[];
+
+	songs: {
+		name: string;
+		game: string;
+		move_count: number;
+		moves: string[];
+	};
+
+	moves: {
+		name: string;
+		song: string;
+		game: string;
+	}[];
+
+	games_by_name: {
+		[key: string]: {
+			name: string;
+			song_count: number;
+			move_count: number;
+		};
+	};
+
+	songs_by_name: {
+		[key: string]: {
+			name: string;
+			song_count: number;
+			move_count: number;
+			moves: string[];
+		};
+	};
+
+	moves_by_name: {
+		[key: string]: {
+			name: string;
+			song: string;
+			game: string;
+		};
+	};
+
+	stats: {
+		total_games: number;
+		total_songs: number;
+		total_moves: number;
+	};
 }

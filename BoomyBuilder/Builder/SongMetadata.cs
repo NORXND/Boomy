@@ -9,7 +9,7 @@ namespace BoomyBuilder.Builder.SongMetadata
 {
     public static class SongMetadataGenerator
     {
-        public static void GenerateSongsDta(string templatePath, SongMeta meta, string outputDir)
+        public static void GenerateSongsDta(string templatePath, SongMeta meta, string outputDir, string songName)
         {
             if (!File.Exists(templatePath))
                 throw new FileNotFoundException($"Template not found: {templatePath}");
@@ -19,7 +19,7 @@ namespace BoomyBuilder.Builder.SongMetadata
             // Prepare replacements
             var replacements = new Dictionary<string, string>
             {
-                { "%SONGNAME%", meta.Name },
+                { "%SONGNAME%", songName},
                 { "%SONGTITLE%", meta.Name },
                 { "%SONGARTIST%", meta.Artist },
                 { "%SONGID%", meta.Songid.ToString() },

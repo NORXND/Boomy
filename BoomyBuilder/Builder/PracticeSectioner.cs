@@ -24,9 +24,18 @@ namespace BoomyBuilder.Builder.PracticeSectioner
             PracticeSection mediumSect = (PracticeSection)(MovesDir.entries.First(static d => d.name == "Medium_01_Play_All.sect").obj ?? throw new Exception("Medium_01_Play_All.sect obj not found"));
             PracticeSection expertSect = (PracticeSection)(MovesDir.entries.First(static d => d.name == "Expert_01_Play_All.sect").obj ?? throw new Exception("Expert_01_Play_All.sect obj not found"));
 
-            PracticeStepResult CreatePracticeStep(List<List<MoveEvent>> allSections, int sectionIdx, Dictionary<int, Move> choreography)
+            PracticeStepResult CreatePracticeStep(
+                List<List<int>> allSections,
+                int sectionIdx,
+                Dictionary<int, Move> choreography,
+                HashSet<int> usedBeatsBefore,
+                HashSet<string> usedMoveNamesBefore
+            )
             {
+
                 var section = allSections[sectionIdx];
+                // Precompute all choreography beats in order for correct transition logic
+                var allChoreoBeats = choreography.Keys.OrderBy(b => b).ToList();
 
                 string GetHamMoveName(Move move)
                 {
@@ -37,74 +46,150 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                 Dictionary<int, string> AllSteps = [];
                 Dictionary<string, string> SongNameMap = [];
 
-                string lastName = "";
-                for (int i = 0; i < section.Count; i++)
+                // Collect all beats used in previous sections
+                for (int s = 0; s < sectionIdx; s++)
+                    foreach (var b in allSections[s])
+                        usedBeatsBefore.Add(b - 1); // always convert to 0-based
+
+                var sectionBeats = section.Select(b => b - 1).Where(b => choreography.ContainsKey(b)).OrderBy(b => b).ToList();
+
+                // Find the last beat in the choreography
+                int lastChoreoBeat = choreography.Keys.Max();
+
+
+                for (int sbIdx = 0; sbIdx < sectionBeats.Count; sbIdx++)
                 {
-                    string startName = "";
-                    string endName = "";
+
+                    int beat = sectionBeats[sbIdx];
+                    if (beat == lastChoreoBeat)
+                        continue;
+
+                    // Only process if this beat/move hasn't been used before
+                    if (usedBeatsBefore.Contains(beat) || usedMoveNamesBefore.Contains(GetHamMoveName(choreography[beat])))
+                        continue;
+
+                    int idxInChoreo = allChoreoBeats.IndexOf(beat);
+                    if (idxInChoreo == -1)
+                        continue;
+
+                    if (!choreography.TryGetValue(beat, out var move))
+                        throw new Exception($"No move found in choreography for beat {beat}");
+                    string startName = GetHamMoveName(move);
+
+                    // Find the next unused choreography beat
+                    int nextIdx = idxInChoreo + 1;
+                    int nextBeat = -1;
+                    string nextName = "";
                     string endSong = "";
-
-                    Move sectionMove = new(section[i], op);
-                    startName = GetHamMoveName(sectionMove);
-                    // Find next move in section
-
-                    // Only add 'learn' step if not the last step of the last section
-                    bool isLastSection = sectionIdx == allSections.Count - 1;
-                    bool isLastStep = i == section.Count - 1;
-                    if (!(isLastSection && isLastStep))
+                    while (nextIdx < allChoreoBeats.Count)
                     {
-                        Move? nextMove = i + 1 < section.Count ? new Move(section[i + 1], op) : null;
-                        if (nextMove != null)
+                        int candidate = allChoreoBeats[nextIdx];
+                        var candidateMove = choreography[candidate];
+                        string candidateName = GetHamMoveName(candidateMove);
+                        if (!usedBeatsBefore.Contains(candidate) && !usedMoveNamesBefore.Contains(candidateName))
                         {
-                            endName = GetHamMoveName(nextMove);
-                            endSong = nextMove.SongName;
+                            nextBeat = candidate;
+                            nextName = candidateName;
+                            endSong = candidateMove.SongName;
+                            break;
+                        }
+                        nextIdx++;
+                    }
+
+                    string mStart = startName;
+                    string mEnd = "";
+
+                    // Handle consecutive duplicate moves (run)
+                    bool didRun = false;
+                    if (idxInChoreo + 1 < allChoreoBeats.Count)
+                    {
+                        int nextChoreoBeat = allChoreoBeats[idxInChoreo + 1];
+                        var nextChoreoMove = choreography[nextChoreoBeat];
+                        string nextChoreoName = GetHamMoveName(nextChoreoMove);
+                        if (startName == nextChoreoName)
+                        {
+                            // Only process the first in a run
+                            bool isFirstInRun = (idxInChoreo == 0) || (GetHamMoveName(choreography[allChoreoBeats[idxInChoreo - 1]]) != startName);
+                            if (!isFirstInRun)
+                                continue;
+                            // Find the end of the run
+                            int runEnd = idxInChoreo + 1;
+                            while (runEnd + 1 < allChoreoBeats.Count && GetHamMoveName(choreography[allChoreoBeats[runEnd + 1]]) == startName)
+                                runEnd++;
+                            mStart = startName + "*";
+                            mEnd = startName + "_loop_end";
+                            // Set endSong to the last move in the run
+                            endSong = choreography[allChoreoBeats[runEnd]].SongName;
+                            // Mark all beats in the run as used
+                            for (int k = idxInChoreo; k <= runEnd; k++)
+                            {
+                                usedBeatsBefore.Add(allChoreoBeats[k]);
+                                usedMoveNamesBefore.Add(GetHamMoveName(choreography[allChoreoBeats[k]]));
+                            }
+                            didRun = true;
+                        }
+                    }
+                    if (!didRun)
+                    {
+                        // Not a run, handle normal or skip/end
+                        if (string.IsNullOrEmpty(nextName) || usedBeatsBefore.Contains(nextBeat) || usedMoveNamesBefore.Contains(nextName))
+                        {
+                            mEnd = startName + "_end";
+                            endSong = move.SongName;
                         }
                         else
                         {
-                            // Look for the first move in the next section(s)
-                            bool found = false;
-                            for (int s = sectionIdx + 1; s < allSections.Count && !found; s++)
-                            {
-                                var nextSection = allSections[s];
-                                if (nextSection.Count > 0)
-                                {
-                                    Move lookaheadMove = new Move(nextSection[0], op);
-                                    endName = GetHamMoveName(lookaheadMove);
-                                    endSong = lookaheadMove.SongName;
-                                    found = true;
-                                }
-                            }
-                            if (!found)
-                            {
-                                throw new BoomyException($"No next move found for section move: {sectionMove.HamMoveName} in song: {sectionMove.SongName}");
-                            }
+                            mEnd = nextName;
                         }
-                        lastName = endName;
-                        steps.Add(new PracticeSection.PracticeStep()
+                        // If mStart and mEnd are the same, always add _end to mEnd
+                        if (mStart == mEnd)
                         {
-                            mType = (Symbol)"learn",
-                            mStart = (Symbol)startName,
-                            mEnd = (Symbol)endName,
-                            mBoundary = false,
-                            mNameOverride = (Symbol)""
-                        });
+                            mEnd = mStart + "_end";
+                            endSong = move.SongName;
+                        }
+                        // Mark this move as used
+                        usedBeatsBefore.Add(beat);
+                        usedMoveNamesBefore.Add(startName);
                     }
 
-                    AllSteps.Add(i, startName);
-                    SongNameMap[startName] = sectionMove.SongName;
-                    SongNameMap[endName] = endSong;
+                    // Debug print
+                    Console.WriteLine(
+                        $"[DEBUG] Beat {beat + 1}: {startName} -> {nextName} | mStart: {mStart}, mEnd: {mEnd}"
+                    );
+
+                    steps.Add(new PracticeSection.PracticeStep()
+                    {
+                        mType = (Symbol)"learn",
+                        mStart = (Symbol)mStart,
+                        mEnd = (Symbol)mEnd,
+                        mBoundary = false,
+                        mNameOverride = (Symbol)""
+                    });
+
+                    // Use the actual beat as the key!
+                    AllSteps.Add(beat, startName); // always 0-based
+                    SongNameMap[startName] = move.SongName;
+                    SongNameMap[mEnd] = endSong;
                 }
 
-                Symbol firstStartName = steps[0].mStart;
-
-                steps.Add(new PracticeSection.PracticeStep()
+                // Add review step using the last move as mEnd
+                if (steps.Count > 0)
                 {
-                    mType = (Symbol)"review",
-                    mStart = firstStartName,
-                    mEnd = (Symbol)lastName,
-                    mBoundary = true,
-                    mNameOverride = (Symbol)""
-                });
+                    int lastBeat = section[section.Count - 1] - 1;
+                    string lastMoveName = "";
+                    if (choreography.TryGetValue(lastBeat, out var lastMove))
+                        lastMoveName = GetHamMoveName(lastMove);
+
+                    Symbol firstStartName = steps[0].mStart;
+                    steps.Add(new PracticeSection.PracticeStep()
+                    {
+                        mType = (Symbol)"review",
+                        mStart = firstStartName,
+                        mEnd = (Symbol)lastMoveName,
+                        mBoundary = true,
+                        mNameOverride = (Symbol)""
+                    });
+                }
 
                 return new PracticeStepResult()
                 {
@@ -114,38 +199,30 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                 };
             }
 
-            List<PracticeStepResult> CreatePracticeSections(PracticeSection sectionsOutput, List<List<MoveEvent>> sectionsInput, Dictionary<int, Move> choreography)
+            List<PracticeStepResult> CreatePracticeSections(PracticeSection sectionsOutput, List<List<int>> sectionsInput, Dictionary<int, Move> choreography)
             {
+                HashSet<int> usedBeatsBefore = new();
+                HashSet<string> usedMoveNamesBefore = new();
                 List<PracticeStepResult> results = [];
                 for (int i = 0; i < sectionsInput.Count; i++)
                 {
-                    var newSteps = CreatePracticeStep(sectionsInput, i, choreography);
+                    // Pass a copy so each section gets the correct "used before" set
+                    var newSteps = CreatePracticeStep(
+                        sectionsInput, i, choreography,
+                        new HashSet<int>(usedBeatsBefore),
+                        new HashSet<string>(usedMoveNamesBefore)
+                    );
                     for (int j = 0; j < newSteps.Steps.Count; j++)
                     {
                         sectionsOutput.mSteps.Add(newSteps.Steps[j]);
                     }
+                    // After processing, add all beats and move names from this section to the global set
+                    foreach (var b in sectionsInput[i])
+                        usedBeatsBefore.Add(b - 1); // always 0-based
+                    foreach (var step in newSteps.AllSteps)
+                        usedMoveNamesBefore.Add(step.Value);
                     results.Add(newSteps);
                 }
-
-                // foreach (var stepResult in results)
-                // {
-                //     foreach (string moveName in usedMoveNames)
-                //     {
-                //         if (!choreography.Values.Any(m => m.HamMoveName == moveName))
-                //             continue;
-                //         Move move = choreography.Values.First(m => m.HamMoveName == moveName);
-                //         HamMove hamMove = (HamMove)(MoveDataDir.entries.First(d => d.name == move.HamMoveName).obj ?? throw new Exception($"{move.HamMoveName} obj not found"));
-                //         string seqName = hamMove.mDancerSeq.value;
-                //         try
-                //         {
-                //             DancerSequence sequence = (DancerSequence)(MoveDataDir.entries.First(d => d.name == seqName).obj ?? throw new Exception($"{seqName} obj not found"));
-                //             sectionsOutput.mSeqs.Add(sequence);
-                //         }
-                //         catch (Exception) { }
-                //     }
-
-                // }
-                // Return both PracticeSection and map
                 return results;
             }
 

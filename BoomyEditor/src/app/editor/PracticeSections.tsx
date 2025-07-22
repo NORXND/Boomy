@@ -27,7 +27,7 @@ export function PracticeSections() {
 						filterByDifficulty={selectedDifficulty}
 						filterByChoreography={true}
 						showRemoveButtons={false}
-						showSearch={true}
+						showSearch={false}
 						maxHeight="100%"
 						filterScoredOnly={true}
 					/>

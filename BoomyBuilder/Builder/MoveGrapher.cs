@@ -26,7 +26,8 @@ namespace BoomyBuilder.Builder.MoveGrapher
                     Dictionary<string, MoveCandidate> previousCandidates = [];
                     Dictionary<string, MoveCandidate> nextCandidates = [];
 
-                    if (beat != 1)
+                    // Previous move (now check for beat > 0)
+                    if (track.ContainsKey(beat - 1))
                     {
                         Move previousMove = track[beat - 1];
                         if (!previousCandidates.ContainsKey(previousMove.Clip))
@@ -43,7 +44,8 @@ namespace BoomyBuilder.Builder.MoveGrapher
                         }
                     }
 
-                    if (beat != track.Count)
+                    // Next move (check for beat + 1)
+                    if (track.ContainsKey(beat + 1))
                     {
                         Move nextMove = track[beat + 1];
                         if (!nextCandidates.ContainsKey(nextMove.Clip))
@@ -166,10 +168,23 @@ namespace BoomyBuilder.Builder.MoveGrapher
 
             void CreateMoveArray(DTBArrayParent array, Dictionary<int, Move> track)
             {
-                for (var i = 1; i <= track.Count; i++)
+                if (track.Count == 0)
+                    return;
+
+                int minBeat = track.Keys.Min();
+                int maxBeat = track.Keys.Max();
+
+                for (int i = minBeat; i <= maxBeat; i++)
                 {
-                    Move move = track[i];
-                    array.children.Add(new DTBNode() { type = NodeType.Symbol, value = (Symbol)move.Clip });
+                    if (track.TryGetValue(i, out Move move))
+                    {
+                        array.children.Add(new DTBNode() { type = NodeType.Symbol, value = (Symbol)move.Clip });
+                    }
+                    else
+                    {
+                        // Optionally: handle missing beats if needed
+                        // array.children.Add(new DTBNode() { type = NodeType.Symbol, value = (Symbol)"<missing>" });
+                    }
                 }
             }
 

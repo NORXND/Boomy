@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSongStore } from '../store/songStore';
@@ -25,26 +25,6 @@ const DIFFICULTY_LABELS = {
 	1: 'Medium',
 	2: 'Expert',
 };
-
-// Extend window type for caching
-declare global {
-	interface Window {
-		__searchIndexCache?: Record<string, any>;
-	}
-}
-
-// Helper to load and cache search index
-async function loadSearchIndex(indexPath: string): Promise<any> {
-	if (window.__searchIndexCache && window.__searchIndexCache[indexPath]) {
-		return window.__searchIndexCache[indexPath];
-	}
-	const exists = await window.electronAPI.pathExists(indexPath);
-	if (!exists) return null;
-	const index = await window.electronAPI.readJsonFile(indexPath);
-	if (!window.__searchIndexCache) window.__searchIndexCache = {};
-	window.__searchIndexCache[indexPath] = index;
-	return index;
-}
 
 interface ImportedMovesProps {
 	className?: string;
@@ -74,11 +54,10 @@ export function ImportedMoves({
 	>({});
 	const [imageCache, setImageCache] = useState<Record<string, string>>({});
 	const [searchQuery, setSearchQuery] = useState('');
-	const [searchIndex, setSearchIndex] = useState<any | null>(null);
 
 	const moveLibPath = currentSong?.move_lib;
 
-	// Load move data for each imported move and search index
+	// Load move data for each imported move
 	useEffect(() => {
 		if (!moveLibPath || !currentSong?.moveLibrary) return;
 
@@ -89,11 +68,10 @@ export function ImportedMoves({
 		if (moveKeys.length === 0) {
 			setMoveDataCache({});
 			setImageCache({});
-			setSearchIndex(null);
 			return;
 		}
 
-		const loadMoveDataAndIndex = async () => {
+		const loadMoveData = async () => {
 			const newMoveDataCache: Record<string, MoveData> = {};
 			const newImageCache: Record<string, string> = {};
 
@@ -107,6 +85,7 @@ export function ImportedMoves({
 					const jsonExists = await window.electronAPI.pathExists(
 						jsonPath
 					);
+
 					if (jsonExists) {
 						const jsonData = await window.electronAPI.readJsonFile(
 							jsonPath
@@ -119,6 +98,7 @@ export function ImportedMoves({
 					const imageExists = await window.electronAPI.pathExists(
 						imagePath
 					);
+
 					if (imageExists) {
 						try {
 							const imageBuffer =
@@ -143,16 +123,11 @@ export function ImportedMoves({
 				}
 			}
 
-			// Load and cache search index
-			const indexPath = `${moveLibPath}/indexes/search_index.min.json`;
-			const index = await loadSearchIndex(indexPath);
-			setSearchIndex(index);
-
 			setMoveDataCache(newMoveDataCache);
 			setImageCache(newImageCache);
 		};
 
-		loadMoveDataAndIndex();
+		loadMoveData();
 	}, [currentSong?.moveLibrary, moveLibPath]);
 
 	const handleClipRemove = (moveKey: string, clipPath: string) => {
@@ -177,11 +152,11 @@ export function ImportedMoves({
 		return flagNames;
 	};
 
-	// Filter moves using search index
+	// Filter moves based on search query and props
 	const filteredMoves = useMemo(() => {
 		let movesToFilter = currentSong?.moveLibrary || {};
 
-		// Choreography filtering
+		// First, apply choreography filtering if requested
 		if (
 			filterByChoreography &&
 			currentSong?.timeline &&
@@ -195,6 +170,8 @@ export function ImportedMoves({
 						`${move.move_origin}/${move.move_song}/${move.move}`
 				)
 			);
+
+			// Filter to only include moves that are in the choreography
 			movesToFilter = Object.fromEntries(
 				Object.entries(movesToFilter).filter(([moveKey]) =>
 					choreographyMoveKeys.has(moveKey)
@@ -202,10 +179,11 @@ export function ImportedMoves({
 			);
 		}
 
-		// Difficulty filtering
+		// Apply difficulty filtering if requested
 		if (filterByDifficulty && !filterByChoreography) {
 			const difficultyMap = { easy: 0, medium: 1, expert: 2 };
 			const targetDifficulty = difficultyMap[filterByDifficulty];
+
 			movesToFilter = Object.fromEntries(
 				Object.entries(movesToFilter).filter(([moveKey]) => {
 					const moveData = moveDataCache[moveKey];
@@ -214,55 +192,73 @@ export function ImportedMoves({
 			);
 		}
 
-		// Scored-only filtering
+		// Apply scored-only filtering if requested
 		if (filterScoredOnly) {
 			movesToFilter = Object.fromEntries(
 				Object.entries(movesToFilter)
 					.map(([moveKey, clips]) => {
 						const moveData = moveDataCache[moveKey];
 						if (!moveData) return [moveKey, clips];
+
+						// Filter clips to only include scored ones
 						const scoredClips = clips.filter((clipPath) => {
 							const clipName = clipPath.split('/').pop() || '';
 							const clip = moveData.clips[clipName];
-							return clip && (clip.flags & 2) !== 0;
+							return clip && (clip.flags & 2) !== 0; // Check for scored flag
 						});
+
 						return [moveKey, scoredClips];
 					})
-					.filter(([_, clips]) => clips.length > 0)
+					.filter(([_, clips]) => clips.length > 0) // Remove moves with no scored clips
 			);
 		}
 
-		// Use search index for filtering
-		if (!searchQuery.trim() || !searchIndex) {
+		// Apply search filtering if there's a search query
+		if (!searchQuery.trim()) {
 			return movesToFilter;
 		}
 
 		const query = searchQuery.toLowerCase().trim();
 		const filtered: Record<string, string[]> = {};
 
-		// Assume searchIndex has a structure: { moves: { moveKey: { text: string, clips: { clipName: string } } } }
 		Object.entries(movesToFilter).forEach(([moveKey, clips]) => {
-			const moveIndex = searchIndex.moves?.[moveKey];
-			if (!moveIndex) return;
+			const moveData = moveDataCache[moveKey];
+			const [category, song, move] = moveKey.split('/');
 
-			// Search in move text
-			if (
-				moveIndex.text &&
-				moveIndex.text.toLowerCase().includes(query)
-			) {
-				filtered[moveKey] = clips;
-				return;
-			}
+			// Search in move metadata
+			const searchableText = [
+				moveData?.display_name || '',
+				moveData?.name || '',
+				moveData?.song_name || '',
+				DIFFICULTY_LABELS[
+					moveData?.difficulty as keyof typeof DIFFICULTY_LABELS
+				] || '',
+				category,
+				song,
+				move,
+			]
+				.join(' ')
+				.toLowerCase();
 
-			// Search in clips
-			const matchedClips = clips.filter((clipPath) => {
+			// Search in clip data
+			const clipMatches = clips.some((clipPath) => {
 				const clipName = clipPath.split('/').pop() || '';
-				const clipIndex = moveIndex.clips?.[clipName];
-				if (!clipIndex) return false;
-				return clipIndex.toLowerCase().includes(query);
+				const clip = moveData?.clips[clipName];
+
+				const clipSearchableText = [
+					clipName,
+					clip?.genre || '',
+					clip?.era || '',
+					...(clip ? decodeFlags(clip.flags) : []),
+				]
+					.join(' ')
+					.toLowerCase();
+
+				return clipSearchableText.includes(query);
 			});
-			if (matchedClips.length > 0) {
-				filtered[moveKey] = matchedClips;
+
+			if (searchableText.includes(query) || clipMatches) {
+				filtered[moveKey] = clips;
 			}
 		});
 
@@ -275,7 +271,47 @@ export function ImportedMoves({
 		filterByChoreography,
 		currentSong?.timeline,
 		filterScoredOnly,
-		searchIndex,
+	]);
+
+	// NEW: Build timelineMoves for choreography mode
+	const timelineMoves = useMemo(() => {
+		if (
+			filterByChoreography &&
+			currentSong?.timeline &&
+			filterByDifficulty
+		) {
+			const moves = currentSong.timeline[filterByDifficulty]?.moves || [];
+			return moves
+				.map((moveEvent, idx) => {
+					const moveKey = `${moveEvent.move_origin}/${moveEvent.move_song}/${moveEvent.move}`;
+					const moveData = moveDataCache[moveKey];
+					const allClips = currentSong.moveLibrary?.[moveKey] || [];
+					// Find the clip used at this beat
+					const usedClip = allClips.find((clipPath) => {
+						const clipName = clipPath.split('/').pop() || '';
+						return clipName === moveEvent.clip;
+					});
+					return {
+						id: `${moveKey}-${moveEvent.beat}-${idx}`,
+						moveKey,
+						clipPath: usedClip,
+						clipName: moveEvent.clip,
+						moveData,
+						imageUrl: imageCache[moveKey],
+						beat: moveEvent.beat,
+						moveEvent,
+					};
+				})
+				.filter((entry) => entry.clipPath); // Only show if the clip exists
+		}
+		return null;
+	}, [
+		filterByChoreography,
+		currentSong?.timeline,
+		filterByDifficulty,
+		currentSong?.moveLibrary,
+		moveDataCache,
+		imageCache,
 	]);
 
 	if (
@@ -295,7 +331,9 @@ export function ImportedMoves({
 		);
 	}
 
-	const hasFilteredResults = Object.keys(filteredMoves).length > 0;
+	const hasFilteredResults = filterByChoreography
+		? timelineMoves && timelineMoves.length > 0
+		: Object.keys(filteredMoves).length > 0;
 
 	return (
 		<div
@@ -307,7 +345,7 @@ export function ImportedMoves({
 				<h2 className="text-lg font-semibold">{title}</h2>
 
 				{/* Search input */}
-				{showSearch && (
+				{showSearch && !filterByChoreography && (
 					<div className="relative">
 						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<input
@@ -331,16 +369,16 @@ export function ImportedMoves({
 
 				{/* Results count */}
 				<div className="text-xs text-muted-foreground">
-					{searchQuery
+					{filterByChoreography && filterByDifficulty
+						? `${
+								timelineMoves?.length || 0
+						  } moves in ${filterByDifficulty} choreography`
+						: searchQuery
 						? hasFilteredResults
 							? `${Object.keys(filteredMoves).length} of ${
 									Object.keys(currentSong.moveLibrary).length
 							  } moves found`
 							: `No moves found for "${searchQuery}"`
-						: filterByChoreography && filterByDifficulty
-						? `${
-								Object.keys(filteredMoves).length
-						  } moves in ${filterByDifficulty} choreography`
 						: filterByDifficulty
 						? `${
 								Object.keys(filteredMoves).length
@@ -353,16 +391,140 @@ export function ImportedMoves({
 
 			{/* Content area */}
 			<div className="flex-1 overflow-auto p-4">
-				{!hasFilteredResults && searchQuery ? (
-					<div className="h-full flex items-center justify-center">
-						<div className="text-center text-muted-foreground">
-							<div className="text-sm">No moves found</div>
-							<div className="text-xs mt-1">
-								Try searching for move names, difficulties,
-								genres, eras, or flags
+				{filterByChoreography && filterByDifficulty ? (
+					!timelineMoves || timelineMoves.length === 0 ? (
+						<div className="h-full flex items-center justify-center">
+							<div className="text-center text-muted-foreground">
+								<div className="text-sm">No moves found</div>
+								<div className="text-xs mt-1">
+									No moves in this choreography.
+								</div>
 							</div>
 						</div>
-					</div>
+					) : (
+						<div className="space-y-2">
+							{timelineMoves.map((entry, idx) => {
+								const {
+									moveKey,
+									clipPath,
+									clipName,
+									moveData,
+									imageUrl,
+									beat,
+								} = entry;
+								if (!moveData) {
+									return (
+										<div
+											key={entry.id}
+											className="border rounded-lg p-3"
+										>
+											<div className="text-sm text-muted-foreground">
+												Loading {moveKey}...
+											</div>
+										</div>
+									);
+								}
+								const clip = moveData.clips[clipName];
+								if (!clip) {
+									return (
+										<div
+											key={entry.id}
+											className="border rounded-lg p-3"
+										>
+											<div className="text-xs text-muted-foreground">
+												Unknown clip: {clipName}
+											</div>
+										</div>
+									);
+								}
+								const difficultyLabel =
+									DIFFICULTY_LABELS[
+										moveData.difficulty as keyof typeof DIFFICULTY_LABELS
+									] || 'Unknown';
+								return (
+									<div
+										key={entry.id}
+										className="border rounded-lg p-3 flex gap-3 items-center"
+										draggable={true}
+										onDragStart={(e) => {
+											e.dataTransfer.setData(
+												'application/json',
+												JSON.stringify({
+													type: 'practice-beat',
+													beat: beat,
+												})
+											);
+											e.dataTransfer.effectAllowed =
+												'copy';
+										}}
+										onDragEnd={() => {}}
+									>
+										{imageUrl ? (
+											<div className="flex-shrink-0">
+												<img
+													src={imageUrl}
+													alt={`${moveData.display_name} preview`}
+													className="w-32 h-16 object-cover rounded border"
+												/>
+											</div>
+										) : (
+											<div className="flex-shrink-0 w-32 h-16 bg-muted rounded border flex items-center justify-center">
+												<span className="text-xs text-muted-foreground">
+													No Image
+												</span>
+											</div>
+										)}
+										<div className="flex-1 min-w-0">
+											<h3 className="text-sm font-semibold truncate">
+												{moveData.display_name} (
+												{moveData.name})
+											</h3>
+											<div className="text-xs text-muted-foreground">
+												{difficultyLabel} •{' '}
+												{moveData.song_name} • Beat:{' '}
+												{beat}
+											</div>
+											<div className="text-xs text-muted-foreground">
+												Clip:{' '}
+												<span className="font-mono">
+													{clipName}
+												</span>
+											</div>
+										</div>
+										<div className="flex flex-col items-end gap-1">
+											<div className="text-xs text-muted-foreground">
+												{clip.genre} • {clip.era}
+												{decodeFlags(clip.flags)
+													.length > 0 && (
+													<span className="ml-2 text-primary">
+														(
+														{decodeFlags(
+															clip.flags
+														).join(', ')}
+														)
+													</span>
+												)}
+											</div>
+											{showRemoveButtons && (
+												<button
+													onClick={() =>
+														handleClipRemove(
+															moveKey,
+															clipPath
+														)
+													}
+													className="flex-shrink-0 p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
+													title="Remove this clip"
+												>
+													<X className="h-3 w-3" />
+												</button>
+											)}
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					)
 				) : (
 					<div className="space-y-4">
 						{Object.entries(filteredMoves).map(

@@ -178,7 +178,7 @@ namespace BoomyBuilder.Builder
                 }
             }
 
-            SongMetadataGenerator.GenerateSongsDta(Request.SongsDtaPath, Request.SongMeta, songsDir);
+            SongMetadataGenerator.GenerateSongsDta(Request.SongsDtaPath, Request.SongMeta, songsDir, inputFolderName);
 
             if (Request.Package)
             {

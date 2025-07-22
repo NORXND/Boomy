@@ -16,19 +16,19 @@ namespace BoomyBuilder.Builder.ChoreoMaker
             {
                 foreach (var e in events)
                 {
-                    track[e.Beat] = new Move(e, buildOperator);
+                    track[e.Beat - 1] = new Move(e, buildOperator);
                 }
 
                 int totalBeats = track.Keys.Max();
 
-                for (int i = 1; i <= totalBeats; i++)
+                for (int i = 0; i <= totalBeats; i++)
                 {
-                    if (i == 1 && !track.ContainsKey(i))
+                    if (i == 0 && !track.ContainsKey(i))
                     {
-                        throw new BoomyException("No move found at beat 1!");
+                        throw new BoomyException("No move found at beat 0!");
                     }
 
-                    if (i > 1 && !track.ContainsKey(i))
+                    if (i > 0 && !track.ContainsKey(i))
                     {
                         track[i] = track[i - 1];
                     }

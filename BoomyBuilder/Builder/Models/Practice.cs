@@ -7,11 +7,11 @@ namespace BoomyBuilder.Builder.Models.Practice
     public partial class Practice
     {
         [JsonProperty("easy", Required = Required.Always)]
-        public required List<List<MoveEvent>> Easy { get; set; }
+        public required List<List<int>> Easy { get; set; }
         [JsonProperty("medium", Required = Required.Always)]
-        public required List<List<MoveEvent>> Medium { get; set; }
+        public required List<List<int>> Medium { get; set; }
         [JsonProperty("expert", Required = Required.Always)]
-        public required List<List<MoveEvent>> Expert { get; set; }
+        public required List<List<int>> Expert { get; set; }
     }
 
 

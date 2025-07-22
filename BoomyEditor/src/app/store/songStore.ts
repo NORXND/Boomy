@@ -116,7 +116,7 @@ export interface SongState {
 	addMoveToPracticeSection: (
 		difficulty: 'easy' | 'medium' | 'expert',
 		sectionIndex: number,
-		moveEvent: MoveEvent
+		beat: number
 	) => boolean;
 	removeMoveFromPracticeSection: (
 		difficulty: 'easy' | 'medium' | 'expert',
@@ -684,19 +684,14 @@ export const useSongStore = create<SongState>()(
 				}
 			},
 
-			addMoveToPracticeSection: (difficulty, sectionIndex, moveEvent) => {
+			addMoveToPracticeSection: (difficulty, sectionIndex, beat) => {
 				const { currentSong } = get();
 				if (currentSong?.practice?.[difficulty]?.[sectionIndex]) {
 					// Check if this move already exists in any section of this difficulty
-					const isDuplicate = currentSong.practice[difficulty].some(
-						(section, idx) =>
+					const isDuplicate = currentSong.practice[difficulty].find(
+						(section) =>
 							Array.isArray(section) &&
-							section.some(
-								(move) =>
-									move.move === moveEvent.move &&
-									move.move_song === moveEvent.move_song &&
-									move.clip === moveEvent.clip
-							)
+							section.some((move) => move === beat)
 					);
 
 					if (isDuplicate) {
@@ -717,9 +712,7 @@ export const useSongStore = create<SongState>()(
 						updatedSong.practice[difficulty][sectionIndex] = [];
 					}
 
-					updatedSong.practice[difficulty][sectionIndex].push(
-						moveEvent
-					);
+					updatedSong.practice[difficulty][sectionIndex].push(beat);
 					set({ currentSong: updatedSong });
 					return true;
 				}

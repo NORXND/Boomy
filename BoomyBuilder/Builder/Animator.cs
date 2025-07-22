@@ -38,7 +38,11 @@ namespace BoomyBuilder.Builder.Animator
                     float frame = (float)tempoConverter.MeasureToFrame(beat - 1, beatOffset: -1);
                     Move move = track[beat];
 
-                    if (move.HamMoveName == "Rest.move" || move.HamMoveName == "rest.move")
+                    if (move.HamMoveName == "Rest.move" || move.HamMoveName == "rest.move" || move.HamMoveName == "rest")
+                    {
+                        // Rest or groove moves are not added to the graph
+                        continue;
+                    }
                     {
                         move.HamMoveName = "groove";
                     }
@@ -84,33 +88,133 @@ namespace BoomyBuilder.Builder.Animator
 
             void CreatePractice(RndPropAnim.PropKey key, Dictionary<int, Move> track, List<PracticeStepResult> section)
             {
-                for (int i = 0; i < section.Count; i++)
+                // Collect all beats used in previous sections for each section
+                List<HashSet<int>> usedBeatsBeforeSections = new();
+                HashSet<int> usedSoFar = new();
+                foreach (var sect in section)
                 {
-                    for (int j = 0; j < section[i].AllSteps.Count; j++)
+                    HashSet<int> copy = new(usedSoFar);
+                    usedBeatsBeforeSections.Add(copy);
+                    foreach (var step in sect.AllSteps)
+                        usedSoFar.Add(step.Key);
+                }
+
+                // Find the last beat in the choreography for this difficulty
+                int lastChoreoBeat = track.Keys.Max();
+
+                // Build a flat list of all choreography beats in order
+                var allChoreoBeats = track.Keys.OrderBy(b => b).ToList();
+                HashSet<int> usedBeatsBefore = new();
+                HashSet<string> usedMoveNamesBefore = new();
+                for (int sbIdx = 0; sbIdx < allChoreoBeats.Count; sbIdx++)
+                {
+                    int beat = allChoreoBeats[sbIdx];
+                    if (beat == lastChoreoBeat)
+                        continue;
+
+                    // Only process if this beat/move hasn't been used before
+                    if (usedBeatsBefore.Contains(beat) || usedMoveNamesBefore.Contains(track[beat].HamMoveName.Replace(".move", "").Replace("_" + track[beat].SongName, "")))
+                        continue;
+
+                    if (!track.TryGetValue(beat, out var move))
+                        throw new BoomyException($"Could not find move for beat {beat} in choreography for song");
+                    string startName = move.HamMoveName.Replace(".move", "").Replace("_" + move.SongName, "");
+
+                    // Find the next unused choreography beat
+                    int nextIdx = sbIdx + 1;
+                    int nextBeat = -1;
+                    string nextName = "";
+                    string endSong = "";
+                    while (nextIdx < allChoreoBeats.Count)
                     {
-                        string mStart = section[i].AllSteps[j];
-                        int foundBeat = -1;
-                        Move? foundMove = null;
-                        foreach (var kv in track)
+                        int candidate = allChoreoBeats[nextIdx];
+                        var candidateMove = track[candidate];
+                        string candidateName = candidateMove.HamMoveName.Replace(".move", "").Replace("_" + candidateMove.SongName, "");
+                        if (!usedBeatsBefore.Contains(candidate) && !usedMoveNamesBefore.Contains(candidateName))
                         {
-                            if (kv.Value.HamMoveName == mStart + "_" + section[i].SongNameMap[mStart] + ".move")
+                            nextBeat = candidate;
+                            nextName = candidateName;
+                            endSong = candidateMove.SongName;
+                            break;
+                        }
+                        nextIdx++;
+                    }
+
+                    string animStart = startName;
+                    string animEnd = "";
+
+                    // Handle consecutive duplicate moves (run)
+                    bool didRun = false;
+                    if (sbIdx + 1 < allChoreoBeats.Count)
+                    {
+                        int nextChoreoBeat = allChoreoBeats[sbIdx + 1];
+                        var nextChoreoMove = track[nextChoreoBeat];
+                        string nextChoreoName = nextChoreoMove.HamMoveName.Replace(".move", "").Replace("_" + nextChoreoMove.SongName, "");
+                        if (startName == nextChoreoName)
+                        {
+                            // Only process the first in a run
+                            bool isFirstInRun = (sbIdx == 0) || (track[allChoreoBeats[sbIdx - 1]].HamMoveName.Replace(".move", "").Replace("_" + track[allChoreoBeats[sbIdx - 1]].SongName, "") != startName);
+                            if (!isFirstInRun)
+                                continue;
+                            // Find the end of the run
+                            int runEnd = sbIdx + 1;
+                            while (runEnd + 1 < allChoreoBeats.Count && track[allChoreoBeats[runEnd + 1]].HamMoveName.Replace(".move", "").Replace("_" + track[allChoreoBeats[runEnd + 1]].SongName, "") == startName)
+                                runEnd++;
+                            animStart = startName + "*";
+                            animEnd = startName + "_loop_end";
+                            endSong = track[allChoreoBeats[runEnd]].SongName;
+                            // Mark all beats in the run as used
+                            for (int k = sbIdx; k <= runEnd; k++)
                             {
-                                foundBeat = kv.Key;
-                                foundMove = kv.Value;
-                                break;
+                                usedBeatsBefore.Add(allChoreoBeats[k]);
+                                usedMoveNamesBefore.Add(track[allChoreoBeats[k]].HamMoveName.Replace(".move", "").Replace("_" + track[allChoreoBeats[k]].SongName, ""));
                             }
+                            didRun = true;
                         }
-                        if (foundBeat != -1 && foundMove != null)
+                    }
+                    if (!didRun)
+                    {
+                        // Not a run, handle normal or skip/end
+                        if (string.IsNullOrEmpty(nextName) || usedBeatsBefore.Contains(nextBeat) || usedMoveNamesBefore.Contains(nextName))
                         {
-                            float time = (float)tempoConverter.MeasureToFrame(foundBeat - 1);
-
-                            key.keys.Add(new AnimEventSymbol()
-                            {
-                                Text = (Symbol)foundMove.HamMoveName.Replace(".move", "").Replace("_" + foundMove.SongName, ""),
-                                Pos = time
-                            });
+                            animEnd = startName + "_end";
+                            endSong = move.SongName;
                         }
+                        else
+                        {
+                            animEnd = nextName;
+                        }
+                        // If animStart and animEnd are the same, always add _end to animEnd
+                        if (animStart == animEnd)
+                        {
+                            animEnd = animStart + "_end";
+                            endSong = move.SongName;
+                        }
+                        // Mark this move as used
+                        usedBeatsBefore.Add(beat);
+                        usedMoveNamesBefore.Add(startName);
+                    }
 
+                    float startPos = (float)tempoConverter.MeasureToFrame(beat, beatOffset: -4);
+                    float endPos = startPos;
+                    if (animEnd == startName + "_loop_end" || animEnd == startName + "_end")
+                        endPos = (float)tempoConverter.MeasureToFrame(beat + 1, beatOffset: -4);
+                    else if (!string.IsNullOrEmpty(nextName))
+                        endPos = (float)tempoConverter.MeasureToFrame(nextBeat, beatOffset: -4);
+
+                    key.keys.Add(new AnimEventSymbol()
+                    {
+                        Text = (Symbol)animStart,
+                        Pos = startPos
+                    });
+
+                    if ((animEnd.EndsWith("_end") || animEnd.EndsWith("_loop_end")) && animEnd != animStart)
+                    {
+                        key.keys.Add(new AnimEventSymbol()
+                        {
+                            Text = (Symbol)animEnd,
+                            Pos = endPos
+                        });
                     }
                 }
             }

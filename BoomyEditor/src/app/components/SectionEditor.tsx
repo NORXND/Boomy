@@ -45,10 +45,18 @@ export function SectionEditor({
 	const setSelectedDifficulty =
 		onDifficultyChange || setInternalSelectedDifficulty;
 
-	const practiceSections = currentSong?.practice || {
-		easy: [],
-		medium: [],
-		expert: [],
+	// Collect all used moves across all sections for the selected difficulty
+	const getUsedMoves = (difficulty: 'easy' | 'medium' | 'expert') => {
+		const sections = currentSong.practice?.[difficulty] || [];
+		const timelineMoves = currentSong.timeline?.[difficulty]?.moves || [];
+		const usedMoveNames = new Set<string>();
+		sections.forEach((section) => {
+			section.forEach((beat) => {
+				const move = timelineMoves.find((m) => m.beat === beat);
+				if (move) usedMoveNames.add(move.move);
+			});
+		});
+		return usedMoveNames;
 	};
 
 	const handleDragOver = (
@@ -78,20 +86,22 @@ export function SectionEditor({
 				e.dataTransfer.getData('application/json')
 			);
 
-			if (dragData.type === 'move-clip') {
-				const { moveKey, clipPath } = dragData;
-				const [category, song, move] = moveKey.split('/');
-				const clipName = clipPath.split('/').pop() || '';
-
-				const moveEvent: MoveEvent = {
-					beat: 0, // Default beat, can be modified later
-					clip: clipName,
-					move_origin: category,
-					move_song: song,
-					move: move,
-				};
-
-				addMoveToPracticeSection(difficulty, sectionIndex, moveEvent);
+			if (dragData.type === 'practice-beat') {
+				const timelineMoves =
+					currentSong.timeline?.[difficulty]?.moves || [];
+				const move = timelineMoves.find(
+					(m) => m.beat === dragData.beat
+				);
+				const usedMoveNames = getUsedMoves(difficulty);
+				if (move && usedMoveNames.has(move.move)) {
+					// Prevent adding if move name is already used (regardless of clip)
+					return;
+				}
+				addMoveToPracticeSection(
+					difficulty,
+					sectionIndex,
+					dragData.beat
+				);
 			}
 		} catch (error) {
 			console.error('Failed to parse drag data:', error);
@@ -138,11 +148,14 @@ export function SectionEditor({
 	const renderSection = (
 		difficulty: 'easy' | 'medium' | 'expert',
 		sectionIndex: number,
-		moves: MoveEvent[]
+		beats: number[]
 	) => {
 		const isDropTarget =
 			dragOverSection?.difficulty === difficulty &&
 			dragOverSection?.sectionIndex === sectionIndex;
+
+		const timelineMoves = currentSong.timeline?.[difficulty]?.moves || [];
+		const usedMoveNames = getUsedMoves(difficulty);
 
 		return (
 			<div
@@ -152,10 +165,29 @@ export function SectionEditor({
 					isDropTarget
 						? 'border-primary bg-primary/10'
 						: 'border-muted bg-background',
-					moves.length === 0 &&
+					beats.length === 0 &&
 						'min-h-[120px] flex flex-col justify-center'
 				)}
-				onDragOver={(e) => handleDragOver(e, difficulty, sectionIndex)}
+				onDragOver={(e) => {
+					// Only allow drag over if the move is not already used
+					try {
+						const dragData = JSON.parse(
+							e.dataTransfer.getData('application/json')
+						);
+						if (dragData.type === 'practice-beat') {
+							const move = timelineMoves.find(
+								(m) => m.beat === dragData.beat
+							);
+							if (move && usedMoveNames.has(move.move)) {
+								e.dataTransfer.dropEffect = 'none';
+								return;
+							}
+						}
+					} catch {}
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'copy';
+					setDragOverSection({ difficulty, sectionIndex });
+				}}
 				onDragLeave={handleDragLeave}
 				onDrop={(e) => handleDrop(e, difficulty, sectionIndex)}
 			>
@@ -177,7 +209,7 @@ export function SectionEditor({
 				</div>
 
 				{/* Section Content */}
-				{moves.length === 0 ? (
+				{beats.length === 0 ? (
 					<div className="text-center text-muted-foreground">
 						<MoveIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
 						<div className="text-sm">Drop moves here</div>
@@ -188,35 +220,44 @@ export function SectionEditor({
 					</div>
 				) : (
 					<div className="space-y-2">
-						{moves.map((move, moveIndex) => (
-							<div
-								key={moveIndex}
-								className="flex items-center justify-between p-2 bg-muted/50 rounded border"
-							>
-								<div className="flex-1 min-w-0">
-									<div className="text-sm font-medium truncate">
-										{move.move} - {move.clip}
-									</div>
-									<div className="text-xs text-muted-foreground">
-										{move.move_origin}/{move.move_song}
-									</div>
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() =>
-										handleRemoveMove(
-											difficulty,
-											sectionIndex,
-											moveIndex
-										)
-									}
-									className="text-destructive hover:text-destructive/90 h-6 w-6 p-0 ml-2"
+						{beats.map((beat, moveIndex) => {
+							const move = timelineMoves.find(
+								(m) => m.beat === beat
+							);
+							return (
+								<div
+									key={moveIndex}
+									className="flex items-center justify-between p-2 bg-muted/50 rounded border"
 								>
-									<X className="h-3 w-3" />
-								</Button>
-							</div>
-						))}
+									<div className="flex-1 min-w-0">
+										<div className="text-sm font-medium truncate">
+											{move
+												? `${move.move} - ${move.clip}`
+												: `Unknown move at beat ${beat}`}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{move
+												? `${move.move_origin}/${move.move_song}`
+												: ''}
+										</div>
+									</div>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() =>
+											handleRemoveMove(
+												difficulty,
+												sectionIndex,
+												moveIndex
+											)
+										}
+										className="text-destructive hover:text-destructive/90 h-6 w-6 p-0 ml-2"
+									>
+										<X className="h-3 w-3" />
+									</Button>
+								</div>
+							);
+						})}
 					</div>
 				)}
 			</div>
@@ -251,7 +292,7 @@ export function SectionEditor({
 				) : (
 					<div className="space-y-4">
 						{sections.map(
-							(section: MoveEvent[], sectionIndex: number) =>
+							(section: number[], sectionIndex: number) =>
 								renderSection(difficulty, sectionIndex, section)
 						)}
 					</div>
