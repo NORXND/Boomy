@@ -20,7 +20,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float frame = (float)tempoConverter.MeasureToFrame(beat - 1, beatOffset: -1);
+                    float frame = (float)tempoConverter.MeasureToFrame(beat, beatOffset: -1);
                     Move move = track[beat];
 
                     key.keys.Add(new AnimEventSymbol()
@@ -35,7 +35,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float frame = (float)tempoConverter.MeasureToFrame(beat - 1, beatOffset: -1);
+                    float frame = (float)tempoConverter.MeasureToFrame(beat, beatOffset: -1);
                     Move move = track[beat];
 
                     if (move.HamMoveName == "Rest.move" || move.HamMoveName == "rest.move" || move.HamMoveName == "rest")
@@ -59,7 +59,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = (float)tempoConverter.MeasureToFrame(beat - 1);
+                    float time = (float)tempoConverter.MeasureToFrame(beat);
                     Move move = track[beat];
 
                     key.keys.Add(new AnimEventSymbol()
@@ -74,7 +74,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = (float)tempoConverter.MeasureToFrame(beat - 1);
+                    float time = (float)tempoConverter.MeasureToFrame(beat);
                     CameraPosition position = track[beat];
 
 

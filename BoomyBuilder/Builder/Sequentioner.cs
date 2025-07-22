@@ -46,13 +46,13 @@ namespace BoomyBuilder.Builder.Sequentioner
                             var entry = MoveDataDir.entries.FirstOrDefault(d => d.name == miloName);
                             if (entry?.obj is DancerSequence seq)
                             {
-                                // Copy frames, set unk0 to (beat - 1)
+                                // Copy frames, set unk0 to beat
                                 List<DancerFrame> newFrames = new List<DancerFrame>();
                                 foreach (var frame in seq.mDancerFrames)
                                 {
                                     DancerFrame frameNew = new()
                                     {
-                                        unk0 = (short)(moveBeat - 1),
+                                        unk0 = (short)(moveBeat),
                                         unk2 = frame.unk2,
                                         mSkeleton = frame.mSkeleton
                                     };
