@@ -12,7 +12,7 @@ interface MoveData {
 }
 
 interface TimelineMove {
-	beat: number;
+	measure: number;
 	clip: string;
 	move_origin: string;
 	move_song: string;
@@ -34,6 +34,7 @@ export function SharedMovePreview() {
 	const [moveDataCache, setMoveDataCache] = useState<
 		Record<string, MoveData>
 	>({});
+	const [createdUrls, setCreatedUrls] = useState<string[]>([]);
 
 	// Convert beat number to time using timeline data
 	const beatToTime = useCallback(
@@ -66,6 +67,8 @@ export function SharedMovePreview() {
 
 	// Load move images and data
 	useEffect(() => {
+		let isMounted = true;
+		const urls: string[] = [];
 		if (!currentSong || !currentSong.move_lib) return;
 
 		const loadMoveData = async () => {
@@ -79,7 +82,7 @@ export function SharedMovePreview() {
 				const moves =
 					currentSong.timeline[
 						difficulty as keyof typeof currentSong.timeline
-					].moves;
+					]?.moves || [];
 				moves.forEach((move) => {
 					const moveKey = `${move.move_origin}/${move.move_song}/${move.move}`;
 					allMoveKeys.add(moveKey);
@@ -117,17 +120,27 @@ export function SharedMovePreview() {
 						});
 						const url = URL.createObjectURL(blob);
 						newImageCache[moveKey] = url;
+						urls.push(url);
 					}
 				} catch (err) {
 					console.warn('Failed to load move data for', moveKey, err);
 				}
 			}
 
-			setMoveImageCache(newImageCache);
-			setMoveDataCache(newDataCache);
+			if (isMounted) {
+				setMoveImageCache(newImageCache);
+				setMoveDataCache(newDataCache);
+				setCreatedUrls(urls);
+			}
 		};
 
 		loadMoveData();
+
+		return () => {
+			isMounted = false;
+			// Clean up created object URLs
+			urls.forEach((url) => URL.revokeObjectURL(url));
+		};
 	}, [currentSong]);
 
 	// Convert timeline moves to time-based moves and find current/adjacent moves
@@ -137,11 +150,11 @@ export function SharedMovePreview() {
 		}
 
 		// Get moves only from selected track
-		const moves = currentSong.timeline[selectedTrack].moves;
+		const moves = currentSong.timeline[selectedTrack]?.moves || [];
 		const allMoves: TimelineMove[] = [];
 
 		moves.forEach((move, index) => {
-			const time = beatToTime(move.beat);
+			const time = beatToTime(move.measure);
 
 			allMoves.push({
 				...move,
@@ -224,7 +237,7 @@ export function SharedMovePreview() {
 				style={{ opacity }}
 				title={`${displayName} - ${move.clip} (${
 					move.difficulty
-				})\nBeat: ${move.beat}, Time: ${move.time.toFixed(1)}s`}
+				})\nMeasure: ${move.measure}, Time: ${move.time.toFixed(1)}s`}
 			>
 				{imageUrl ? (
 					<img
@@ -233,6 +246,7 @@ export function SharedMovePreview() {
 						className={`object-cover rounded transition-all duration-500 ${
 							size === 'large' ? 'w-36 h-16' : 'w-24 h-12'
 						}`}
+						draggable={false}
 					/>
 				) : (
 					<div

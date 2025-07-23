@@ -367,9 +367,6 @@ export function MetadataEditor() {
 									<TabsTrigger value="characters">
 										Characters & Venue
 									</TabsTrigger>
-									<TabsTrigger value="midi" disabled>
-										MIDI Events
-									</TabsTrigger>
 								</TabsList>
 
 								<TabsContent
