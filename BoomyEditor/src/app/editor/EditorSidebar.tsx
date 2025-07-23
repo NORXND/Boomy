@@ -168,8 +168,7 @@ export function EditorSidebar() {
 		customPath: string,
 		compression: boolean
 	) => {
-		const { currentSong, songPath, audioPath, tempoChanges } =
-			useSongStore.getState();
+		const { currentSong, songPath, audioPath } = useSongStore.getState();
 
 		if (!currentSong || !songPath) {
 			toast.error('No song loaded to build');
@@ -233,7 +232,7 @@ export function EditorSidebar() {
 				out_path: customPath, // Use custom build path
 				timeline: timelineForBuild,
 				practice: currentSong.practice,
-				tempo_change: tempoChanges,
+				tempo_change: currentSong.tempoChanges,
 				compress: compression,
 				package: packageSong, // Always false for now
 				song_meta: songMetaWithLength, // Pass meta with song_length
@@ -268,7 +267,6 @@ export function EditorSidebar() {
 			// Save the song first
 			await saveSong();
 			const oggPath = join(songPath, `${songName}.ogg`);
-			const midPath = join(songPath, `${songName}.mid`);
 			const songJsonPath = join(songPath, `song.json`);
 			const boomyPath = join(songPath, `.boomy`);
 
@@ -280,9 +278,8 @@ export function EditorSidebar() {
 			const songDataExport = { ...songData, move_lib: '' };
 
 			// Read the other files as buffers
-			const [ogg, mid, boomy] = await Promise.all([
+			const [ogg, boomy] = await Promise.all([
 				window.electronAPI.readFileBuffer(oggPath),
-				window.electronAPI.readFileBuffer(midPath),
 				window.electronAPI.readFileBuffer(boomyPath),
 			]);
 
@@ -329,18 +326,14 @@ export function EditorSidebar() {
 			// Create zip
 			const zip = new JSZip();
 			zip.file(`${songName}.ogg`, ogg);
-			zip.file(`${songName}.mid`, mid);
 			zip.file('song.json', JSON.stringify(songDataExport, null, 2));
 			zip.file('.boomy', boomy);
-			if (dtaBuffer) zip.file('songs.dta', dtaBuffer);
 			if (pngBuffer) {
 				// Include the original PNG with the filename from metadata or default
 				const pngFileName =
 					songData.meta?.cover_image_path || `${songName}_keep.png`;
 				zip.file(pngFileName, pngBuffer);
 			}
-			if (pngXboxBuffer)
-				zip.file(`${songName}_keep.png_xbox`, pngXboxBuffer);
 
 			const zipBlob = await zip.generateAsync({ type: 'uint8array' });
 
@@ -394,15 +387,6 @@ export function EditorSidebar() {
 									}
 								>
 									Song Metadata
-								</SidebarMenuButton>
-								<SidebarMenuButton
-									onClick={() =>
-										window.electronAPI.openExternal(
-											'https://signal.vercel.app/edit'
-										)
-									}
-								>
-									MIDI Editor (Signal)
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>
@@ -476,16 +460,10 @@ export function EditorSidebar() {
 											: ''
 									}
 								>
-									MIDI Drums (Practice)
+									Practice Drums (Slow Down Mode)
 								</SidebarMenuButton>
 								<SidebarMenuButton disabled>
 									Dancer Faces (TODO)
-								</SidebarMenuButton>
-								<SidebarMenuButton disabled>
-									Battle Data (TODO)
-								</SidebarMenuButton>
-								<SidebarMenuButton disabled>
-									Party Data (TODO)
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>

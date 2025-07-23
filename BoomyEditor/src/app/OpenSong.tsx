@@ -80,55 +80,7 @@ export function OpenSongDialog({
 				description:
 					'There is a Boomy project in this directory. Try opening it instead.',
 			});
-		} else {
-			// Create new song.json and .boomy
-			songData = {
-				move_lib: filePath,
-				audioPath: pathJoin(
-					songPath,
-					`${getLastPathSegment(songPath)}.ogg`
-				),
-				timeline: {
-					easy: {
-						moves: [],
-						cameras: [],
-					},
-					medium: {
-						moves: [],
-						cameras: [],
-					},
-					expert: {
-						moves: [],
-						cameras: [],
-					},
-				},
-				practice: {
-					easy: [],
-					medium: [],
-					expert: [],
-				},
-				supereasy: [],
-				drums: [],
-				events: [
-					{
-						beat: 0,
-						type: 'music_start',
-					},
-				],
-				tempoChanges: [],
-				moveLibrary: {},
-				moveLibRev: 'mlib2',
-			};
-			await window.electronAPI.writeFile(
-				songJsonPath,
-				JSON.stringify(songData, null, 2)
-			);
-			await window.electronAPI.writeFile(boomyPath, 'song2');
 		}
-
-		toast.success('Song ready!', {
-			description: `Song at ${songPath}`,
-		});
 
 		loadSong(
 			songData,

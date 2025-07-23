@@ -504,7 +504,7 @@ export const CameraShotsTimeline = React.memo(
 																>
 																	<ContextMenuTrigger>
 																		<div
-																			className={`border-r transition-colors cursor-pointer relative group min-h-full ${
+																			className={`flex justify-center items-center border-r transition-colors cursor-pointer relative group min-h-full ${
 																				isSelected
 																					? 'bg-blue-500/30 border-blue-500'
 																					: isHighlighted

@@ -5,10 +5,14 @@ import { toast } from 'sonner';
 import { OpenSongDialog } from './OpenSong';
 import { join } from 'path-browserify';
 import { Button } from './components/ui/button';
+import { openSong } from './loaders/songLoader';
+import { useSongStore } from './store/songStore';
 
 export default function ImportSong() {
 	const [moveDialogOpen, setMoveDialogOpen] = useState(false);
 	const [songPath, setSongPath] = useState('');
+	const { loadSong } = useSongStore();
+	const navigate = useNavigate();
 
 	const handleImport = async () => {
 		try {
@@ -41,14 +45,9 @@ export default function ImportSong() {
 			const oggFile = Object.keys(zip.files).find((f) =>
 				f.endsWith('.ogg')
 			);
-			const midFile = Object.keys(zip.files).find((f) =>
-				f.endsWith('.mid')
-			);
 			let songBase = '';
 			if (oggFile) {
 				songBase = oggFile.replace(/\.ogg$/, '');
-			} else if (midFile) {
-				songBase = midFile.replace(/\.mid$/, '');
 			} else {
 				throw new Error(
 					'Could not determine song name from .ogg or .mid file in zip'
@@ -86,8 +85,18 @@ export default function ImportSong() {
 			);
 
 			setSongPath(songFolder);
+
+			const songData = await openSong(songFolder);
+
+			await loadSong(
+				songData.songData,
+				songData.songPath,
+				songData.songName,
+				songData.audioPath
+			);
+			navigate('/editor');
+
 			setMoveDialogOpen(true);
-			toast.success('Song files extracted!');
 		} catch (error) {
 			toast.error('Import failed', { description: error.toString() });
 		}

@@ -10,6 +10,9 @@ import type {
 	TempoChange,
 	DrumsEvent,
 	SongEvent,
+	PartyJumpEvent,
+	BamPhrase,
+	BattleEvent,
 } from '../types/song';
 import { toast } from 'sonner';
 
@@ -137,6 +140,30 @@ export interface SongState {
 		difficulty: 'easy' | 'medium' | 'expert',
 		sectionIndex: number,
 		moveIndex: number
+	) => void;
+
+	// BattleSteps actions
+	addBattleStep: (battleStep: BattleEvent) => void;
+	removeBattleStep: (index: number) => void;
+	updateBattleStep: (
+		index: number,
+		battleStepUpdate: Partial<BattleEvent>
+	) => void;
+
+	// BamPhrases actions
+	addBamPhrase: (bamPhrase: BamPhrase) => void;
+	removeBamPhrase: (index: number) => void;
+	updateBamPhrase: (
+		index: number,
+		bamPhraseUpdate: Partial<BamPhrase>
+	) => void;
+
+	// PartyJumps actions
+	addPartyJump: (partyJump: PartyJumpEvent) => void;
+	removePartyJump: (index: number) => void;
+	updatePartyJump: (
+		index: number,
+		partyJumpUpdate: Partial<PartyJumpEvent>
 	) => void;
 }
 
@@ -473,7 +500,7 @@ export const useSongStore = create<SongState>()(
 					// Save version info
 					await window.electronAPI.writeFile(
 						`${songPath}/.boomy`,
-						'song2'
+						'song3'
 					);
 
 					// Save song data
@@ -877,6 +904,115 @@ export const useSongStore = create<SongState>()(
 					toast.success('Move removed from practice section');
 				}
 			},
+
+			// BattleSteps actions
+			addBattleStep: (battleStep) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedSong = { ...currentSong };
+					updatedSong.battleSteps = [
+						...(updatedSong.battleSteps || []),
+						battleStep,
+					];
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			removeBattleStep: (index) => {
+				const { currentSong } = get();
+				if (currentSong?.battleSteps?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.battleSteps = [...updatedSong.battleSteps];
+					updatedSong.battleSteps.splice(index, 1);
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			updateBattleStep: (index, battleStepUpdate) => {
+				const { currentSong } = get();
+				if (currentSong?.battleSteps?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.battleSteps = [...updatedSong.battleSteps];
+					updatedSong.battleSteps[index] = {
+						...updatedSong.battleSteps[index],
+						...battleStepUpdate,
+					};
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			// BamPhrases actions
+			addBamPhrase: (bamPhrase) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedSong = { ...currentSong };
+					updatedSong.bamPhrases = [
+						...(updatedSong.bamPhrases || []),
+						bamPhrase,
+					];
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			removeBamPhrase: (index) => {
+				const { currentSong } = get();
+				if (currentSong?.bamPhrases?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.bamPhrases = [...updatedSong.bamPhrases];
+					updatedSong.bamPhrases.splice(index, 1);
+					set({ currentSong: updatedSong });
+					toast.success('Bam phrase removed');
+				}
+			},
+
+			updateBamPhrase: (index, bamPhraseUpdate) => {
+				const { currentSong } = get();
+				if (currentSong?.bamPhrases?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.bamPhrases = [...updatedSong.bamPhrases];
+					updatedSong.bamPhrases[index] = {
+						...updatedSong.bamPhrases[index],
+						...bamPhraseUpdate,
+					};
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			// PartyJumps actions
+			addPartyJump: (partyJump) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedSong = { ...currentSong };
+					updatedSong.partyJumps = [
+						...(updatedSong.partyJumps || []),
+						partyJump,
+					];
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			removePartyJump: (index) => {
+				const { currentSong } = get();
+				if (currentSong?.partyJumps?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.partyJumps = [...updatedSong.partyJumps];
+					updatedSong.partyJumps.splice(index, 1);
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			updatePartyJump: (index, partyJumpUpdate) => {
+				const { currentSong } = get();
+				if (currentSong?.partyJumps?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.partyJumps = [...updatedSong.partyJumps];
+					updatedSong.partyJumps[index] = {
+						...updatedSong.partyJumps[index],
+						...partyJumpUpdate,
+					};
+					set({ currentSong: updatedSong });
+				}
+			},
 		}),
 		{
 			name: 'song-store', // unique name for devtools
@@ -896,3 +1032,9 @@ export const useSongError = () => useSongStore((state) => state.error);
 export const useMoveLibrary = () => useSongStore((state) => state.moveLibrary);
 export const useTempoChanges = () =>
 	useSongStore((state) => state.currentSong.tempoChanges);
+export const usePartyJumps = () =>
+	useSongStore((state) => state.currentSong.partyJumps);
+export const useBattleSteps = () =>
+	useSongStore((state) => state.currentSong.battleSteps);
+export const useBamPhrases = () =>
+	useSongStore((state) => state.currentSong.bamPhrases);

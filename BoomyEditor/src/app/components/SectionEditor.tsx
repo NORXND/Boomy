@@ -51,8 +51,8 @@ export function SectionEditor({
 		const timelineMoves = currentSong.timeline?.[difficulty]?.moves || [];
 		const usedMoveNames = new Set<string>();
 		sections.forEach((section) => {
-			section.forEach((beat) => {
-				const move = timelineMoves.find((m) => m.beat === beat);
+			section.forEach((measure) => {
+				const move = timelineMoves.find((m) => m.measure === measure);
 				if (move) usedMoveNames.add(move.move);
 			});
 		});
@@ -86,11 +86,11 @@ export function SectionEditor({
 				e.dataTransfer.getData('application/json')
 			);
 
-			if (dragData.type === 'practice-beat') {
+			if (dragData.type === 'practice-measure') {
 				const timelineMoves =
 					currentSong.timeline?.[difficulty]?.moves || [];
 				const move = timelineMoves.find(
-					(m) => m.beat === dragData.beat
+					(m) => m.measure === dragData.measure
 				);
 				const usedMoveNames = getUsedMoves(difficulty);
 				if (move && usedMoveNames.has(move.move)) {
@@ -100,7 +100,7 @@ export function SectionEditor({
 				addMoveToPracticeSection(
 					difficulty,
 					sectionIndex,
-					dragData.beat
+					dragData.measure
 				);
 			}
 		} catch (error) {
@@ -148,7 +148,7 @@ export function SectionEditor({
 	const renderSection = (
 		difficulty: 'easy' | 'medium' | 'expert',
 		sectionIndex: number,
-		beats: number[]
+		measures: number[]
 	) => {
 		const isDropTarget =
 			dragOverSection?.difficulty === difficulty &&
@@ -165,7 +165,7 @@ export function SectionEditor({
 					isDropTarget
 						? 'border-primary bg-primary/10'
 						: 'border-muted bg-background',
-					beats.length === 0 &&
+					measures.length === 0 &&
 						'min-h-[120px] flex flex-col justify-center'
 				)}
 				onDragOver={(e) => {
@@ -174,9 +174,9 @@ export function SectionEditor({
 						const dragData = JSON.parse(
 							e.dataTransfer.getData('application/json')
 						);
-						if (dragData.type === 'practice-beat') {
+						if (dragData.type === 'practice-measure') {
 							const move = timelineMoves.find(
-								(m) => m.beat === dragData.beat
+								(m) => m.measure === dragData.measure
 							);
 							if (move && usedMoveNames.has(move.move)) {
 								e.dataTransfer.dropEffect = 'none';
@@ -209,7 +209,7 @@ export function SectionEditor({
 				</div>
 
 				{/* Section Content */}
-				{beats.length === 0 ? (
+				{measures.length === 0 ? (
 					<div className="text-center text-muted-foreground">
 						<MoveIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
 						<div className="text-sm">Drop moves here</div>
@@ -220,9 +220,9 @@ export function SectionEditor({
 					</div>
 				) : (
 					<div className="space-y-2">
-						{beats.map((beat, moveIndex) => {
+						{measures.map((measure, moveIndex) => {
 							const move = timelineMoves.find(
-								(m) => m.beat === beat
+								(m) => m.measure === measure
 							);
 							return (
 								<div
@@ -233,7 +233,7 @@ export function SectionEditor({
 										<div className="text-sm font-medium truncate">
 											{move
 												? `${move.move} - ${move.clip}`
-												: `Unknown move at beat ${beat}`}
+												: `Unknown move at measure ${measure}`}
 										</div>
 										<div className="text-xs text-muted-foreground">
 											{move

@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, {
+	useState,
+	useCallback,
+	useRef,
+	useEffect,
+	useMemo,
+} from 'react';
 import {
 	PersonStanding,
 	Copy,
@@ -470,6 +476,122 @@ export const ChoreographyTimeline = React.memo(
 			[currentSong, removeMoveEvent, handleCellClick]
 		);
 
+		// Move image and data cache logic using Electron APIs
+		const useMoveImageAndDataCache = (moveLibPath: string) => {
+			const imageCache = useRef<{ [key: string]: string }>({});
+			const dataCache = useRef<{ [key: string]: any }>({});
+			const createdUrls = useRef<string[]>([]);
+
+			const getMoveImageAndData = useCallback(
+				async (moveKey: string) => {
+					if (
+						imageCache.current[moveKey] &&
+						dataCache.current[moveKey]
+					) {
+						return {
+							image: imageCache.current[moveKey],
+							data: dataCache.current[moveKey],
+						};
+					}
+
+					const [category, song, move] = moveKey.split('/');
+					const movePath = `${moveLibPath}/${category}/${song}/${move}`;
+
+					// Load move.json for display name
+					const jsonPath = `${movePath}/move.json`;
+					const jsonExists = await window.electronAPI.pathExists(
+						jsonPath
+					);
+					if (jsonExists) {
+						const jsonData = await window.electronAPI.readJsonFile(
+							jsonPath
+						);
+						dataCache.current[moveKey] = jsonData;
+					}
+
+					// Load move.png
+					const imagePath = `${movePath}/move.png`;
+					const imageExists = await window.electronAPI.pathExists(
+						imagePath
+					);
+					if (imageExists) {
+						const imageBuffer =
+							await window.electronAPI.readFileBuffer(imagePath);
+						const blob = new Blob([imageBuffer], {
+							type: 'image/png',
+						});
+						const url = URL.createObjectURL(blob);
+						imageCache.current[moveKey] = url;
+						createdUrls.current.push(url);
+					}
+
+					return {
+						image: imageCache.current[moveKey] || null,
+						data: dataCache.current[moveKey] || null,
+					};
+				},
+				[moveLibPath]
+			);
+
+			// Cleanup created URLs on unmount
+			useEffect(() => {
+				return () => {
+					createdUrls.current.forEach((url) =>
+						URL.revokeObjectURL(url)
+					);
+				};
+			}, []);
+
+			return getMoveImageAndData;
+		};
+
+		const moveLibPath = useSongStore((state) => state.currentSong.move_lib);
+		const getMoveImageAndData = useMoveImageAndDataCache(moveLibPath);
+
+		const [moveImages, setMoveImages] = useState<{
+			[key: string]: string | null;
+		}>({});
+		const [moveData, setMoveData] = useState<{ [key: string]: any }>({});
+
+		// Preload images and data for visible events
+		useEffect(() => {
+			const preload = async () => {
+				const images: { [key: string]: string | null } = {};
+				const data: { [key: string]: any } = {};
+				for (const track of [
+					'supereasy',
+					'easy',
+					'medium',
+					'expert',
+				] as const) {
+					for (const measure of timelineData.measures) {
+						const events = getMoveEventsForMeasure(
+							track,
+							measure.number
+						);
+						for (const event of events) {
+							const moveKey = `${event.move_origin}/${event.move_song}/${event.move}`;
+							if (!(moveKey in images)) {
+								const result = await getMoveImageAndData(
+									moveKey
+								);
+								images[moveKey] = result.image;
+								data[moveKey] = result.data;
+							}
+						}
+					}
+				}
+				setMoveImages(images);
+				setMoveData(data);
+			};
+			if (moveLibPath) preload();
+		}, [
+			timelineData,
+			getMoveEventsForMeasure,
+			moveLibPath,
+			getMoveImageAndData,
+		]);
+
 		// Debug render only in development
 		if (process.env.NODE_ENV === 'development') {
 			console.log('Rerendering ChoreographyTimeline');
@@ -565,7 +687,7 @@ export const ChoreographyTimeline = React.memo(
 										<ContextMenu key={cellKey}>
 											<ContextMenuTrigger>
 												<div
-													className={`flex-shrink-0 border-r transition-colors cursor-pointer relative group min-h-full ${
+													className={`flex flex-shrink-0 border-r transition-colors cursor-pointer relative items-center justify-center group min-h-full ${
 														isSelected
 															? 'bg-primary/30 border-primary'
 															: isHighlighted
@@ -634,8 +756,35 @@ export const ChoreographyTimeline = React.memo(
 																					)
 																				}
 																			>
-																				<div className="w-16 h-8 bg-muted rounded mb-1 flex items-center justify-center flex-shrink-0">
-																					<PersonStanding className="h-4 w-4 text-muted-foreground" />
+																				<div className="w-16 h-8 bg-muted rounded mb-1 flex items-center justify-center flex-shrink-0 overflow-hidden">
+																					{(() => {
+																						const moveKey = `${moveEvent.move_origin}/${moveEvent.move_song}/${moveEvent.move}`;
+																						const imgSrc =
+																							moveImages[
+																								moveKey
+																							];
+																						if (
+																							imgSrc
+																						) {
+																							return (
+																								<img
+																									src={
+																										imgSrc
+																									}
+																									alt={
+																										moveEvent.move
+																									}
+																									className="object-contain w-full h-full"
+																									draggable={
+																										false
+																									}
+																								/>
+																							);
+																						}
+																						return (
+																							<PersonStanding className="h-4 w-4 text-muted-foreground" />
+																						);
+																					})()}
 																				</div>
 																				<div className="text-xs font-medium truncate w-full leading-tight">
 																					{

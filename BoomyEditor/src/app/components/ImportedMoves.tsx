@@ -286,19 +286,18 @@ export function ImportedMoves({
 					const moveKey = `${moveEvent.move_origin}/${moveEvent.move_song}/${moveEvent.move}`;
 					const moveData = moveDataCache[moveKey];
 					const allClips = currentSong.moveLibrary?.[moveKey] || [];
-					// Find the clip used at this beat
 					const usedClip = allClips.find((clipPath) => {
 						const clipName = clipPath.split('/').pop() || '';
 						return clipName === moveEvent.clip;
 					});
 					return {
-						id: `${moveKey}-${moveEvent.beat}-${idx}`,
+						id: `${moveKey}-${moveEvent.measure}-${idx}`,
 						moveKey,
 						clipPath: usedClip,
 						clipName: moveEvent.clip,
 						moveData,
 						imageUrl: imageCache[moveKey],
-						beat: moveEvent.beat,
+						measure: moveEvent.measure,
 						moveEvent,
 					};
 				})
@@ -410,7 +409,7 @@ export function ImportedMoves({
 									clipName,
 									moveData,
 									imageUrl,
-									beat,
+									measure,
 								} = entry;
 								if (!moveData) {
 									return (
@@ -450,8 +449,8 @@ export function ImportedMoves({
 											e.dataTransfer.setData(
 												'application/json',
 												JSON.stringify({
-													type: 'practice-beat',
-													beat: beat,
+													type: 'practice-measure',
+													measure: measure,
 												})
 											);
 											e.dataTransfer.effectAllowed =
@@ -481,8 +480,8 @@ export function ImportedMoves({
 											</h3>
 											<div className="text-xs text-muted-foreground">
 												{difficultyLabel} •{' '}
-												{moveData.song_name} • Beat:{' '}
-												{beat}
+												{moveData.song_name} • Measure:{' '}
+												{measure}
 											</div>
 											<div className="text-xs text-muted-foreground">
 												Clip:{' '}

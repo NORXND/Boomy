@@ -8,9 +8,11 @@ import {
 	Plus,
 	Settings,
 	Edit,
-	ArrowRight,
+	Accessibility,
 } from 'lucide-react';
 import { useSongStore } from '../../store/songStore';
+import { useBattleSteps } from '../../store/songStore'; // <-- Add this import if not present
+import { usePartyJumps } from '../../store/songStore'; // Add this import if not present
 import { TimelineData, Measure } from './NewTimelineRoot';
 import {
 	Dialog,
@@ -56,6 +58,37 @@ type EventType =
 	| 'music_end'
 	| 'end';
 
+// Battle event types for the Battle track
+type BattleEventType =
+	| 'player1_solo_start'
+	| 'player1_solo_end'
+	| 'player2_solo_start'
+	| 'player2_solo_end'
+	| 'minigame_start'
+	| 'minigame_end';
+
+// Party Jump event types for the Party Jump track
+type PartyJumpEventType = 'start' | 'end';
+
+// Styles for party jump events
+const partyJumpEventStyles: Record<
+	PartyJumpEventType,
+	{ bg: string; border: string; text: string; label: string }
+> = {
+	start: {
+		bg: 'bg-yellow-500/20',
+		border: 'border-yellow-500',
+		text: 'text-yellow-500',
+		label: 'Party Jump Start',
+	},
+	end: {
+		bg: 'bg-purple-500/20',
+		border: 'border-purple-500',
+		text: 'text-purple-500',
+		label: 'Party Jump End',
+	},
+};
+
 let renderCount = 0;
 // Use React.memo to prevent unnecessary re-renders
 export const EventsTimeline = React.memo(
@@ -92,7 +125,16 @@ export const EventsTimeline = React.memo(
 			addTempoChange,
 			removeTempoChange,
 			updateTempoChange,
+			addBattleStep,
+			removeBattleStep,
+			updateBattleStep,
+			addPartyJump,
+			removePartyJump,
+			updatePartyJump,
 		} = useSongStore();
+
+		const battleSteps = useBattleSteps();
+		const partyJumps = usePartyJumps();
 
 		const [dragOverCell, setDragOverCell] = useState<string | null>(null);
 		const [showAddEventDialog, setShowAddEventDialog] = useState(false);
@@ -104,6 +146,23 @@ export const EventsTimeline = React.memo(
 			useState<Measure | null>(null);
 		const [bpmDialogValue, setBpmDialogValue] = useState<number>(120);
 
+		// Battle event dialog state
+		const [showAddBattleDialog, setShowAddBattleDialog] = useState(false);
+		const [selectedBattleType, setSelectedBattleType] =
+			useState<BattleEventType>('player1_solo_start');
+		const [selectedBattleBeat, setSelectedBattleBeat] = useState<
+			number | null
+		>(null);
+
+		// Party Jump event dialog state
+		const [showAddPartyJumpDialog, setShowAddPartyJumpDialog] =
+			useState(false);
+		const [selectedPartyJumpType, setSelectedPartyJumpType] =
+			useState<PartyJumpEventType>('start');
+		const [selectedPartyJumpBeat, setSelectedPartyJumpBeat] = useState<
+			number | null
+		>(null);
+
 		// Get all events for a specific beat
 		const getEventsForBeat = useCallback(
 			(beat: number) => {
@@ -114,6 +173,40 @@ export const EventsTimeline = React.memo(
 					.filter((event) => event.beat === beat);
 			},
 			[currentSong]
+		);
+
+		// Get all battle events for a specific beat
+		const getBattleEventsForBeat = useCallback(
+			(beat: number) => {
+				if (!battleSteps) return [];
+				return battleSteps
+					.map((event, index) => ({ ...event, originalIndex: index }))
+					.filter((event) => event.beat === beat);
+			},
+			[battleSteps]
+		);
+
+		// Get all party jump events for a specific beat
+		const getPartyJumpEventsForBeat = useCallback(
+			(beat: number) => {
+				if (!partyJumps) return [];
+				return partyJumps
+					.map((event, index) => ({ ...event, originalIndex: index }))
+					.filter((event) => event.measure === beat);
+			},
+			[partyJumps]
+		);
+
+		// Fix getPartyJumpEventsForBeat to get event by measure number
+		const getPartyJumpEventForMeasure = useCallback(
+			(measureNumber: number) => {
+				if (!partyJumps) return null;
+				return (
+					partyJumps.find((ev) => ev.measure === measureNumber) ||
+					null
+				);
+			},
+			[partyJumps]
 		);
 
 		// Handle click to add event (opens dialog)
@@ -154,6 +247,89 @@ export const EventsTimeline = React.memo(
 			[]
 		);
 
+		// Open dialog to add a battle event
+		const handleAddBattleEventClick = useCallback((beat: number) => {
+			setSelectedBattleBeat(beat);
+			setShowAddBattleDialog(true);
+		}, []);
+
+		// Actually add the battle event
+		const handleAddBattleEvent = useCallback(() => {
+			if (selectedBattleBeat === null || !selectedBattleType) return;
+			addBattleStep({
+				beat: selectedBattleBeat,
+				type: selectedBattleType,
+			});
+			setShowAddBattleDialog(false);
+		}, [selectedBattleBeat, selectedBattleType, addBattleStep]);
+
+		// Remove a battle event
+		const handleRemoveBattleEvent = useCallback(
+			(index: number) => {
+				removeBattleStep(index);
+			},
+			[removeBattleStep]
+		);
+
+		// Edit a battle event (for future use)
+		const handleEditBattleEvent = useCallback(
+			(
+				index: number,
+				update: Partial<{ beat: number; type: BattleEventType }>
+			) => {
+				updateBattleStep(index, update);
+			},
+			[updateBattleStep]
+		);
+
+		// Open dialog to add a party jump event
+		const handleAddPartyJumpEventClick = useCallback(
+			(measureNumber: number) => {
+				setSelectedPartyJumpBeat(measureNumber);
+				setShowAddPartyJumpDialog(true);
+			},
+			[]
+		);
+
+		// Actually add the party jump event
+		const handleAddPartyJumpEvent = useCallback(() => {
+			if (selectedPartyJumpBeat === null || !selectedPartyJumpType)
+				return;
+
+			// Remove any existing party jump event at this measure
+			const idx = partyJumps.findIndex(
+				(ev) => ev.measure === selectedPartyJumpBeat
+			);
+			if (idx !== -1) {
+				removePartyJump(idx);
+			}
+
+			addPartyJump({
+				measure: selectedPartyJumpBeat,
+				type: selectedPartyJumpType,
+			});
+			setShowAddPartyJumpDialog(false);
+		}, [
+			selectedPartyJumpBeat,
+			selectedPartyJumpType,
+			addPartyJump,
+			partyJumps,
+			removePartyJump,
+		]);
+
+		// Remove a party jump event
+		const handleRemovePartyJumpEvent = useCallback(
+			(measureNumber: number) => {
+				const idx = partyJumps.findIndex(
+					(ev) => ev.measure === measureNumber
+				);
+				if (idx !== -1) {
+					removePartyJump(idx);
+				}
+			},
+			[partyJumps, removePartyJump]
+		);
+
 		// Get the icon for an event type
 		const getEventIcon = (type: EventType) => {
 			switch (type) {
@@ -162,9 +338,9 @@ export const EventsTimeline = React.memo(
 				case 'preview':
 					return <Clock className="h-4 w-4 text-yellow-500" />;
 				case 'freestyle_start':
-					return <Music className="h-4 w-4 text-blue-500" />;
+					return <Accessibility className="h-4 w-4 text-blue-500" />;
 				case 'freestyle_end':
-					return <Music className="h-4 w-4 text-blue-500" />;
+					return <Accessibility className="h-4 w-4 text-blue-500" />;
 				case 'music_end':
 					return <Flag className="h-4 w-4 text-red-500" />;
 				case 'end':
@@ -235,6 +411,49 @@ export const EventsTimeline = React.memo(
 			},
 		};
 
+		// Add icons and styles for battle events
+		const battleEventStyles: Record<
+			BattleEventType,
+			{ bg: string; border: string; text: string; label: string }
+		> = {
+			player1_solo_start: {
+				bg: 'bg-orange-500/20',
+				border: 'border-orange-500',
+				text: 'text-orange-500',
+				label: 'Player 1 Solo Start',
+			},
+			player1_solo_end: {
+				bg: 'bg-cyan-500/20',
+				border: 'border-cyan-500',
+				text: 'text-cyan-500',
+				label: 'Player 1 Solo End',
+			},
+			player2_solo_start: {
+				bg: 'bg-lime-500/20',
+				border: 'border-lime-500',
+				text: 'text-lime-500',
+				label: 'Player 2 Solo Start',
+			},
+			player2_solo_end: {
+				bg: 'bg-blue-500/20',
+				border: 'border-blue-500',
+				text: 'text-blue-500',
+				label: 'Player 2 Solo End',
+			},
+			minigame_start: {
+				bg: 'bg-pink-500/20',
+				border: 'border-pink-500',
+				text: 'text-pink-500',
+				label: 'Minigame Start',
+			},
+			minigame_end: {
+				bg: 'bg-indigo-500/20',
+				border: 'border-indigo-500',
+				text: 'text-indigo-500',
+				label: 'Minigame End',
+			},
+		};
+
 		// Open the BPM dialog for a measure
 		const openBpmChangeDialog = useCallback((measure: Measure) => {
 			setBpmDialogMeasure(measure);
@@ -298,6 +517,51 @@ export const EventsTimeline = React.memo(
 					<p className="text-xs text-muted-foreground mt-2">
 						Click on a beat to add an event. The 'end' event is
 						automatically placed at the last beat.
+					</p>
+				</div>
+
+				{/* Battle info panel */}
+				<div className="p-4 border-b">
+					<h3 className="text-sm font-medium mb-2">Battle Events</h3>
+					<div className="flex flex-wrap gap-2 text-xs">
+						{Object.entries(battleEventStyles).map(
+							([type, style]) => (
+								<div
+									key={type}
+									className={`px-2 py-1 rounded-full ${style.bg} ${style.border} ${style.text} flex items-center gap-1`}
+								>
+									<span>{style.label}</span>
+								</div>
+							)
+						)}
+					</div>
+					<p className="text-xs text-muted-foreground mt-2">
+						Battle events are special timeline events for solos and
+						minigames. Click a beat in the Battle track to add one.
+					</p>
+				</div>
+
+				{/* Party Jump info panel */}
+				<div className="p-4 border-b">
+					<h3 className="text-sm font-medium mb-2">
+						Party Jump Events
+					</h3>
+					<div className="flex flex-wrap gap-2 text-xs">
+						{Object.entries(partyJumpEventStyles).map(
+							([type, style]) => (
+								<div
+									key={type}
+									className={`px-2 py-1 rounded-full ${style.bg} ${style.border} ${style.text} flex items-center gap-1`}
+								>
+									<span>{style.label}</span>
+								</div>
+							)
+						)}
+					</div>
+					<p className="text-xs text-muted-foreground mt-2">
+						Party Jump events are special timeline events for party
+						jump sections. Click a beat in the Party Jump track to
+						add one.
 					</p>
 				</div>
 
@@ -447,7 +711,7 @@ export const EventsTimeline = React.memo(
 												return (
 													<div
 														key={`${measure.number}-${beatIdx}`}
-														className={`border-r transition-colors cursor-pointer relative group min-h-full ${
+														className={`flex justify-center items-center border-r transition-colors cursor-pointer relative group min-h-full ${
 															isHighlighted
 																? 'bg-primary/20 border-primary'
 																: isLastBeat
@@ -572,6 +836,228 @@ export const EventsTimeline = React.memo(
 							);
 						})}
 					</div>
+
+					{/* Battle Track */}
+					<div className="h-[90px] border-b flex">
+						{/* Track Label */}
+						<div
+							className="flex-shrink-0 border-r bg-muted/30 flex items-center px-3"
+							style={{ width: trackHeaderWidth }}
+						>
+							<span className="text-sm font-medium">Battle</span>
+						</div>
+						{/* Track Cells */}
+						{timelineData.measures.map((measure) => {
+							const beatsForMeasure = getBeatsForMeasure(measure);
+							return (
+								<div
+									key={measure.number}
+									className="flex-shrink-0 border-r relative"
+									style={{
+										width: `${
+											measure.beatCount * pixelsPerBeat
+										}px`,
+									}}
+								>
+									{/* Beat cells */}
+									<div className="flex h-full">
+										{beatsForMeasure.map(
+											(beat, beatIdx) => {
+												const battleEvents =
+													getBattleEventsForBeat(
+														beat
+													);
+												const cellKey = `battle-${beat}`;
+												return (
+													<div
+														key={`${measure.number}-${beatIdx}`}
+														className={`flex justify-center items-center border-r transition-colors cursor-pointer relative group min-h-full hover:bg-muted/20`}
+														style={{
+															width: `${pixelsPerBeat}px`,
+														}}
+														onClick={() =>
+															handleAddBattleEventClick(
+																beat
+															)
+														}
+													>
+														{/* Show battle events if present */}
+														{battleEvents.length >
+														0 ? (
+															<div className="w-full h-full p-1 flex flex-col gap-1 overflow-hidden">
+																{battleEvents.map(
+																	(
+																		event,
+																		idx
+																	) => {
+																		const style =
+																			battleEventStyles[
+																				event.type as BattleEventType
+																			];
+																		return (
+																			<div
+																				key={`${event.originalIndex}-${idx}`}
+																				className={`flex-1 border rounded p-1 flex flex-col items-center justify-center transition-colors ${style.bg} ${style.border}`}
+																				onClick={(
+																					e
+																				) =>
+																					e.stopPropagation()
+																				}
+																			>
+																				<div
+																					className={`rounded-full p-1 ${style.bg} flex items-center justify-center`}
+																				>
+																					{/* Optionally add an icon */}
+																				</div>
+																				<div
+																					className={`text-xs font-medium ${style.text} text-center mt-1`}
+																				>
+																					{
+																						style.label
+																					}
+																				</div>
+																				<button
+																					className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 p-1 rounded-full"
+																					onClick={(
+																						e
+																					) => {
+																						e.stopPropagation();
+																						handleRemoveBattleEvent(
+																							event.originalIndex
+																						);
+																					}}
+																				>
+																					<X className="h-3 w-3 text-destructive" />
+																				</button>
+																			</div>
+																		);
+																	}
+																)}
+															</div>
+														) : (
+															/* Empty cell - show plus button on hover */
+															<div className="w-full h-full flex items-center justify-center">
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="h-6 w-6 rounded-full p-0 opacity-100"
+																	onClick={(
+																		e
+																	) => {
+																		e.stopPropagation();
+																		handleAddBattleEventClick(
+																			beat
+																		);
+																	}}
+																>
+																	<Plus className="h-3 w-3" />
+																</Button>
+															</div>
+														)}
+														{/* Beat number tooltip */}
+														<div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+															Beat {beat + 1}
+														</div>
+													</div>
+												);
+											}
+										)}
+									</div>
+								</div>
+							);
+						})}
+					</div>
+
+					{/* Party Jump Track */}
+					<div className="h-[90px] border-b flex">
+						{/* Track Label */}
+						<div
+							className="flex-shrink-0 border-r bg-muted/30 flex items-center px-3"
+							style={{ width: trackHeaderWidth }}
+						>
+							<span className="text-sm font-medium">
+								Party Jump
+							</span>
+						</div>
+						{/* One cell per measure */}
+						{timelineData.measures.map((measure) => {
+							const event = getPartyJumpEventForMeasure(
+								measure.number
+							);
+							const style = event
+								? partyJumpEventStyles[
+										event.type as PartyJumpEventType
+								  ]
+								: null;
+							return (
+								<div
+									key={measure.number}
+									className="flex-shrink-0 border-r relative flex items-center justify-center group"
+									style={{
+										width: `${
+											measure.beatCount * pixelsPerBeat
+										}px`,
+										minHeight: '100%',
+									}}
+									onClick={() =>
+										handleAddPartyJumpEventClick(
+											measure.number
+										)
+									}
+								>
+									{event ? (
+										<div
+											className={`flex-1 border rounded p-1 flex flex-col items-center justify-center transition-colors ${style?.bg} ${style?.border} w-full h-full`}
+											onClick={(e) => e.stopPropagation()}
+										>
+											<div
+												className={`rounded-full p-1 ${style?.bg} flex items-center justify-center`}
+											>
+												{/* Optionally add an icon */}
+											</div>
+											<div
+												className={`text-xs font-medium ${style?.text} text-center mt-1`}
+											>
+												{style?.label}
+											</div>
+											<div className="flex gap-1 mt-1">
+												<Button
+													variant="ghost"
+													size="icon"
+													className="p-1"
+													title="Remove"
+													onClick={(e) => {
+														e.stopPropagation();
+														handleRemovePartyJumpEvent(
+															measure.number
+														);
+													}}
+												>
+													<X className="h-3 w-3 text-destructive" />
+												</Button>
+											</div>
+										</div>
+									) : (
+										<div className="w-full h-full flex items-center justify-center">
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-6 w-6 rounded-full p-0 opacity-100"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleAddPartyJumpEventClick(
+														measure.number
+													);
+												}}
+											>
+												<Plus className="h-3 w-3" />
+											</Button>
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</div>
 				</div>
 
 				{/* Add Event Dialog */}
@@ -628,6 +1114,151 @@ export const EventsTimeline = React.memo(
 								Cancel
 							</Button>
 							<Button onClick={handleAddEvent}>Add Event</Button>
+						</div>
+					</DialogContent>
+				</Dialog>
+
+				{/* Add Battle Event Dialog */}
+				<Dialog
+					open={showAddBattleDialog}
+					onOpenChange={setShowAddBattleDialog}
+				>
+					<DialogContent className="sm:max-w-[425px]">
+						<DialogHeader>
+							<DialogTitle>
+								Add Battle Event at Beat{' '}
+								{selectedBattleBeat !== null
+									? selectedBattleBeat + 1
+									: ''}
+							</DialogTitle>
+							<DialogDescription>
+								Select a battle event type to add at this beat.
+							</DialogDescription>
+						</DialogHeader>
+						<div className="space-y-4 py-4">
+							<div className="space-y-2">
+								<label className="text-sm font-medium">
+									Battle Event Type
+								</label>
+								<Select
+									value={selectedBattleType}
+									onValueChange={(value) =>
+										setSelectedBattleType(
+											value as BattleEventType
+										)
+									}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Select battle event type" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="player1_solo_start">
+											Player 1 Solo Start
+										</SelectItem>
+										<SelectItem value="player1_solo_end">
+											Player 1 Solo End
+										</SelectItem>
+										<SelectItem value="player2_solo_start">
+											Player 2 Solo Start
+										</SelectItem>
+										<SelectItem value="player2_solo_end">
+											Player 2 Solo End
+										</SelectItem>
+										<SelectItem value="minigame_start">
+											Minigame Start
+										</SelectItem>
+										<SelectItem value="minigame_end">
+											Minigame End
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<div className="flex justify-end gap-2">
+							<Button
+								variant="outline"
+								onClick={() => setShowAddBattleDialog(false)}
+							>
+								Cancel
+							</Button>
+							<Button onClick={handleAddBattleEvent}>
+								Add Battle Event
+							</Button>
+						</div>
+					</DialogContent>
+				</Dialog>
+
+				{/* Add Party Jump Event Dialog */}
+				<Dialog
+					open={showAddPartyJumpDialog}
+					onOpenChange={setShowAddPartyJumpDialog}
+				>
+					<DialogContent className="sm:max-w-[425px]">
+						<DialogHeader>
+							<DialogTitle>
+								Add Party Jump Event at Beat{' '}
+								{selectedPartyJumpBeat !== null
+									? selectedPartyJumpBeat + 1
+									: ''}
+							</DialogTitle>
+							<DialogDescription>
+								Select a party jump event type to add at this
+								beat.
+							</DialogDescription>
+						</DialogHeader>
+						<div className="space-y-4 py-4">
+							<div className="space-y-2">
+								<label className="text-sm font-medium">
+									Party Jump Event Type
+								</label>
+								<Select
+									value={selectedPartyJumpType}
+									onValueChange={(value) =>
+										setSelectedPartyJumpType(
+											value as PartyJumpEventType
+										)
+									}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Select party jump event type" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="start">
+											Party Jump Start
+										</SelectItem>
+										<SelectItem value="end">
+											Party Jump End
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<div className="flex justify-end gap-2">
+							<Button
+								variant="outline"
+								onClick={() => setShowAddPartyJumpDialog(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={() => {
+									const existing = partyJumps.find(
+										(ev) =>
+											ev.measure === selectedPartyJumpBeat
+									);
+									if (existing) {
+										setShowAddPartyJumpDialog(false);
+									} else {
+										handleAddPartyJumpEvent();
+									}
+								}}
+							>
+								{partyJumps.find(
+									(ev) => ev.measure === selectedPartyJumpBeat
+								)
+									? 'Edit Party Jump Event'
+									: 'Add Party Jump Event'}
+							</Button>
 						</div>
 					</DialogContent>
 				</Dialog>

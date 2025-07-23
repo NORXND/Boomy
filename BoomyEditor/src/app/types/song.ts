@@ -73,31 +73,24 @@ export interface SongEvent {
 		| 'end';
 }
 
-export interface PartyJumps {
-	from: number;
-	to: number;
+export interface PartyJumpEvent {
+	measure: number;
+	type: 'start' | 'end';
 }
 
-export enum BattlePlayers {
-	Player1 = 0,
-	Player2 = 1,
-	PlayerBoth = 2,
+export interface BattleEvent {
+	beat: number;
+	type:
+		| 'player1_solo_start'
+		| 'player1_solo_end'
+		| 'player2_solo_start'
+		| 'player2_solo_end'
+		| 'minigame_start'
+		| 'minigame_end';
 }
 
-export interface BattleRange {
-	start: number;
-	end: number;
-}
-
-export interface BattleSteps {
-	players: BattlePlayers;
-	musicRange: BattleRange;
-	playRange: BattleRange;
-	state: 'minigame' | 'normal';
-}
-
-export interface BamPhrases {
-	count: string;
+export interface BamPhrase {
+	count: number;
 	bars: number;
 }
 
@@ -125,9 +118,9 @@ export interface Song {
 	supereasy: MoveEvent[];
 	drums: DrumsEvent[];
 	events: SongEvent[];
-	partyJumps: PartyJumps[];
-	battleSteps: BattleSteps[];
-	bamPhrases: BamPhrases[];
+	partyJumps: PartyJumpEvent[];
+	battleSteps: BattleEvent[];
+	bamPhrases: BamPhrase[];
 	audioPath: string;
 	tempoChanges: TempoChange[];
 	moveLibrary: Record<string, string[]>; // moveKey -> clipPaths[]
