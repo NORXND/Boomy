@@ -16,6 +16,9 @@ namespace BoomyBuilder.Builder.PracticeSectioner
             public Dictionary<int, string> AllSteps { get; set; } = [];
 
             public Dictionary<string, string> SongNameMap { get; set; } = [];
+
+            public Dictionary<int, string> AllStartSteps { get; set; } = [];
+            public Dictionary<int, string> AllEndSteps { get; set; } = [];
         }
 
         public static Dictionary<Difficulty, List<PracticeStepResult>> CreatePracticeSection(BuildOperator op, DirectoryMeta MovesDir, DirectoryMeta MoveDataDir, Dictionary<Difficulty, Dictionary<int, Move>> choreography_all)
@@ -45,6 +48,8 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                 List<PracticeSection.PracticeStep> steps = [];
                 Dictionary<int, string> AllSteps = [];
                 Dictionary<string, string> SongNameMap = [];
+                Dictionary<int, string> AllStartSteps = [];
+                Dictionary<int, string> AllEndSteps = [];
 
                 // Collect all beats used in previous sections
                 for (int s = 0; s < sectionIdx; s++)
@@ -59,10 +64,23 @@ namespace BoomyBuilder.Builder.PracticeSectioner
 
                 for (int sbIdx = 0; sbIdx < sectionBeats.Count; sbIdx++)
                 {
-
                     int beat = sectionBeats[sbIdx];
-                    if (beat == lastChoreoBeat)
+                    // Special scenario: In the last section, skip the last move (regardless of beat), but use its move name as mEnd in the previous one
+                    bool isLastSection = sectionIdx == allSections.Count - 1;
+                    bool isLastMoveInSection = sbIdx == sectionBeats.Count - 1;
+                    if (isLastSection && isLastMoveInSection)
+                    {
+                        Console.WriteLine($"[PracticeSectioner] Skipping last move in section {sectionIdx + 1} (beat {beat + 1})");
+                        // If there is a previous step, set its mEnd to this move's name
+                        if (steps.Count > 0 && choreography.TryGetValue(beat, out var lastMove))
+                        {
+                            Console.WriteLine($"[PracticeSectioner] Setting mEnd for previous step in section {sectionIdx + 1} (beat {beat})");
+                            string lastMoveName = GetHamMoveName(lastMove);
+                            steps[steps.Count - 1].mEnd = (Symbol)lastMoveName;
+                        }
+                        // Skip adding this last move as a step
                         continue;
+                    }
 
                     // Only process if this beat/move hasn't been used before
                     if (usedBeatsBefore.Contains(beat) || usedMoveNamesBefore.Contains(GetHamMoveName(choreography[beat])))
@@ -81,19 +99,16 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                     int nextBeat = -1;
                     string nextName = "";
                     string endSong = "";
-                    while (nextIdx < allChoreoBeats.Count)
+
+
+                    int candidate = allChoreoBeats[nextIdx];
+                    var candidateMove = choreography[candidate];
+                    string candidateName = GetHamMoveName(candidateMove);
+                    if (!usedBeatsBefore.Contains(candidate) && !usedMoveNamesBefore.Contains(candidateName))
                     {
-                        int candidate = allChoreoBeats[nextIdx];
-                        var candidateMove = choreography[candidate];
-                        string candidateName = GetHamMoveName(candidateMove);
-                        if (!usedBeatsBefore.Contains(candidate) && !usedMoveNamesBefore.Contains(candidateName))
-                        {
-                            nextBeat = candidate;
-                            nextName = candidateName;
-                            endSong = candidateMove.SongName;
-                            break;
-                        }
-                        nextIdx++;
+                        nextBeat = candidate;
+                        nextName = candidateName;
+                        endSong = candidateMove.SongName;
                     }
 
                     string mStart = startName;
@@ -168,6 +183,8 @@ namespace BoomyBuilder.Builder.PracticeSectioner
 
                     // Use the actual beat as the key!
                     AllSteps.Add(beat, startName); // always 0-based
+                    AllStartSteps.Add(beat, mStart);
+                    AllEndSteps.Add(beat + 1, mEnd);
                     SongNameMap[startName] = move.SongName;
                     SongNameMap[mEnd] = endSong;
                 }
@@ -180,12 +197,14 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                     if (choreography.TryGetValue(lastBeat, out var lastMove))
                         lastMoveName = GetHamMoveName(lastMove);
 
+                    // Use the last used mEnd (from the last step) as the review's mEnd
+                    Symbol lastEndName = steps[steps.Count - 1].mEnd;
                     Symbol firstStartName = steps[0].mStart;
                     steps.Add(new PracticeSection.PracticeStep()
                     {
                         mType = (Symbol)"review",
                         mStart = firstStartName,
-                        mEnd = (Symbol)lastMoveName,
+                        mEnd = lastEndName,
                         mBoundary = true,
                         mNameOverride = (Symbol)""
                     });
@@ -195,7 +214,9 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                 {
                     Steps = steps,
                     AllSteps = AllSteps,
-                    SongNameMap = SongNameMap
+                    SongNameMap = SongNameMap,
+                    AllStartSteps = AllStartSteps,
+                    AllEndSteps = AllEndSteps
                 };
             }
 

@@ -16,6 +16,7 @@ import { useSongStore } from './store/songStore';
 import { useNavigate } from 'react-router';
 import { Song, GameOrigin, Gender, Character, Venue } from './types/song';
 import { hashRandomId } from './RandomIdGenerator';
+import { createSong } from './loaders/songLoader';
 
 // Manual function to get the last part of a path
 function getLastPathSegment(path: string): string {
@@ -58,159 +59,16 @@ export function NewSongDialog({
 	};
 
 	const handleSongCreation = async () => {
-		if (!songName.trim()) {
-			toast.error('Please enter a valid song name.');
-			return;
-		}
-
-		if (!moveLibPath) {
-			toast.error('Please select a valid Milo Move Library path.');
-			return;
-		}
-
 		try {
-			// Check move library version
-			const moveVersionExists = await window.electronAPI.pathExists(
-				pathJoin(moveLibPath, '.boomy')
+			const songData = await createSong(rootDir, songName, moveLibPath);
+			await loadSong(
+				songData.songData,
+				songData.songPath,
+				songData.songName,
+				songData.audioPath
 			);
-
-			if (moveVersionExists) {
-				const dotBoomyContent = await window.electronAPI.readFile(
-					pathJoin(moveLibPath, '.boomy')
-				);
-
-				if (dotBoomyContent != 'mlib2') {
-					toast.error('Invalid Move Library Version!', {
-						description: 'Only version 2 is supported.',
-					});
-					return;
-				}
-			}
-
-			// Create song directory
-			const songDir = pathJoin(rootDir, songName);
-			await window.electronAPI.createDirectory(songDir);
-
-			// Check if song directory already has .boomy
-			const songVersionExist = await window.electronAPI.pathExists(
-				pathJoin(songDir, '.boomy')
-			);
-
-			if (songVersionExist) {
-				toast.error('Conflict!', {
-					description:
-						'A .boomy file already exists in this directory.',
-				});
-				return;
-			}
-
-			// Copy template files from public folder (available as web resources)
-			// Read template files from the renderer's public folder
-			const templateMidResponse = await fetch('template.mid');
-			const templateOggResponse = await fetch('template.ogg');
-			const templateCoverResponse = await fetch('Cover.png');
-
-			const templateMid = new Uint8Array(
-				await templateMidResponse.arrayBuffer()
-			);
-			const templateOgg = new Uint8Array(
-				await templateOggResponse.arrayBuffer()
-			);
-			const templateCover = new Uint8Array(
-				await templateCoverResponse.arrayBuffer()
-			);
-
-			// Write with song name
-			await window.electronAPI.writeFileBuffer(
-				pathJoin(songDir, `${songName}.mid`),
-				templateMid
-			);
-			await window.electronAPI.writeFileBuffer(
-				pathJoin(songDir, `${songName}.ogg`),
-				templateOgg
-			);
-			await window.electronAPI.writeFileBuffer(
-				pathJoin(songDir, `${songName}_keep.png`),
-				templateCover
-			);
-
-			// Create song data
-			const songData: Song = {
-				move_lib: moveLibPath,
-				audioPath: pathJoin(songDir, `${songName}.ogg`),
-				midiPath: pathJoin(songDir, `${songName}.mid`),
-				timeline: {
-					easy: {
-						moves: [],
-						cameras: [],
-					},
-					medium: {
-						moves: [],
-						cameras: [],
-					},
-					expert: {
-						moves: [],
-						cameras: [],
-					},
-				},
-				practice: {
-					easy: [],
-					medium: [],
-					expert: [],
-				},
-				moveLibrary: {},
-				meta: {
-					name: songName,
-					artist: 'Unknown Artist',
-					songid: hashRandomId('BOOMYTEMPLATE'),
-					game_origin: GameOrigin.DanceCentral3DLC,
-					song: {
-						tracks: [],
-						pans: { val1: 0, val2: 0 },
-						vols: { val1: 0, val2: 0 },
-					},
-					preview: { start: 0, end: 15000 },
-					rank: 1,
-					album_name: 'Boomy',
-					gender: Gender.Male,
-					midi_events: [],
-					default_character: Character.RasaDCIAgent,
-					default_character_alt: Character.RasaDCIAgent,
-					backup_character: Character.RasaDCIAgent,
-					backup_character_alt: Character.RasaDCIAgent,
-					default_venue: Venue.DCIHQ,
-					backup_venue: Venue.DCIHQ,
-					dj_intensity_rank: 1,
-					year_released: 2025,
-					bpm: 120,
-					cover_image_path: `${songName}_keep.png`,
-				},
-				moveLibRev: 'mlib2',
-			};
-
-			await window.electronAPI.writeFile(
-				pathJoin(songDir, 'song.json'),
-				JSON.stringify(songData, null, 2)
-			);
-
-			await window.electronAPI.writeFile(
-				pathJoin(songDir, '.boomy'),
-				'song2'
-			);
-
-			toast.success('New song created successfully!', {
-				description: `Song created at ${songDir}`,
-			});
-
-			loadSong(
-				songData,
-				songDir,
-				songName,
-				songData.audioPath,
-				songData.midiPath
-			);
-			navigate('/editor');
 			setOpen(false);
+			navigate('/editor');
 		} catch (error) {
 			toast.error('Failed to create new song', {
 				description: error.toString(),
@@ -294,19 +152,31 @@ export function NewSongDialog({
 				)}
 
 				{step === 2 && (
-					<div className="flex items-center gap-2">
-						<div className="flex flex-1 gap-2 flex-row">
-							<Label htmlFor="songname" className="sr-only">
-								Song Name
-							</Label>
-							<Input
-								id="songname"
-								placeholder="Song name"
-								value={songName}
-								onChange={(e) => setSongName(e.target.value)}
-							/>
+					<>
+						<div className="flex items-center gap-2">
+							<div className="flex flex-1 gap-2 flex-row">
+								<Label htmlFor="songname" className="sr-only">
+									Song Name
+								</Label>
+								<Input
+									id="songname"
+									placeholder="Song name"
+									value={songName}
+									onChange={(e) => {
+										// Only allow lowercase ASCII letters and numbers
+										const cleaned = e.target.value
+											.replace(/[^a-zA-Z0-9]/g, '')
+											.toLowerCase();
+										setSongName(cleaned);
+									}}
+								/>
+							</div>
 						</div>
-					</div>
+						<div className="text-xs text-muted-foreground mt-1">
+							Song name must be lowercase ASCII letters and
+							numbers only.
+						</div>
+					</>
 				)}
 
 				{step === 3 && (

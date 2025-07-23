@@ -18,6 +18,7 @@ import { useSongStore } from './store/songStore';
 import { redirect, useNavigate } from 'react-router';
 import { Song } from './types/song';
 import { hashRandomId } from './RandomIdGenerator';
+import { openSong } from './loaders/songLoader';
 
 // Manual function to get the last part of a path
 function getLastPathSegment(path: string): string {
@@ -87,10 +88,6 @@ export function OpenSongDialog({
 					songPath,
 					`${getLastPathSegment(songPath)}.ogg`
 				),
-				midiPath: pathJoin(
-					songPath,
-					`${getLastPathSegment(songPath)}.mid`
-				),
 				timeline: {
 					easy: {
 						moves: [],
@@ -110,6 +107,15 @@ export function OpenSongDialog({
 					medium: [],
 					expert: [],
 				},
+				supereasy: [],
+				drums: [],
+				events: [
+					{
+						beat: 0,
+						type: 'music_start',
+					},
+				],
+				tempoChanges: [],
 				moveLibrary: {},
 				moveLibRev: 'mlib2',
 			};
@@ -128,8 +134,7 @@ export function OpenSongDialog({
 			songData,
 			songPath,
 			getLastPathSegment(songPath),
-			join(songPath, `${getLastPathSegment(songPath)}.ogg`),
-			join(songPath, `${getLastPathSegment(songPath)}.mid`)
+			join(songPath, `${getLastPathSegment(songPath)}.ogg`)
 		);
 		navigate('/editor');
 	};
@@ -201,176 +206,14 @@ export function OpenSong() {
 		if (path) {
 			setSongPath(path);
 
-			// Search for files
-			const dotBoomyExists = await window.electronAPI.pathExists(
-				pathJoin(path, '.boomy')
+			const songData = await openSong(path);
+			await loadSong(
+				songData.songData,
+				songData.songPath,
+				songData.songName,
+				songData.audioPath
 			);
-
-			if (dotBoomyExists) {
-				const dotBoomyContent = await window.electronAPI.readFile(
-					pathJoin(path, '.boomy')
-				);
-
-				if (dotBoomyContent == 'song1') {
-					const songJSONExist = await window.electronAPI.pathExists(
-						pathJoin(path, 'song.json')
-					);
-
-					if (!songJSONExist) {
-						toast.error('Song corrupted!', {
-							description:
-								'song.json is missing in the directory.',
-						});
-					}
-
-					const songJSON = await window.electronAPI.readFile(
-						pathJoin(path, 'song.json')
-					);
-
-					// Process the song data
-					try {
-						const song = JSON.parse(songJSON);
-
-						// If meta is missing, add a sample meta
-						if (!song.meta) {
-							song.meta = {
-								name: getLastPathSegment(path),
-								artist: 'Unknown Artist',
-								songid: hashRandomId(
-									getLastPathSegment(path) + 'Unkown Artist'
-								),
-								game_origin: 'ham3_dlc',
-								song: {
-									tracks: [],
-									pans: { val1: 0, val2: 0 },
-									vols: { val1: 0, val2: 0 },
-								},
-								preview: { start: 0, end: 0 },
-								rank: 1,
-								album_name: '',
-								gender: 'kGenderMale',
-								midi_events: [],
-								default_character: 'AngelCrewLook',
-								default_character_alt: 'AngelCrewLook',
-								backup_character: 'AngelCrewLook',
-								backup_character_alt: 'AngelCrewLook',
-								default_venue: 'FreeSkate',
-								backup_venue: 'FreeSkate',
-								dj_intensity_rank: 1,
-								year_released: 2020,
-								bpm: 120,
-								cover_image_path: `${getLastPathSegment(
-									path
-								)}_keep.png`,
-							};
-							await window.electronAPI.writeFile(
-								pathJoin(path, 'song.json'),
-								JSON.stringify(song, null, 2)
-							);
-						}
-
-						if (!song.moveLibRev) {
-							song.moveLibRev = 'mlib1';
-						}
-
-						// Check for audio and MIDI files
-						const dirName = getLastPathSegment(path);
-						const oggPath = pathJoin(path, `${dirName}.ogg`);
-						const midPath = pathJoin(path, `${dirName}.mid`);
-
-						const oggExists = await window.electronAPI.pathExists(
-							oggPath
-						);
-						const midExists = await window.electronAPI.pathExists(
-							midPath
-						);
-
-						if (!oggExists || !midExists) {
-							toast.error('Song Corrupted!', {
-								description:
-									'Sounds file (.ogg) or MIDI file (.mid) is missing.',
-							});
-							return;
-						}
-
-						loadSong(
-							song,
-							path,
-							getLastPathSegment(path),
-							oggPath,
-							midPath
-						);
-						navigate('/editor');
-					} catch (error) {
-						toast.error('Failed to parse song data!', {
-							description:
-								'The song data is corrupted or invalid.',
-						});
-						return;
-					}
-				} else if (dotBoomyContent == 'song2') {
-					const songJSONExist = await window.electronAPI.pathExists(
-						pathJoin(path, 'song.json')
-					);
-
-					if (!songJSONExist) {
-						toast.error('Song corrupted!', {
-							description:
-								'song.json is missing in the directory.',
-						});
-					}
-
-					const songJSON = await window.electronAPI.readFile(
-						pathJoin(path, 'song.json')
-					);
-
-					try {
-						const song = JSON.parse(songJSON);
-						const dirName = getLastPathSegment(path);
-						const oggPath = pathJoin(path, `${dirName}.ogg`);
-						const midPath = pathJoin(path, `${dirName}.mid`);
-
-						const oggExists = await window.electronAPI.pathExists(
-							oggPath
-						);
-						const midExists = await window.electronAPI.pathExists(
-							midPath
-						);
-
-						if (!oggExists || !midExists) {
-							toast.error('Song Corrupted!', {
-								description:
-									'Sounds file (.ogg) or MIDI file (.mid) is missing.',
-							});
-							return;
-						}
-
-						loadSong(
-							song,
-							path,
-							getLastPathSegment(path),
-							oggPath,
-							midPath
-						);
-						navigate('/editor');
-					} catch (error) {
-						toast.error('Failed to parse song data!', {
-							description:
-								'The song data is corrupted or invalid.',
-						});
-						return;
-					}
-				} else {
-					toast.error('Invalid Song Version!', {
-						description: 'Only version 1 is supported.',
-					});
-				}
-			} else {
-				toast.error('No Boomy project found!', {
-					description:
-						'There is no Boomy project in this directory. Try creating a new one.',
-				});
-			}
+			navigate('/editor');
 		}
 	};
 

@@ -10,6 +10,8 @@ import { useSongStore } from '../store/songStore';
 import { useEffect } from 'react';
 import { TimelineProvider } from '@/contexts/TimelineContext';
 import MetadataEditor from './MetadataEditor';
+import { DrumsEditor } from './DrumsEditor';
+import { EventsEditor } from './EventsEditor';
 
 const SECTION_NAMES = {
 	'moves-library': 'Moves Library',
@@ -46,6 +48,10 @@ function EditorContent() {
 				return <MoveChoreography />;
 			case 'camera-shots':
 				return <CameraShots />;
+			case 'drums':
+				return <DrumsEditor />;
+			case 'events':
+				return <EventsEditor />;
 			case 'practice-sections':
 				return <PracticeSections />;
 			case 'song-data':

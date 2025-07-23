@@ -1,5 +1,5 @@
 export interface MoveEvent {
-	beat: number;
+	measure: number;
 	clip: string;
 	move_origin: string;
 	move_song: string;
@@ -57,6 +57,50 @@ export interface TempoChange {
 // PracticeSection now contains beats (measures) of selected moves, not indices
 export type PracticeSection = number[]; // each number is a beat (measure) of a move in the timeline
 
+export interface DrumsEvent {
+	sound: string;
+	events: number[];
+}
+
+export interface SongEvent {
+	beat: number;
+	type:
+		| 'music_start'
+		| 'preview'
+		| 'freestyle_start'
+		| 'freestyle_end'
+		| 'music_end'
+		| 'end';
+}
+
+export interface PartyJumps {
+	from: number;
+	to: number;
+}
+
+export enum BattlePlayers {
+	Player1 = 0,
+	Player2 = 1,
+	PlayerBoth = 2,
+}
+
+export interface BattleRange {
+	start: number;
+	end: number;
+}
+
+export interface BattleSteps {
+	players: BattlePlayers;
+	musicRange: BattleRange;
+	playRange: BattleRange;
+	state: 'minigame' | 'normal';
+}
+
+export interface BamPhrases {
+	count: string;
+	bars: number;
+}
+
 export interface Song {
 	move_lib: string;
 	timeline: {
@@ -78,8 +122,14 @@ export interface Song {
 		medium: PracticeSection[];
 		expert: PracticeSection[];
 	};
+	supereasy: MoveEvent[];
+	drums: DrumsEvent[];
+	events: SongEvent[];
+	partyJumps: PartyJumps[];
+	battleSteps: BattleSteps[];
+	bamPhrases: BamPhrases[];
 	audioPath: string;
-	midiPath: string;
+	tempoChanges: TempoChange[];
 	moveLibrary: Record<string, string[]>; // moveKey -> clipPaths[]
 	meta?: SongMeta; // Song metadata
 	moveLibRev?: string;

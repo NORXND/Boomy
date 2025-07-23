@@ -1,4 +1,4 @@
-import { CameraPredefinedPositions } from '@/components/CameraPredefinedPositions';
+import { ImportedMoves } from '@/components/ImportedMoves';
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -6,28 +6,21 @@ import {
 } from '@/components/ui/resizable';
 import { TimelineRoot } from './timeline/TimelineRoot';
 import { TimelineProvider } from '../contexts/TimelineContext';
-import { SharedMovePreview } from '@/components/SharedMovePreview';
+import { SharedMovePreview } from '../components/SharedMovePreview';
 import { NewTimelineRoot } from './timeline_new/NewTimelineRoot';
+import { MidiBanks } from '@/components/MidiBanks';
 
-export function CameraShots() {
+export function DrumsEditor() {
 	return (
 		<TimelineProvider>
 			<div className="p-4 h-full max-w-[calc(100vw-260px)]">
 				<ResizablePanelGroup direction="vertical">
 					<ResizablePanel>
-						<ResizablePanelGroup direction="horizontal">
-							<ResizablePanel>
-								<CameraPredefinedPositions />
-							</ResizablePanel>
-							<ResizableHandle />
-							<ResizablePanel>
-								<SharedMovePreview />
-							</ResizablePanel>
-						</ResizablePanelGroup>
+						<SharedMovePreview />
 					</ResizablePanel>
 					<ResizableHandle />
 					<ResizablePanel>
-						<NewTimelineRoot mode="cameras"></NewTimelineRoot>
+						<NewTimelineRoot mode="drums"></NewTimelineRoot>
 					</ResizablePanel>
 				</ResizablePanelGroup>
 			</div>

@@ -31,17 +31,37 @@ namespace BoomyBuilder.Builder.Sequentioner
                         if (step.mType.ToString() == "learn")
                         {
                             // Compose full move name using SongNameMap
-                            string moveName = step.mStart.ToString();
+                            string moveName = step.mStart.ToString().Replace("_end", "").Replace("*", "").Replace("_loop_end", "");
                             string songName = sectionResult.SongNameMap.ContainsKey(moveName) ? sectionResult.SongNameMap[moveName] : string.Empty;
                             if (string.IsNullOrEmpty(songName))
+                            {
+                                Console.WriteLine($"[Sequentioner] Warning: No song name found for move {moveName}");
                                 continue;
+                            }
                             string fullMoveName = moveName + "_" + songName;
-                            // Find the Move in track and its beat
-                            var moveEntry = track.FirstOrDefault(kvp => kvp.Value.HamMoveName.Replace(".move", "") == fullMoveName);
-                            if (moveEntry.Value == null)
+
+                            // Find the beat using AllStartSteps map
+                            int moveBeat = -1;
+                            foreach (var kvp in sectionResult.AllStartSteps)
+                            {
+                                if (kvp.Value == step.mStart.ToString())
+                                {
+                                    moveBeat = kvp.Key;
+                                    break;
+                                }
+                            }
+                            if (moveBeat == -1)
+                            {
+                                Console.WriteLine($"[Sequentioner] Warning: No beat found for move {moveName} in AllStartSteps");
                                 continue;
-                            int moveBeat = moveEntry.Key;
-                            var move = moveEntry.Value;
+                            }
+
+                            // Now get the Move from track using the beat
+                            if (!track.TryGetValue(moveBeat, out var move))
+                            {
+                                Console.WriteLine($"[Sequentioner] Warning: No Move found in track for beat {moveBeat}");
+                                continue;
+                            }
                             string miloName = move.MiloName + ".seq";
                             var entry = MoveDataDir.entries.FirstOrDefault(d => d.name == miloName);
                             if (entry?.obj is DancerSequence seq)
@@ -52,7 +72,7 @@ namespace BoomyBuilder.Builder.Sequentioner
                                 {
                                     DancerFrame frameNew = new()
                                     {
-                                        unk0 = (short)(moveBeat),
+                                        unk0 = (short)moveBeat,
                                         unk2 = frame.unk2,
                                         mSkeleton = frame.mSkeleton
                                     };

@@ -13,6 +13,8 @@ type EditorSection =
 	| 'camera-shots'
 	| 'practice-sections'
 	| 'song-data'
+	| 'drums'
+	| 'events'
 	| null;
 
 interface EditorContextType {

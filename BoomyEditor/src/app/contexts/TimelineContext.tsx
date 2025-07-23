@@ -1,14 +1,9 @@
+import { TempoChange } from '@/types/song';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface TimeSignature {
 	numerator: number;
 	denominator: number;
-	ticks: number;
-}
-
-interface TempoChange {
-	time: number; // in seconds
-	bpm: number;
 	ticks: number;
 }
 

@@ -8,11 +8,13 @@ import type {
 	CameraEventForSave,
 	PracticeSection,
 	TempoChange,
+	DrumsEvent,
+	SongEvent,
 } from '../types/song';
 import { toast } from 'sonner';
-import { extractTempoChangesFromMidi } from '../utils/midiUtils';
 
 import { SongMeta } from '../types/song';
+import type { TimelineData } from '@/editor/timeline_new/NewTimelineRoot';
 
 export interface SongState {
 	// Current song data
@@ -27,12 +29,9 @@ export interface SongState {
 
 	// Audio paths
 	audioPath: string | null;
-	midiPath: string | null;
 
 	// Move library - imported clips grouped by move
 	moveLibrary: Record<string, string[]>; // moveKey -> clipPaths[]
-
-	tempoChanges: TempoChange[];
 
 	// Loading state
 	isLoading: boolean;
@@ -43,21 +42,20 @@ export interface SongState {
 		song: Song,
 		path: string,
 		name: string,
-		audioPath?: string,
-		midiPath?: string
-	) => void;
+		audioPath?: string
+	) => Promise<void>;
 	updateSong: (song: Partial<Song>) => void;
 	extractTempoChanges: () => Promise<void>;
 	addMoveEvent: (
-		difficulty: 'easy' | 'medium' | 'expert',
+		difficulty: 'supereasy' | 'easy' | 'medium' | 'expert',
 		moveEvent: MoveEvent
 	) => void;
 	removeMoveEvent: (
-		difficulty: 'easy' | 'medium' | 'expert',
+		difficulty: 'supereasy' | 'easy' | 'medium' | 'expert',
 		index: number
 	) => void;
 	updateMoveEvent: (
-		difficulty: 'easy' | 'medium' | 'expert',
+		difficulty: 'supereasy' | 'easy' | 'medium' | 'expert',
 		index: number,
 		moveEvent: Partial<MoveEvent>
 	) => void;
@@ -74,6 +72,12 @@ export interface SongState {
 		index: number,
 		cameraEvent: Partial<CameraEvent>
 	) => void;
+
+	// Song Event actions
+	addEvent: (event: SongEvent) => void;
+	removeEvent: (index: number) => void;
+	updateEvent: (index: number, eventUpdate: Partial<SongEvent>) => void;
+
 	setLoading: (loading: boolean) => void;
 	setError: (error: string | null) => void;
 	clearSong: () => void;
@@ -98,6 +102,17 @@ export interface SongState {
 		song: string,
 		move: string
 	) => void;
+
+	// Tempo Change actions
+	addTempoChange: (tempoChange: TempoChange) => void;
+	removeTempoChange: (index: number) => void;
+	updateTempoChange: (
+		index: number,
+		tempoChangeUpdate: Partial<TempoChange>
+	) => void;
+
+	// Drums actions
+	updateDrums: (drums: DrumsEvent[]) => void;
 
 	// Practice section actions
 	addPracticeSection: (
@@ -136,14 +151,12 @@ export const useSongStore = create<SongState>()(
 			songVersion: null as string | null,
 			songMeta: null as SongMeta | null,
 			audioPath: null as string | null,
-			midiPath: null as string | null,
 			moveLibrary: {} as Record<string, string[]>,
 			isLoading: false,
 			error: null as string | null,
-			tempoChanges: [] as TempoChange[],
 
 			// Actions
-			loadSong: async (song, path, name, audioPath, midiPath) => {
+			loadSong: async (song, path, name, audioPath) => {
 				console.log('Loading song:', name, path);
 
 				// Convert camera events from saved format to runtime format
@@ -177,11 +190,6 @@ export const useSongStore = create<SongState>()(
 					);
 				}
 
-				let tempoChanges: TempoChange[] = [];
-				if (midiPath) {
-					tempoChanges = await extractTempoChangesFromMidi(midiPath);
-				}
-
 				// Update the song state with metadata
 				set({
 					currentSong: {
@@ -191,17 +199,16 @@ export const useSongStore = create<SongState>()(
 							medium: [],
 							expert: [],
 						},
+						tempoChanges: convertedSong.tempoChanges || [],
 					},
 					songPath: path,
 					songName: name,
 					audioPath: audioPath || null,
-					midiPath: midiPath || null,
 					moveLibrary: song.moveLibrary || {},
 					songMeta: convertedSong.meta || null,
 					isLoaded: true,
 					isLoading: false,
 					error: null,
-					tempoChanges: tempoChanges,
 				});
 			},
 
@@ -218,11 +225,23 @@ export const useSongStore = create<SongState>()(
 				const { currentSong } = get();
 				if (currentSong) {
 					const updatedSong = { ...currentSong };
-					updatedSong.timeline[difficulty].moves.push(moveEvent);
-					// Sort by beat
-					updatedSong.timeline[difficulty].moves.sort(
-						(a: MoveEvent, b: MoveEvent) => a.beat - b.beat
-					);
+
+					if (difficulty === 'supereasy') {
+						// Supereasy moves are stored directly in the array
+						updatedSong.supereasy.push(moveEvent);
+						updatedSong.supereasy.sort(
+							(a: MoveEvent, b: MoveEvent) =>
+								a.measure - b.measure
+						);
+					} else {
+						updatedSong.timeline[difficulty].moves.push(moveEvent);
+						// Sort by beat
+						updatedSong.timeline[difficulty].moves.sort(
+							(a: MoveEvent, b: MoveEvent) =>
+								a.measure - b.measure
+						);
+					}
+
 					set({ currentSong: updatedSong });
 				}
 			},
@@ -231,7 +250,15 @@ export const useSongStore = create<SongState>()(
 				const { currentSong } = get();
 				if (currentSong) {
 					const updatedSong = { ...currentSong };
-					updatedSong.timeline[difficulty].moves.splice(index, 1);
+
+					if (difficulty === 'supereasy') {
+						// Supereasy moves are stored directly in the array
+						updatedSong.supereasy.splice(index, 1);
+					} else {
+						// Remove from timeline based on difficulty
+						updatedSong.timeline[difficulty].moves.splice(index, 1);
+					}
+
 					set({ currentSong: updatedSong });
 				}
 			},
@@ -240,15 +267,32 @@ export const useSongStore = create<SongState>()(
 				const { currentSong } = get();
 				if (currentSong) {
 					const updatedSong = { ...currentSong };
-					updatedSong.timeline[difficulty].moves[index] = {
-						...updatedSong.timeline[difficulty].moves[index],
-						...moveEventUpdate,
-					};
-					// Re-sort if beat was changed
-					if (moveEventUpdate.beat !== undefined) {
-						updatedSong.timeline[difficulty].moves.sort(
-							(a: MoveEvent, b: MoveEvent) => a.beat - b.beat
-						);
+
+					if (difficulty === 'supereasy') {
+						// Supereasy moves are stored directly in the array
+						updatedSong.supereasy[index] = {
+							...updatedSong.supereasy[index],
+							...moveEventUpdate,
+						};
+
+						if (moveEventUpdate.measure !== undefined) {
+							updatedSong.supereasy.sort(
+								(a: MoveEvent, b: MoveEvent) =>
+									a.measure - b.measure
+							);
+						}
+					} else {
+						updatedSong.timeline[difficulty].moves[index] = {
+							...updatedSong.timeline[difficulty].moves[index],
+							...moveEventUpdate,
+						};
+						// Re-sort if beat was changed
+						if (moveEventUpdate.measure !== undefined) {
+							updatedSong.timeline[difficulty].moves.sort(
+								(a: MoveEvent, b: MoveEvent) =>
+									a.measure - b.measure
+							);
+						}
 					}
 					set({ currentSong: updatedSong });
 				}
@@ -294,6 +338,58 @@ export const useSongStore = create<SongState>()(
 				}
 			},
 
+			// Song Event actions
+			addEvent: (event) => {
+				set((state) => {
+					if (!state.currentSong) return {};
+					const newEvents = [
+						...(state.currentSong.events || []),
+						event,
+					];
+					newEvents.sort((a, b) => a.beat - b.beat);
+					return {
+						currentSong: {
+							...state.currentSong,
+							events: newEvents,
+						},
+					};
+				});
+			},
+
+			removeEvent: (index) => {
+				set((state) => {
+					if (!state.currentSong?.events) return {};
+					const newEvents = [...state.currentSong.events];
+					newEvents.splice(index, 1);
+					return {
+						currentSong: {
+							...state.currentSong,
+							events: newEvents,
+						},
+					};
+				});
+			},
+
+			updateEvent: (index, eventUpdate) => {
+				set((state) => {
+					if (!state.currentSong?.events?.[index]) return {};
+					const newEvents = [...state.currentSong.events];
+					newEvents[index] = {
+						...newEvents[index],
+						...eventUpdate,
+					};
+					if (eventUpdate.beat !== undefined) {
+						newEvents.sort((a, b) => a.beat - b.beat);
+					}
+					return {
+						currentSong: {
+							...state.currentSong,
+							events: newEvents,
+						},
+					};
+				});
+			},
+
 			setLoading: (loading) => {
 				set({ isLoading: loading });
 			},
@@ -310,7 +406,6 @@ export const useSongStore = create<SongState>()(
 					songVersion: null,
 					songMeta: null,
 					audioPath: null,
-					midiPath: null,
 					isLoaded: false,
 					isLoading: false,
 					error: null,
@@ -406,34 +501,8 @@ export const useSongStore = create<SongState>()(
 				}
 			},
 
-			extractTempoChanges: async () => {
-				const { currentSong, midiPath } = get();
-
-				if (!currentSong || !midiPath) {
-					toast.error('No song or MIDI file loaded');
-					return;
-				}
-
-				try {
-					// Extract tempo changes using our utility function
-					const tempoChanges = await extractTempoChangesFromMidi(
-						midiPath
-					);
-
-					// Update the song with the tempo changes
-					const updatedSong = { ...currentSong, tempoChanges };
-					set({ currentSong: updatedSong });
-
-					return tempoChanges;
-				} catch (error) {
-					const errorMsg = `Failed to extract tempo changes: ${error}`;
-					toast.error(errorMsg, { id: 'extract-tempo' });
-				}
-			},
-
 			buildAndSave: async (compression: boolean) => {
-				const { currentSong, songPath, audioPath, tempoChanges } =
-					get();
+				const { currentSong, songPath, audioPath } = get();
 
 				if (!currentSong || !songPath) {
 					toast.error('No song loaded to build');
@@ -503,7 +572,7 @@ export const useSongStore = create<SongState>()(
 						out_path: `${songPath}/build`, // Output to build subfolder
 						timeline: timelineForBuild,
 						practice: currentSong.practice,
-						tempo_change: tempoChanges,
+						tempo_change: currentSong.tempoChanges,
 						compress: compression,
 					};
 
@@ -620,6 +689,73 @@ export const useSongStore = create<SongState>()(
 					return {
 						moveLibrary: newLibrary,
 						currentSong: updatedSong,
+					};
+				});
+			},
+
+			// Tempo Change actions
+			addTempoChange: (tempoChange) => {
+				set((state) => {
+					if (!state.currentSong) return {};
+					const newTempoChanges = [
+						...(state.currentSong.tempoChanges || []),
+						tempoChange,
+					];
+					newTempoChanges.sort((a, b) => a.tick - b.tick);
+					return {
+						currentSong: {
+							...state.currentSong,
+							tempoChanges: newTempoChanges,
+						},
+					};
+				});
+			},
+
+			removeTempoChange: (index) => {
+				set((state) => {
+					if (!state.currentSong?.tempoChanges) return {};
+					const newTempoChanges = [...state.currentSong.tempoChanges];
+					newTempoChanges.splice(index, 1);
+					return {
+						currentSong: {
+							...state.currentSong,
+							tempoChanges: newTempoChanges,
+						},
+					};
+				});
+			},
+
+			updateTempoChange: (index, tempoChangeUpdate) => {
+				set((state) => {
+					if (!state.currentSong?.tempoChanges?.[index]) return {};
+					const newTempoChanges = [...state.currentSong.tempoChanges];
+					newTempoChanges[index] = {
+						...newTempoChanges[index],
+						...tempoChangeUpdate,
+					};
+					if (tempoChangeUpdate.tick !== undefined) {
+						newTempoChanges.sort((a, b) => a.tick - b.tick);
+					}
+					return {
+						currentSong: {
+							...state.currentSong,
+							tempoChanges: newTempoChanges,
+						},
+					};
+				});
+			},
+
+			// Drums actions
+			updateDrums: (drums) => {
+				set((state) => {
+					if (!state.currentSong) return {};
+					const updatedSong = { ...state.currentSong };
+					updatedSong.drums = drums;
+
+					return {
+						currentSong: {
+							...updatedSong,
+						},
 					};
 				});
 			},
@@ -754,29 +890,9 @@ export const useSongMeta = () => useSongStore((state) => state.songMeta);
 export const useSongPath = () => useSongStore((state) => state.songPath);
 export const useSongName = () => useSongStore((state) => state.songName);
 export const useAudioPath = () => useSongStore((state) => state.audioPath);
-export const useMidiPath = () => useSongStore((state) => state.midiPath);
 export const useIsLoaded = () => useSongStore((state) => state.isLoaded);
 export const useIsLoading = () => useSongStore((state) => state.isLoading);
 export const useSongError = () => useSongStore((state) => state.error);
 export const useMoveLibrary = () => useSongStore((state) => state.moveLibrary);
-
-// Difficulty-specific selectors
-export const useMoves = (difficulty: 'easy' | 'medium' | 'expert') =>
-	useSongStore(
-		(state) => state.currentSong?.timeline[difficulty].moves || []
-	);
-
-export const useCameras = (difficulty: 'easy' | 'medium' | 'expert') =>
-	useSongStore(
-		(state) => state.currentSong?.timeline[difficulty].cameras || []
-	);
-
-// Practice section selectors
-export const usePracticeSections = (difficulty: 'easy' | 'medium' | 'expert') =>
-	useSongStore((state) => {
-		// Get the practice sections
-		const sections = state.currentSong?.practice?.[difficulty] || [];
-
-		// Filter out any sections that aren't arrays
-		return sections.filter((section) => Array.isArray(section));
-	});
+export const useTempoChanges = () =>
+	useSongStore((state) => state.currentSong.tempoChanges);

@@ -4,30 +4,21 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from '@/components/ui/resizable';
-import { TimelineRoot } from './timeline/TimelineRoot';
 import { TimelineProvider } from '../contexts/TimelineContext';
 import { SharedMovePreview } from '../components/SharedMovePreview';
 import { NewTimelineRoot } from './timeline_new/NewTimelineRoot';
 
-export function MoveChoreography() {
+export function EventsEditor() {
 	return (
 		<TimelineProvider>
 			<div className="p-4 h-full max-w-[calc(100vw-260px)]">
 				<ResizablePanelGroup direction="vertical">
 					<ResizablePanel>
-						<ResizablePanelGroup direction="horizontal">
-							<ResizablePanel>
-								<ImportedMoves />
-							</ResizablePanel>
-							<ResizableHandle />
-							<ResizablePanel>
-								<SharedMovePreview />
-							</ResizablePanel>
-						</ResizablePanelGroup>
+						<SharedMovePreview />
 					</ResizablePanel>
 					<ResizableHandle />
 					<ResizablePanel>
-						<NewTimelineRoot mode="choreography"></NewTimelineRoot>
+						<NewTimelineRoot mode="events"></NewTimelineRoot>
 					</ResizablePanel>
 				</ResizablePanelGroup>
 			</div>

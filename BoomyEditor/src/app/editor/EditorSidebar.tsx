@@ -368,7 +368,9 @@ export function EditorSidebar() {
 			| 'moves-library'
 			| 'move-choreography'
 			| 'camera-shots'
-			| 'practice-sections';
+			| 'practice-sections'
+			| 'drums'
+			| 'events';
 		setActiveSection(activeSection === typedSection ? null : typedSection);
 	};
 
@@ -455,6 +457,26 @@ export function EditorSidebar() {
 									}
 								>
 									Practice Sections (Experimental)
+								</SidebarMenuButton>
+								<SidebarMenuButton
+									onClick={() => handleSectionClick('events')}
+									className={
+										activeSection === 'events'
+											? 'bg-accent'
+											: ''
+									}
+								>
+									Song Events
+								</SidebarMenuButton>
+								<SidebarMenuButton
+									onClick={() => handleSectionClick('drums')}
+									className={
+										activeSection === 'drums'
+											? 'bg-accent'
+											: ''
+									}
+								>
+									MIDI Drums (Practice)
 								</SidebarMenuButton>
 								<SidebarMenuButton disabled>
 									Dancer Faces (TODO)
