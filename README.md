@@ -10,7 +10,9 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 
 **Boomy Editor** - React Native interactive editor for creating choreographies.
 **Boomy Builder** - Song builder backend API, builds the song milo.
-**Boomy Deps** - Dependencies including modified `MiloLib` and `makemogg`.
+**Boomy Deps** - Dependencies including modified `MiloLib` and stripped `xbox360-lib`.
+**Boomy Exporter** - Exporter of DC stock songs. (currently only exports for move library)
+**Boomy Converters** - Various converters for use with Boomy.
 
 ## Supported Features
 
@@ -26,9 +28,9 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 ## Song Compatibility
 
 -   [x] Performance Mode
--   [ ] Rehearse (Break It Down)
--   [ ] Keep The Beat
--   [ ] Strike A Pose
+-   [x] Rehearse (Break It Down)
+-   [x] Keep The Beat
+-   [x] Strike A Pose
 -   [ ] Make Your Move
 
 ### Cotributing
