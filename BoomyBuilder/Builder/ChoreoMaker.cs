@@ -8,6 +8,7 @@ namespace BoomyBuilder.Builder.ChoreoMaker
     {
         public static Dictionary<Difficulty, Dictionary<int, Move>> ParseChoreography(BuildOperator buildOperator)
         {
+            Dictionary<int, Move> supereasyTrack = [];
             Dictionary<int, Move> easyTrack = [];
             Dictionary<int, Move> mediumTrack = [];
             Dictionary<int, Move> expertTrack = [];
@@ -16,12 +17,12 @@ namespace BoomyBuilder.Builder.ChoreoMaker
             {
                 foreach (var e in events)
                 {
-                    track[e.Beat - 1] = new Move(e, buildOperator);
+                    track[e.Measure - 1] = new Move(e, buildOperator);
                 }
 
-                int totalBeats = track.Keys.Max();
+                int totalMeasures = track.Keys.Max();
 
-                for (int i = 0; i <= totalBeats; i++)
+                for (int i = 0; i <= totalMeasures; i++)
                 {
                     if (i == 0 && !track.ContainsKey(i))
                     {
@@ -35,6 +36,7 @@ namespace BoomyBuilder.Builder.ChoreoMaker
                 }
             }
 
+            ParseDifficulty(buildOperator.Request.Supereasy, supereasyTrack);
             ParseDifficulty(buildOperator.Request.Timeline.Easy.Moves, easyTrack);
             ParseDifficulty(buildOperator.Request.Timeline.Medium.Moves, mediumTrack);
             ParseDifficulty(buildOperator.Request.Timeline.Expert.Moves, expertTrack);
@@ -43,7 +45,8 @@ namespace BoomyBuilder.Builder.ChoreoMaker
             {
                 {Difficulty.Easy, easyTrack },
                 {Difficulty.Medium, mediumTrack },
-                {Difficulty.Expert, expertTrack }
+                {Difficulty.Expert, expertTrack },
+                {Difficulty.Beginner, supereasyTrack }
             };
         }
     }

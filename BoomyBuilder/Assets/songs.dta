@@ -24,7 +24,7 @@
    (song_length %SONGLENGTH%)
    (midi_events
       %FOR I IN MIDIEVENTS%
-      (%KEY% %SOUND%)
+(%KEY% %SOUND%)
       %ENDFOR%
    )
    (default_character %DEFAULTCHAR%)

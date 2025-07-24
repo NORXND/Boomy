@@ -63,8 +63,6 @@ const CELL_WIDTH = 150; // Fixed width for Event and Camera cells
 const DRUM_CELL_WIDTH = 40; // Width for a single drum step (1/8th note)
 const TRACK_HEADER_WIDTH = 192; // w-48
 
-// Track render count for debugging
-let rootRenderCount = 0;
 // Track mounted instances to handle StrictMode double mounting
 const mountedRef = { current: new Set<string>() };
 
@@ -83,18 +81,7 @@ export function NewTimelineRoot({
 		};
 	}, [instanceId]);
 
-	// Only increment render count for the latest mounted instance in StrictMode
-	React.useEffect(() => {
-		if (
-			mountedRef.current.size <= 1 ||
-			Array.from(mountedRef.current).pop() === instanceId
-		) {
-			rootRenderCount++;
-		}
-	}, [instanceId]);
-
 	// Local state for user-controlled measure count
-	const [userMaxMeasures, setUserMaxMeasures] = useState<number | null>(null);
 	const {
 		audioPath,
 		currentSong,
@@ -102,6 +89,8 @@ export function NewTimelineRoot({
 		isLoading: isSaving,
 		addTempoChange,
 		updateTempoChange,
+		totalMeasures,
+		setTotalMeasures,
 	} = useSongStore();
 
 	// Use shared timeline context
@@ -590,7 +579,7 @@ export function NewTimelineRoot({
 			let lastTime = 0;
 
 			for (const tempoChange of timelineData.tempoChanges) {
-				if (time <= tempoChange.tick) {
+				if (time <= tempoChange.measure) {
 					// Time is before this tempo change
 					const duration = time - lastTime;
 					const beatsPerSecond = tempoChange.bpm / 60;
@@ -598,10 +587,10 @@ export function NewTimelineRoot({
 					break;
 				} else {
 					// Add beats from this tempo section
-					const duration = tempoChange.tick - lastTime;
+					const duration = tempoChange.measure - lastTime;
 					const beatsPerSecond = tempoChange.bpm / 60;
 					totalBeats += duration * beatsPerSecond;
-					lastTime = tempoChange.tick;
+					lastTime = tempoChange.measure;
 				}
 			}
 
@@ -626,13 +615,13 @@ export function NewTimelineRoot({
 		if (!currentSong) return null;
 
 		const sortedTempoChanges = [...tempoChanges].sort(
-			(a, b) => a.tick - b.tick
+			(a, b) => a.measure - b.measure
 		);
 
 		const tempoList: TempoChange[] =
-			sortedTempoChanges.length > 0 && sortedTempoChanges[0].tick === 0
+			sortedTempoChanges.length > 0 && sortedTempoChanges[0].measure === 0
 				? sortedTempoChanges
-				: [{ tick: 0, bpm: 120 }, ...sortedTempoChanges];
+				: [{ measure: 0, bpm: 120 }, ...sortedTempoChanges];
 
 		const timeSignatures: TimeSignature[] = [
 			{ numerator: 4, denominator: 4, ticks: 0 },
@@ -640,13 +629,7 @@ export function NewTimelineRoot({
 		const beatsPerMeasure = timeSignatures[0].numerator;
 
 		const events = currentSong?.events || [];
-		const lastEventBeat =
-			events.length > 0
-				? Math.max(0, ...events.map((e) => e.beat || 0))
-				: 0;
-		const defaultMeasures =
-			Math.ceil((lastEventBeat + 1) / beatsPerMeasure) || 32;
-		const maxMeasures = userMaxMeasures ?? defaultMeasures;
+		const maxMeasures = totalMeasures;
 		const totalBeats = maxMeasures * beatsPerMeasure;
 
 		// --- Robust Timeline Calculation ---
@@ -660,7 +643,7 @@ export function NewTimelineRoot({
 			// Find the correct BPM for the current time
 			while (
 				tempoIndex + 1 < tempoList.length &&
-				currentTime >= tempoList[tempoIndex + 1].tick
+				currentTime >= tempoList[tempoIndex + 1].measure
 			) {
 				tempoIndex++;
 			}
@@ -695,7 +678,7 @@ export function NewTimelineRoot({
 			// Find BPM at the start of the measure
 			let measureBpm = tempoList[0].bpm;
 			for (const tempo of tempoList) {
-				if (tempo.tick <= startTime) {
+				if (tempo.measure <= startTime) {
 					measureBpm = tempo.bpm;
 				} else {
 					break;
@@ -722,7 +705,7 @@ export function NewTimelineRoot({
 			timeSignatures,
 			beatMap,
 		};
-	}, [tempoChanges, currentSong, userMaxMeasures]);
+	}, [tempoChanges, currentSong, totalMeasures]);
 
 	// Recalculate timeline data when tempoChanges change
 	useEffect(() => {
@@ -861,19 +844,6 @@ export function NewTimelineRoot({
 		instanceId,
 	]);
 
-	// Debug render only in development
-	if (process.env.NODE_ENV === 'development') {
-		// Only log for the currently active instance in StrictMode
-		if (
-			mountedRef.current.size <= 1 ||
-			Array.from(mountedRef.current).pop() === instanceId
-		) {
-			console.log(
-				`Rerendering NewTimelineRoot (${rootRenderCount} times, active instances: ${mountedRef.current.size})`
-			);
-		}
-	}
-
 	return (
 		<div className="h-full flex flex-col overflow-hidden max-w-full">
 			{loading ? (
@@ -908,13 +878,12 @@ export function NewTimelineRoot({
 											<button
 												className="px-2 py-1 rounded bg-muted border hover:bg-muted/70"
 												onClick={() =>
-													setUserMaxMeasures((m) =>
+													setTotalMeasures(
 														Math.max(
 															1,
-															(m ??
-																timelineData
-																	.measures
-																	.length) - 1
+															timelineData
+																.measures
+																.length - 1
 														)
 													)
 												}
@@ -929,12 +898,9 @@ export function NewTimelineRoot({
 											<button
 												className="px-2 py-1 rounded bg-muted border hover:bg-muted/70"
 												onClick={() =>
-													setUserMaxMeasures(
-														(m) =>
-															(m ??
-																timelineData
-																	.measures
-																	.length) + 1
+													setTotalMeasures(
+														timelineData.measures
+															.length + 1
 													)
 												}
 												title="Increase measures"

@@ -1,7 +1,12 @@
 namespace BoomyBuilder.Builder.BuildRequest
 {
     using System.Globalization;
+    using BoomyBuilder.Builder.Models.BAMPhrases;
+    using BoomyBuilder.Builder.Models.BattleEvent;
+    using BoomyBuilder.Builder.Models.Drums;
+    using BoomyBuilder.Builder.Models.PartyJump;
     using BoomyBuilder.Builder.Models.Practice;
+    using BoomyBuilder.Builder.Models.SongEvent;
     using BoomyBuilder.Builder.Models.SongMeta;
     using BoomyBuilder.Builder.Models.Timeline;
     using BoomyBuilder.Builder.Utils;
@@ -39,6 +44,31 @@ namespace BoomyBuilder.Builder.BuildRequest
 
         [JsonProperty("practice", Required = Required.Always)]
         public required Practice Practice { get; set; }
+
+        [JsonProperty("supereasy", Required = Required.Always)]
+        public required List<MoveEvent> Supereasy { get; set; }
+
+        [JsonProperty("drums", Required = Required.Always)]
+        public required List<Drums> Drums { get; set; }
+
+        [JsonProperty("events", Required = Required.Always)]
+        public required List<SongEvent> Events { get; set; }
+
+        [JsonProperty("party_jumps", Required = Required.Always)]
+        public required List<PartyJump> PartyJumps { get; set; }
+
+        [JsonProperty("battle_steps", Required = Required.Always)]
+        public required List<BattleEvent> BattleSteps { get; set; }
+
+
+        [JsonProperty("party_battle_steps", Required = Required.Always)]
+        public required List<BattleEvent> PartyBattleSteps { get; set; }
+
+        [JsonProperty("bam_phrases", Required = Required.Always)]
+        public required List<BAMPhrases> BamPhrases { get; set; }
+
+        [JsonProperty("total_measures", Required = Required.Always)]
+        public required int TotalMeasures { get; set; }
 
         [JsonProperty("compress", Required = Required.Always)]
         public required bool Compress { get; set; }

@@ -50,7 +50,7 @@ export interface CameraEventForSave {
 }
 
 export interface TempoChange {
-	tick: number;
+	measure: number;
 	bpm: number;
 }
 
@@ -79,8 +79,9 @@ export interface PartyJumpEvent {
 }
 
 export interface BattleEvent {
-	beat: number;
+	measure: number;
 	type:
+		| 'battle_start'
 		| 'player1_solo_start'
 		| 'player1_solo_end'
 		| 'player2_solo_start'
@@ -120,8 +121,8 @@ export interface Song {
 	events: SongEvent[];
 	partyJumps: PartyJumpEvent[];
 	battleSteps: BattleEvent[];
+	partyBattleSteps: BattleEvent[];
 	bamPhrases: BamPhrase[];
-	audioPath: string;
 	tempoChanges: TempoChange[];
 	moveLibrary: Record<string, string[]>; // moveKey -> clipPaths[]
 	meta?: SongMeta; // Song metadata
@@ -267,7 +268,6 @@ export interface SongMeta {
 	rank: number;
 	album_name: string;
 	gender: Gender;
-	midi_events: MidiEvent[];
 	default_character: Character;
 	default_character_alt: Character;
 	backup_character: Character;

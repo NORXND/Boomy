@@ -253,4 +253,46 @@ namespace BoomyBuilder.Builder.Models
         Expert,
         Beginner
     }
+
+    public enum SongEventType
+    {
+        [EnumMember(Value = "music_start")]
+        MusicStart,
+        [EnumMember(Value = "preview")]
+        Preview,
+        [EnumMember(Value = "freestyle_start")]
+        FreestyleStart,
+        [EnumMember(Value = "freestyle_end")]
+        FreestyleEnd,
+        [EnumMember(Value = "music_end")]
+        MusicEnd,
+        [EnumMember(Value = "end")]
+        End,
+    }
+
+    public enum PartyJumpType
+    {
+        [EnumMember(Value = "start")]
+        Start,
+        [EnumMember(Value = "end")]
+        End,
+    }
+
+    public enum BattleEventType
+    {
+        [EnumMember(Value = "battle_start")]
+        BattleStart,
+        [EnumMember(Value = "player1_solo_start")]
+        Player1SoloStart,
+        [EnumMember(Value = "player1_solo_end")]
+        Player1SoloEnd,
+        [EnumMember(Value = "player2_solo_start")]
+        Player2SoloStart,
+        [EnumMember(Value = "player2_solo_end")]
+        Player2SoloEnd,
+        [EnumMember(Value = "minigame_start")]
+        MinigameStart,
+        [EnumMember(Value = "minigame_end")]
+        MinigameEnd,
+    }
 }

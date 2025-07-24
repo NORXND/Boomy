@@ -64,7 +64,7 @@ namespace MiloLib.Assets.Ham
 
             base.Write(writer, false, parent, entry);
 
-            writer.WriteUInt32(numPhrases);
+            writer.WriteUInt32((uint)mPhrases.Count);
             foreach (BAMPhrase phrase in mPhrases)
             {
                 phrase.Write(writer);

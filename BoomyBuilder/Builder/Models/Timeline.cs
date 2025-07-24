@@ -37,8 +37,8 @@ namespace BoomyBuilder.Builder.Models.Timeline
 
     public partial class MoveEvent
     {
-        [JsonProperty("beat", Required = Required.Always)]
-        public int Beat { get; set; }
+        [JsonProperty("measure", Required = Required.Always)]
+        public int Measure { get; set; }
 
         [JsonProperty("clip", Required = Required.Always)]
         public string Clip { get; set; }

@@ -8,6 +8,7 @@ using MiloLib.Assets.Ham;
 using MiloLib.Assets.Rnd;
 using static BoomyBuilder.Builder.PracticeSectioner.PracticeSectioner;
 using System.Threading.Tasks;
+using BoomyBuilder.Builder.Drumer;
 
 namespace BoomyBuilder.Builder
 {
@@ -66,15 +67,25 @@ namespace BoomyBuilder.Builder
             RndPropAnim expertAnim = (RndPropAnim)(ExpertDir.entries.First(static d => d.name == "song.anim").obj ?? throw new Exception("Expert song.anim not found"));
             MoveDataDir = MovesDir.entries.First(static d => d.name == "move_data").dir ?? throw new Exception("move_data dir not found");
             MoveGraph graph = (MoveGraph)(MoveDataDir.entries.First(static d => d.name == "move_graph").obj ?? throw new Exception("move_graph obj not found"));
+            HamSupereasyData superezData = (HamSupereasyData)(MovesDir.entries.First(static d => d.name == "HamSupereasyData.sup").obj ?? throw new Exception("HamSupereasyData.sup obj not found"));
+            HamPartyJumpData partyJumpData = (HamPartyJumpData)(MovesDir.entries.First(static d => d.name == "HamPartyJumpData.jmp").obj ?? throw new Exception("HamPartyJumpData.jmp obj not found"));
+            HamBattleData battleData = (HamBattleData)(MovesDir.entries.First(static d => d.name == "HamBattleData.btl").obj ?? throw new Exception("HamBattleData.btl obj not found"));
+            HamBattleData partyBattleData = (HamBattleData)(MovesDir.entries.First(static d => d.name == "HamPartyBattleData.btl").obj ?? throw new Exception("HamPartyBattleData.btl obj not found"));
 
             List<HamMove> hamMoves = [];
             AssetsImporter.ImportAsset(Request, this, hamMoves);
             Barker.CreateBarks(hamMoves, this, locDir);
+            List<MidiEvent> midiEvents = Drumer.Drumer.GenerateMidiEvents(this);
+            MidiMaker.CreateMidi(this, midiEvents);
             Dictionary<Difficulty, Dictionary<int, Move>> choreography = ChoreoMaker.ChoreoMaker.ParseChoreography(this);
             Dictionary<Difficulty, Dictionary<int, CameraPosition>> camPositions = Camerator.Camerator.ParseCameraEvents(Request.Timeline);
             MoveGrapher.MoveGrapher.BuildMoveGraph(graph, choreography);
+            Superez.CreateSuperez(superezData, choreography[Difficulty.Beginner]);
+            PartyJumper.CreatePartyJumps(this, partyJumpData);
 
             Dictionary<Difficulty, List<PracticeStepResult>> practiceSections = CreatePracticeSection(this, MovesDir, MoveDataDir, choreography);
+            BattleMaster.CreateBattle(Request.BattleSteps, battleData, Request.TotalMeasures);
+            BattleMaster.CreateBattle(Request.PartyBattleSteps, partyBattleData, Request.TotalMeasures);
 
             Sequentioner.Sequentioner.CreateSequences(this, MovesDir, MoveDataDir, choreography, practiceSections);
             TempoMapConverter tempoMapConverter = new(tempoMap: Request.TempoChange);
@@ -103,18 +114,6 @@ namespace BoomyBuilder.Builder
                 {
                     throw new BoomyException($"Required .mogg file not found: {moggSourcePath}. Please build it.");
                 }
-            }
-
-            // Copy .mid file (required)
-            string midSourcePath = Path.Combine(Request.Path, inputFolderName + ".mid");
-            string midDestPath = Path.Combine(songDir, inputFolderName + ".mid");
-            if (File.Exists(midSourcePath))
-            {
-                File.Copy(midSourcePath, midDestPath, true);
-            }
-            else
-            {
-                throw new BoomyException($"Required .mid file not found: {midSourcePath}");
             }
 
             // Handle cover image conversion and copying
@@ -178,7 +177,7 @@ namespace BoomyBuilder.Builder
                 }
             }
 
-            SongMetadataGenerator.GenerateSongsDta(Request.SongsDtaPath, Request.SongMeta, songsDir, inputFolderName);
+            SongMetadataGenerator.GenerateSongsDta(Request.SongsDtaPath, Request.SongMeta, songsDir, inputFolderName, midiEvents);
 
             if (Request.Package)
             {

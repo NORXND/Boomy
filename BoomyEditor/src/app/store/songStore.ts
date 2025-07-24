@@ -17,7 +17,7 @@ import type {
 import { toast } from 'sonner';
 
 import { SongMeta } from '../types/song';
-import type { TimelineData } from '@/editor/timeline_new/NewTimelineRoot';
+import path from 'path-browserify';
 
 export interface SongState {
 	// Current song data
@@ -35,6 +35,9 @@ export interface SongState {
 
 	// Move library - imported clips grouped by move
 	moveLibrary: Record<string, string[]>; // moveKey -> clipPaths[]
+
+	// Total measures
+	totalMeasures: number;
 
 	// Loading state
 	isLoading: boolean;
@@ -106,6 +109,9 @@ export interface SongState {
 		move: string
 	) => void;
 
+	// Total measures
+	setTotalMeasures: (measures: number) => void;
+
 	// Tempo Change actions
 	addTempoChange: (tempoChange: TempoChange) => void;
 	removeTempoChange: (index: number) => void;
@@ -165,6 +171,13 @@ export interface SongState {
 		index: number,
 		partyJumpUpdate: Partial<PartyJumpEvent>
 	) => void;
+
+	addpartyBattleSteps: (data: BattleEvent) => void;
+	removepartyBattleSteps: (index: number) => void;
+	updatepartyBattleSteps: (
+		index: number,
+		dataUpdate: Partial<BattleEvent>
+	) => void;
 }
 
 export const useSongStore = create<SongState>()(
@@ -179,12 +192,13 @@ export const useSongStore = create<SongState>()(
 			songMeta: null as SongMeta | null,
 			audioPath: null as string | null,
 			moveLibrary: {} as Record<string, string[]>,
+			totalMeasures: 0,
 			isLoading: false,
 			error: null as string | null,
 
 			// Actions
-			loadSong: async (song, path, name, audioPath) => {
-				console.log('Loading song:', name, path);
+			loadSong: async (song, songPath, name) => {
+				console.log('Loading song:', name, songPath);
 
 				// Convert camera events from saved format to runtime format
 				const convertedSong = { ...song };
@@ -217,6 +231,15 @@ export const useSongStore = create<SongState>()(
 					);
 				}
 
+				const lastEvent = convertedSong.events.filter(
+					(e) => e.type === 'end'
+				);
+
+				let totalMeasures = 0;
+				if (lastEvent.length > 0) {
+					totalMeasures = Math.ceil((lastEvent[0].beat + 1) / 4);
+				}
+
 				// Update the song state with metadata
 				set({
 					currentSong: {
@@ -228,14 +251,15 @@ export const useSongStore = create<SongState>()(
 						},
 						tempoChanges: convertedSong.tempoChanges || [],
 					},
-					songPath: path,
+					songPath: songPath,
 					songName: name,
-					audioPath: audioPath || null,
 					moveLibrary: song.moveLibrary || {},
 					songMeta: convertedSong.meta || null,
+					totalMeasures: totalMeasures,
 					isLoaded: true,
 					isLoading: false,
 					error: null,
+					audioPath: path.join(songPath, `${name}.ogg`),
 				});
 			},
 
@@ -432,6 +456,7 @@ export const useSongStore = create<SongState>()(
 					songName: null,
 					songVersion: null,
 					songMeta: null,
+					totalMeasures: 0,
 					audioPath: null,
 					isLoaded: false,
 					isLoading: false,
@@ -720,6 +745,122 @@ export const useSongStore = create<SongState>()(
 				});
 			},
 
+			// Set total measures
+			setTotalMeasures: (measures: number) => {
+				set((state) => {
+					const { currentSong } = state;
+					if (!currentSong) return {};
+
+					const totalMeasures = Math.max(1, Math.floor(measures));
+
+					// 1. Calculate the last beat in the last measure (assuming 4/4, adjust if needed)
+					const beatCount = 4;
+					const lastBeat = totalMeasures * beatCount - 1;
+
+					// 2. Ensure the end event is at the last beat
+					let events = [...(currentSong.events || [])];
+					const endIdx = events.findIndex((e) => e.type === 'end');
+					if (endIdx !== -1) {
+						events[endIdx] = { ...events[endIdx], beat: lastBeat };
+					} else {
+						events.push({
+							type: 'end',
+							beat: lastBeat,
+						});
+					}
+
+					// 3. Cleanup helpers
+					const isValidMeasure = (measure: number) =>
+						measure < totalMeasures;
+					const isValidBeat = (beat: number) => beat <= lastBeat;
+
+					// Timeline moves cleanup
+					const cleanMoves = (moves: MoveEvent[]) =>
+						(moves || []).filter((ev) =>
+							isValidMeasure(ev.measure)
+						);
+
+					// Practice cleanup (array of arrays of beats or MoveEvents)
+					const cleanPractice = (practice: any[][]) =>
+						(practice || []).map((section) =>
+							(section || []).filter(
+								(move) =>
+									(typeof move === 'number' &&
+										isValidBeat(move)) ||
+									(typeof move === 'object' &&
+										isValidMeasure(move.measure) &&
+										isValidBeat(
+											move.beat ??
+												move.measure * beatCount
+										))
+							)
+						);
+
+					// Timeline cleanup
+					const cleanTimeline = (timeline: any) => ({
+						...timeline,
+						moves: cleanMoves(timeline.moves),
+						cameras: (timeline.cameras || []).filter(
+							(ev: CameraEvent) => isValidBeat(ev.beat)
+						),
+					});
+
+					// Drums cleanup
+					const cleanDrums = (drums: any[]) =>
+						(drums || [])
+							.map((drum) => ({
+								...drum,
+								Events: (drum.Events || []).filter(
+									(beat: number) => isValidBeat(beat)
+								),
+							}))
+							.filter(
+								(drum) => drum.Events && drum.Events.length > 0
+							);
+
+					// 4. Apply cleanup to all relevant arrays
+					return {
+						totalMeasures,
+						currentSong: {
+							...currentSong,
+							events: events.filter((ev) => isValidBeat(ev.beat)),
+							timeline: {
+								...currentSong.timeline,
+								easy: cleanTimeline(currentSong.timeline.easy),
+								medium: cleanTimeline(
+									currentSong.timeline.medium
+								),
+								expert: cleanTimeline(
+									currentSong.timeline.expert
+								),
+							},
+							practice: {
+								easy: cleanPractice(currentSong.practice?.easy),
+								medium: cleanPractice(
+									currentSong.practice?.medium
+								),
+								expert: cleanPractice(
+									currentSong.practice?.expert
+								),
+							},
+							battleSteps: (currentSong.battleSteps || []).filter(
+								(ev) => isValidMeasure(ev.measure)
+							),
+							partyJumps: (currentSong.partyJumps || []).filter(
+								(ev) => isValidMeasure(ev.measure)
+							),
+							partyBattleSteps: (
+								currentSong.partyBattleSteps || []
+							).filter((ev) => isValidMeasure(ev.measure)),
+							tempoChanges: (
+								currentSong.tempoChanges || []
+							).filter((tc) => isValidMeasure(tc.measure)),
+							cleanDrums: cleanDrums(currentSong.drums),
+						},
+					};
+				});
+			},
+
 			// Tempo Change actions
 			addTempoChange: (tempoChange) => {
 				set((state) => {
@@ -728,7 +869,7 @@ export const useSongStore = create<SongState>()(
 						...(state.currentSong.tempoChanges || []),
 						tempoChange,
 					];
-					newTempoChanges.sort((a, b) => a.tick - b.tick);
+					newTempoChanges.sort((a, b) => a.measure - b.measure);
 					return {
 						currentSong: {
 							...state.currentSong,
@@ -760,8 +901,8 @@ export const useSongStore = create<SongState>()(
 						...newTempoChanges[index],
 						...tempoChangeUpdate,
 					};
-					if (tempoChangeUpdate.tick !== undefined) {
-						newTempoChanges.sort((a, b) => a.tick - b.tick);
+					if (tempoChangeUpdate.measure !== undefined) {
+						newTempoChanges.sort((a, b) => a.measure - b.measure);
 					}
 					return {
 						currentSong: {
@@ -1013,6 +1154,46 @@ export const useSongStore = create<SongState>()(
 					set({ currentSong: updatedSong });
 				}
 			},
+
+			// partyBattleSteps actions
+			addpartyBattleSteps: (data) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedSong = { ...currentSong };
+					updatedSong.partyBattleSteps = [
+						...(updatedSong.partyBattleSteps || []),
+						data,
+					];
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			removepartyBattleSteps: (index) => {
+				const { currentSong } = get();
+				if (currentSong?.partyBattleSteps?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.partyBattleSteps = [
+						...updatedSong.partyBattleSteps,
+					];
+					updatedSong.partyBattleSteps.splice(index, 1);
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			updatepartyBattleSteps: (index, dataUpdate) => {
+				const { currentSong } = get();
+				if (currentSong?.partyBattleSteps?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.partyBattleSteps = [
+						...updatedSong.partyBattleSteps,
+					];
+					updatedSong.partyBattleSteps[index] = {
+						...updatedSong.partyBattleSteps[index],
+						...dataUpdate,
+					};
+					set({ currentSong: updatedSong });
+				}
+			},
 		}),
 		{
 			name: 'song-store', // unique name for devtools
@@ -1038,3 +1219,5 @@ export const useBattleSteps = () =>
 	useSongStore((state) => state.currentSong.battleSteps);
 export const useBamPhrases = () =>
 	useSongStore((state) => state.currentSong.bamPhrases);
+export const usePartyBattleSteps = () =>
+	useSongStore((state) => state.currentSong.partyBattleSteps);

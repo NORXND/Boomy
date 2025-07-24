@@ -91,8 +91,7 @@ export default function ImportSong() {
 			await loadSong(
 				songData.songData,
 				songData.songPath,
-				songData.songName,
-				songData.audioPath
+				songData.songName
 			);
 			navigate('/editor');
 

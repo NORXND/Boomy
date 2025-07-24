@@ -225,15 +225,15 @@ export function MetadataEditor() {
 		e.preventDefault();
 
 		// Check for empty fields
-		if (!meta.name.trim()) {
+		if (!meta?.name?.trim()) {
 			toast.error('Song name cannot be empty');
 			return;
 		}
-		if (!meta.artist.trim()) {
+		if (!meta.artist?.trim()) {
 			toast.error('Artist name cannot be empty');
 			return;
 		}
-		if (!meta.album_name.trim()) {
+		if (!meta.album_name?.trim()) {
 			toast.error('Album name cannot be empty');
 			return;
 		}
@@ -244,15 +244,7 @@ export function MetadataEditor() {
 			return;
 		}
 
-		// Filter out empty MIDI events
-		const filteredMeta = {
-			...meta,
-			midi_events: meta.midi_events.filter(
-				(event) => event.key.trim() && event.sound.trim()
-			),
-		};
-
-		updateSongMeta(filteredMeta);
+		updateSongMeta(meta);
 		toast.success('Metadata updated!');
 	};
 
@@ -620,7 +612,7 @@ export function MetadataEditor() {
 									<div className="grid grid-cols-2 gap-4">
 										<div className="space-y-2">
 											<Label htmlFor="pans_val1">
-												Pans Val1
+												Pans Val1 (Left)
 											</Label>
 											<Input
 												id="pans_val1"
@@ -653,7 +645,7 @@ export function MetadataEditor() {
 										</div>
 										<div className="space-y-2">
 											<Label htmlFor="pans_val2">
-												Pans Val2
+												Pans Val2 (Right)
 											</Label>
 											<Input
 												id="pans_val2"
@@ -688,7 +680,7 @@ export function MetadataEditor() {
 									<div className="grid grid-cols-2 gap-4">
 										<div className="space-y-2">
 											<Label htmlFor="vols_val1">
-												Volumes Val1
+												Volumes Val1 (Left)
 											</Label>
 											<Input
 												id="vols_val1"
@@ -721,7 +713,7 @@ export function MetadataEditor() {
 										</div>
 										<div className="space-y-2">
 											<Label htmlFor="vols_val2">
-												Volumes Val2
+												Volumes Val2 (Right)
 											</Label>
 											<Input
 												id="vols_val2"
@@ -937,122 +929,6 @@ export function MetadataEditor() {
 											</SelectContent>
 										</Select>
 									</div>
-								</TabsContent>
-
-								<TabsContent value="midi" className="space-y-4">
-									{meta.midi_events.map((event, index) => (
-										<div
-											key={index}
-											className="grid grid-cols-2 gap-2 relative pr-10"
-										>
-											<div className="space-y-2">
-												<Label
-													htmlFor={`midi-${index}-key`}
-												>
-													Key
-												</Label>
-												<Input
-													id={`midi-${index}-key`}
-													value={event.key}
-													onChange={(e) =>
-														setMeta((prev) => {
-															if (!prev)
-																return prev;
-															const newEvents = [
-																...prev.midi_events,
-															];
-															newEvents[index] = {
-																...newEvents[
-																	index
-																],
-																key: e.target
-																	.value,
-															};
-															return {
-																...prev,
-																midi_events:
-																	newEvents,
-															};
-														})
-													}
-												/>
-											</div>
-											<div className="space-y-2">
-												<Label
-													htmlFor={`midi-${index}-sound`}
-												>
-													Sound
-												</Label>
-												<Input
-													id={`midi-${index}-sound`}
-													value={event.sound}
-													onChange={(e) =>
-														setMeta((prev) => {
-															if (!prev)
-																return prev;
-															const newEvents = [
-																...prev.midi_events,
-															];
-															newEvents[index] = {
-																...newEvents[
-																	index
-																],
-																sound: e.target
-																	.value,
-															};
-															return {
-																...prev,
-																midi_events:
-																	newEvents,
-															};
-														})
-													}
-												/>
-											</div>
-											<Button
-												type="button"
-												variant="ghost"
-												className="absolute right-0 top-1/2 -translate-y-1/2 text-destructive hover:text-destructive/80"
-												onClick={() => {
-													setMeta((prev) => {
-														if (!prev) return prev;
-														const newEvents = [
-															...prev.midi_events,
-														];
-														newEvents.splice(
-															index,
-															1
-														);
-														return {
-															...prev,
-															midi_events:
-																newEvents,
-														};
-													});
-												}}
-											>
-												✖
-											</Button>
-										</div>
-									))}
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() =>
-											setMeta((prev) => {
-												if (!prev) return prev;
-												return {
-													...prev,
-													midi_events: [
-														...prev.midi_events,
-														{ key: '', sound: '' },
-													],
-												};
-											})
-										}
-									>
-										Add MIDI Event
-									</Button>
 								</TabsContent>
 							</Tabs>
 						</div>

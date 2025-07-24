@@ -120,7 +120,6 @@ export async function createSong(
 		// Create song data
 		const songData: Song = {
 			move_lib: moveLibPath,
-			audioPath: path.join(songDir, `${songName}.ogg`),
 			timeline: {
 				easy: {
 					moves: [],
@@ -144,7 +143,18 @@ export async function createSong(
 			supereasy: [],
 			drums: [],
 			partyJumps: [],
-			battleSteps: [],
+			battleSteps: [
+				{
+					type: 'battle_start',
+					measure: 0,
+				},
+			],
+			partyBattleSteps: [
+				{
+					type: 'battle_start',
+					measure: 0,
+				},
+			],
 			bamPhrases: [],
 			events: [
 				{
@@ -162,7 +172,7 @@ export async function createSong(
 			],
 			tempoChanges: [
 				{
-					tick: 0,
+					measure: 0,
 					bpm: 120,
 				},
 			],
@@ -173,14 +183,13 @@ export async function createSong(
 				game_origin: GameOrigin.DanceCentral3DLC,
 				song: {
 					tracks: [],
-					pans: { val1: -1, val2: -1 },
+					pans: { val1: -1, val2: 1 },
 					vols: { val1: 0, val2: 0 },
 				},
 				preview: { start: 0, end: 15000 },
 				rank: 1,
 				album_name: 'Boomy',
 				gender: Gender.Male,
-				midi_events: [],
 				default_character: Character.RasaDCIAgent,
 				default_character_alt: Character.RasaDCIAgent,
 				backup_character: Character.RasaDCIAgent,
@@ -213,7 +222,6 @@ export async function createSong(
 			songPath: songDir,
 			songData: songData,
 			songName: songName,
-			audioPath: path.join(songDir, `${songName}.ogg`),
 		};
 	} catch (error) {
 		toast.error('Failed to create new song', {

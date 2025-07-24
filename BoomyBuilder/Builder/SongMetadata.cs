@@ -4,12 +4,13 @@ using System.IO;
 using System.Text.RegularExpressions;
 using BoomyBuilder.Builder.Models.SongMeta;
 using BoomyBuilder.Builder.Extensions;
+using BoomyBuilder.Builder.Drumer;
 
 namespace BoomyBuilder.Builder.SongMetadata
 {
     public static class SongMetadataGenerator
     {
-        public static void GenerateSongsDta(string templatePath, SongMeta meta, string outputDir, string songName)
+        public static void GenerateSongsDta(string templatePath, SongMeta meta, string outputDir, string songName, List<MidiEvent> midiEvents)
         {
             if (!File.Exists(templatePath))
                 throw new FileNotFoundException($"Template not found: {templatePath}");
@@ -24,10 +25,10 @@ namespace BoomyBuilder.Builder.SongMetadata
                 { "%SONGARTIST%", meta.Artist },
                 { "%SONGID%", meta.Songid.ToString() },
                 { "%SONGORIGIN%", meta.GameOrigin.GetEnumMemberValue() },
-                { "%PANSVAL1%", meta.Song.Pans.Val1.ToString() },
-                { "%PANSVAL2%", meta.Song.Pans.Val2.ToString() },
-                { "%VOLSVAL1%", meta.Song.Vols.Val1.ToString() },
-                { "%VOLSVAL2%", meta.Song.Vols.Val2.ToString() },
+                { "%PANSVAL1%", $"{meta.Song.Pans.Val1:0.0}" },
+                { "%PANSVAL2%", $"{meta.Song.Pans.Val2:0.0}" },
+                { "%VOLSVAL1%", $"{meta.Song.Vols.Val1:0.0}" },
+                { "%VOLSVAL2%", $"{meta.Song.Vols.Val2:0.0}" },
                 { "%PREVIEWSTART%", meta.Preview.Start.ToString() },
                 { "%PREVIEWEND%", meta.Preview.End.ToString() },
                 { "%RANK%", meta.Rank.ToString() },
@@ -54,9 +55,9 @@ namespace BoomyBuilder.Builder.SongMetadata
 
             // Handle midi_events FOR loop
             string midiEventsStr = string.Empty;
-            foreach (var evt in meta.MidiEvents)
+            foreach (var evt in midiEvents)
             {
-                midiEventsStr += $"      ({evt.Key} {evt.Sound})\n";
+                midiEventsStr += $"      ({evt.Key.Item3} {evt.Sound})\n";
             }
             template = Regex.Replace(template, "%FOR I IN MIDIEVENTS%(.|\n)*?%ENDFOR%", midiEventsStr.TrimEnd(), RegexOptions.Multiline);
 

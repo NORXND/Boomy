@@ -35,8 +35,8 @@ export function EditorSidebar() {
 	const {
 		saveSong,
 		currentSong,
-		audioPath,
 		isLoading: isSaving,
+		totalMeasures,
 	} = useSongStore();
 
 	const songStore = useSongStore.getState();
@@ -233,6 +233,14 @@ export function EditorSidebar() {
 				timeline: timelineForBuild,
 				practice: currentSong.practice,
 				tempo_change: currentSong.tempoChanges,
+				supereasy: currentSong.supereasy,
+				drums: currentSong.drums,
+				events: currentSong.events,
+				party_jumps: currentSong.partyJumps,
+				battle_steps: currentSong.battleSteps,
+				party_battle_steps: currentSong.partyBattleSteps,
+				bam_phrases: currentSong.bamPhrases,
+				total_measures: totalMeasures,
 				compress: compression,
 				package: packageSong, // Always false for now
 				song_meta: songMetaWithLength, // Pass meta with song_length
@@ -283,15 +291,7 @@ export function EditorSidebar() {
 				window.electronAPI.readFileBuffer(boomyPath),
 			]);
 
-			// Optionally add songs.dta and cover image files if they exist
-			const dtaPath = join(songPath, 'songs.dta');
-			let dtaBuffer: Uint8Array | null = null;
 			let pngBuffer: Uint8Array | null = null;
-			let pngXboxBuffer: Uint8Array | null = null;
-
-			if (await window.electronAPI.pathExists(dtaPath)) {
-				dtaBuffer = await window.electronAPI.readFileBuffer(dtaPath);
-			}
 
 			// Handle cover image - check metadata first, then fallback to default naming
 			let coverImagePath: string | null = null;
@@ -312,14 +312,6 @@ export function EditorSidebar() {
 			) {
 				pngBuffer = await window.electronAPI.readFileBuffer(
 					coverImagePath
-				);
-			}
-
-			// Also check for pre-converted xbox format
-			const pngXboxPath = join(songPath, `${songName}_keep.png_xbox`);
-			if (await window.electronAPI.pathExists(pngXboxPath)) {
-				pngXboxBuffer = await window.electronAPI.readFileBuffer(
-					pngXboxPath
 				);
 			}
 

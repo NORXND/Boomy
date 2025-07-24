@@ -171,10 +171,10 @@ namespace BoomyBuilder.Builder.MoveGrapher
                 if (track.Count == 0)
                     return;
 
-                int minBeat = track.Keys.Min();
-                int maxBeat = track.Keys.Max();
+                int minMeasure = track.Keys.Min();
+                int maxMeasure = track.Keys.Max();
 
-                for (int i = minBeat; i <= maxBeat; i++)
+                for (int i = minMeasure; i <= maxMeasure; i++)
                 {
                     if (track.TryGetValue(i, out Move move))
                     {

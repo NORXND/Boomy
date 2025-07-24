@@ -64,8 +64,7 @@ export function NewSongDialog({
 			await loadSong(
 				songData.songData,
 				songData.songPath,
-				songData.songName,
-				songData.audioPath
+				songData.songName
 			);
 			setOpen(false);
 			navigate('/editor');
@@ -138,8 +137,8 @@ export function NewSongDialog({
 						<div className="flex flex-1 gap-2 flex-row">
 							<Input
 								placeholder="Root directory"
+								onChange={(e) => setRootDir(e.target.value)}
 								value={rootDir}
-								readOnly
 							/>
 							<Button
 								variant="secondary"

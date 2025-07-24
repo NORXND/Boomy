@@ -2,16 +2,16 @@ namespace BoomyBuilder.Builder.Utils
 {
 
     /// <summary>
-    /// Represents a tempo change event at a specific tick position.
+    /// Represents a tempo change event at a specific measure position.
     /// </summary>
     public class TempoChange
     {
-        public double Tick { get; set; }
+        public double Measure { get; set; }
         public double BPM { get; set; }
 
-        public TempoChange(double tick, double bpm)
+        public TempoChange(double measure, double bpm)
         {
-            Tick = tick;
+            Measure = measure;
             BPM = bpm;
         }
     }
@@ -104,10 +104,14 @@ namespace BoomyBuilder.Builder.Utils
 
             for (int i = 0; i < _tempoMap.Count; i++)
             {
-                double segmentStartTick = _tempoMap[i].Tick;
+                // Convert measure to tick for segment start
+                double segmentStartTick = MeasureToTick(_tempoMap[i].Measure);
                 double bpm = _tempoMap[i].BPM;
 
-                double segmentEndTick = (i + 1 < _tempoMap.Count) ? _tempoMap[i + 1].Tick : targetTick;
+                // Convert measure to tick for segment end
+                double segmentEndTick = (i + 1 < _tempoMap.Count)
+                    ? MeasureToTick(_tempoMap[i + 1].Measure)
+                    : targetTick;
                 if (segmentEndTick > targetTick)
                     segmentEndTick = targetTick;
 
@@ -142,13 +146,24 @@ namespace BoomyBuilder.Builder.Utils
         }
 
         /// <summary>
-        /// Add a new tempo change to the map. Tempo changes must be added in tick order.
+        /// Add a new tempo change to the map. Tempo changes must be added in measure order.
         /// </summary>
-        public void AddTempoChange(double tick, double bpm)
+        public void AddTempoChange(double measure, double bpm)
         {
-            if (_tempoMap.Count > 0 && tick < _tempoMap[_tempoMap.Count - 1].Tick)
-                throw new ArgumentException("Tempo changes must be added in ascending tick order.");
-            _tempoMap.Add(new TempoChange(tick, bpm));
+            if (_tempoMap.Count > 0 && measure < _tempoMap[_tempoMap.Count - 1].Measure)
+                throw new ArgumentException("Tempo changes must be added in ascending measure order.");
+            _tempoMap.Add(new TempoChange(measure, bpm));
+        }
+
+        /// <summary>
+        /// Converts a beat (absolute, e.g. measure * beatsPerMeasure + beatInMeasure) to the corresponding frame (supports variable tempo).
+        /// </summary>
+        public double BeatToFrame(double beat)
+        {
+            // Convert beat to tick
+            double tick = beat * _ticksPerBeat;
+            double seconds = TickToSecondsWithTempoMap(tick);
+            return seconds * _fps;
         }
     }
 }

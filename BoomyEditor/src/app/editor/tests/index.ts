@@ -1,10 +1,5 @@
 import { SongState } from '@/store/songStore';
 import { Song, TestResult, TestResultType } from '../../types/song';
-import {
-	hasFinishingMove,
-	measureCheck,
-	measureFilledCheck,
-} from './movesCheck';
 
 const utils = {
 	checkMove: async (
@@ -33,11 +28,7 @@ export type TestingUtils = typeof utils;
 export const TESTS: Record<
 	string,
 	(song: SongState, utils: TestingUtils) => Promise<TestResult>
-> = {
-	'First measure has move?': measureCheck,
-	'Equal number of moves?': measureFilledCheck,
-	'Has finishing move?': hasFinishingMove,
-};
+> = {};
 
 export type { TestResult };
 

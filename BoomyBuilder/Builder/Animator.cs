@@ -18,10 +18,10 @@ namespace BoomyBuilder.Builder.Animator
 
             void CreateExpertClips(RndPropAnim.PropKey key, Dictionary<int, Move> track)
             {
-                foreach (var beat in track.Keys)
+                foreach (var measure in track.Keys)
                 {
-                    float frame = (float)tempoConverter.MeasureToFrame(beat, beatOffset: -1);
-                    Move move = track[beat];
+                    float frame = (float)tempoConverter.MeasureToFrame(measure, beatOffset: -1);
+                    Move move = track[measure];
 
                     key.keys.Add(new AnimEventSymbol()
                     {
@@ -33,10 +33,10 @@ namespace BoomyBuilder.Builder.Animator
 
             void CreateClips(RndPropAnim.PropKey key, Dictionary<int, Move> track)
             {
-                foreach (var beat in track.Keys)
+                foreach (var measure in track.Keys)
                 {
-                    float frame = (float)tempoConverter.MeasureToFrame(beat, beatOffset: -1);
-                    Move move = track[beat];
+                    float frame = (float)tempoConverter.MeasureToFrame(measure, beatOffset: -1);
+                    Move move = track[measure];
 
                     if (move.HamMoveName == "Rest.move" || move.HamMoveName == "rest.move" || move.HamMoveName == "rest")
                     {
@@ -57,10 +57,10 @@ namespace BoomyBuilder.Builder.Animator
 
             void CreateMoves(RndPropAnim.PropKey key, Dictionary<int, Move> track)
             {
-                foreach (var beat in track.Keys)
+                foreach (var measure in track.Keys)
                 {
-                    float time = (float)tempoConverter.MeasureToFrame(beat);
-                    Move move = track[beat];
+                    float time = (float)tempoConverter.MeasureToFrame(measure);
+                    Move move = track[measure];
 
                     key.keys.Add(new AnimEventSymbol()
                     {
@@ -74,7 +74,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = (float)tempoConverter.MeasureToFrame(beat);
+                    float time = (float)tempoConverter.BeatToFrame(beat);
                     CameraPosition position = track[beat];
 
 
@@ -88,28 +88,27 @@ namespace BoomyBuilder.Builder.Animator
 
             void CreatePractice(RndPropAnim.PropKey key, Dictionary<int, Move> track, List<PracticeStepResult> section)
             {
-                // Collect all starting beats of all sections
-                var sectionStartBeats = section.Select(s => s.AllStartSteps.Keys.FirstOrDefault()).ToHashSet();
+                // Collect all starting measure of all sections
+                var sectionStartMeasures = section.Select(s => s.AllStartSteps.Keys.FirstOrDefault()).ToHashSet();
 
-                // Gather all beats in order
-                var allBeats = track.Keys.OrderBy(b => b).ToList();
+                // Gather all measures in order
+                var allMeasures = track.Keys.OrderBy(b => b).ToList();
 
                 bool reachedSectionStart = false;
-                foreach (var beat in allBeats)
+                foreach (var measure in allMeasures)
                 {
-                    if (sectionStartBeats.Contains(beat))
+                    if (sectionStartMeasures.Contains(measure))
                     {
                         reachedSectionStart = true;
                         break;
                     }
-                    if (!track.TryGetValue(beat, out var move))
+                    if (!track.TryGetValue(measure, out var move))
                         continue;
                     // Only add if this is a rest move
                     if (move.HamMoveName == "Rest.move" || move.HamMoveName == "rest.move" || move.HamMoveName == "rest")
                     {
                         string moveName = move.HamMoveName.Replace(".move", "").Replace("_" + move.SongName, "");
-                        float startPos = (float)tempoConverter.MeasureToFrame(beat);
-                        Console.WriteLine($"[PracticeAnim] Adding rest: beat={beat}, moveName={moveName}, startPos={startPos}");
+                        float startPos = (float)tempoConverter.MeasureToFrame(measure);
                         key.keys.Add(new AnimEventSymbol()
                         {
                             Text = (Symbol)moveName,
@@ -123,13 +122,11 @@ namespace BoomyBuilder.Builder.Animator
                 {
                     foreach (var pair in sect.AllStartSteps)
                     {
-                        int beat = pair.Key;
+                        int measure = pair.Key;
                         string moveName = pair.Value;
-                        string endMoveName = sect.AllEndSteps[beat + 1];
-                        float startPos = (float)tempoConverter.MeasureToFrame(beat);
-                        float endPos = (float)tempoConverter.MeasureToFrame(beat + 1);
-                        Console.WriteLine($"[PracticeAnim] Adding animStart: beat={beat}, animStart={moveName}, startPos={startPos}");
-                        Console.WriteLine($"[PracticeAnim] Adding animEnd: beat={beat + 1}, animEnd={endMoveName}, endPos={endPos}");
+                        string endMoveName = sect.AllEndSteps[measure + 1];
+                        float startPos = (float)tempoConverter.MeasureToFrame(measure);
+                        float endPos = (float)tempoConverter.MeasureToFrame(measure + 1);
                         key.keys.Add(new AnimEventSymbol()
                         {
                             Text = (Symbol)moveName,

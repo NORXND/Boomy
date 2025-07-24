@@ -16,11 +16,11 @@ namespace MiloLib.Assets.Ham
         public class HamSupereasyMeasure
         {
             [Name("First"), Description("MoveVariant to use for transition into measure")]
-            Symbol first = new(0, "");
+            public Symbol first = new(0, "");
             [Name("Second"), Description("MoveVariant to use for transition out of measure")]
-            Symbol second = new(0, "");
+            public Symbol second = new(0, "");
             [Name("Preferred"), Description("Preferred MoveVariant for this measure")]
-            Symbol preferred = new(0, "");
+            public Symbol preferred = new(0, "");
 
             public HamSupereasyMeasure Read(EndianReader reader)
             {
@@ -68,7 +68,7 @@ namespace MiloLib.Assets.Ham
 
             base.Write(writer, false, parent, entry);
 
-            writer.WriteUInt32(numSuperEasyMeasures);
+            writer.WriteUInt32((uint)mRoutine.Count);
             foreach (var measure in mRoutine)
             {
                 measure.Write(writer);

@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <ProjectReference Include="..\BoomyDeps\MiloLib\MiloLib.csproj" />
     <ProjectReference Include="..\BoomyConverters\BoomyConverters.csproj" />

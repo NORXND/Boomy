@@ -17,7 +17,6 @@ using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 using static MiloLib.Assets.DirectoryMeta;
-using static MiloLib.Assets.Ham.Range;
 
 namespace MiloLib.Assets
 {

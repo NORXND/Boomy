@@ -35,9 +35,6 @@ namespace BoomyBuilder.Builder.Models.SongMeta
         [JsonProperty("gender", Required = Required.Always)]
         public required Gender Gender { get; set; }
 
-        [JsonProperty("midi_events", Required = Required.Always)]
-        public required List<MidiEvent> MidiEvents { get; set; }
-
         [JsonProperty("default_character", Required = Required.Always)]
         public required Character DefaultCharacter { get; set; }
 
@@ -70,15 +67,6 @@ namespace BoomyBuilder.Builder.Models.SongMeta
 
         [JsonProperty("cover_image_path")]
         public string? CoverImagePath { get; set; }
-    }
-
-    public partial class MidiEvent
-    {
-        [JsonProperty("key", Required = Required.Always)]
-        public required string Key { get; set; }
-
-        [JsonProperty("sound", Required = Required.Always)]
-        public required string Sound { get; set; }
     }
 
     public partial class Preview

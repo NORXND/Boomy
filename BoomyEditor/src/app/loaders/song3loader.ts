@@ -175,6 +175,5 @@ export default async function loadSong3(songPath: string) {
 		songData: song,
 		songPath: songPath,
 		songName: dirName,
-		audioPath: oggPath,
 	};
 }

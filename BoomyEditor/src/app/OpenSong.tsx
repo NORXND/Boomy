@@ -82,12 +82,7 @@ export function OpenSongDialog({
 			});
 		}
 
-		loadSong(
-			songData,
-			songPath,
-			getLastPathSegment(songPath),
-			join(songPath, `${getLastPathSegment(songPath)}.ogg`)
-		);
+		loadSong(songData, songPath, getLastPathSegment(songPath));
 		navigate('/editor');
 	};
 
@@ -162,8 +157,7 @@ export function OpenSong() {
 			await loadSong(
 				songData.songData,
 				songData.songPath,
-				songData.songName,
-				songData.audioPath
+				songData.songName
 			);
 			navigate('/editor');
 		}
