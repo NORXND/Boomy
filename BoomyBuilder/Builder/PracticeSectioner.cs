@@ -70,11 +70,9 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                     bool isLastMoveInSection = sbIdx == sectionBeats.Count - 1;
                     if (isLastSection && isLastMoveInSection)
                     {
-                        Console.WriteLine($"[PracticeSectioner] Skipping last move in section {sectionIdx + 1} (beat {beat + 1})");
                         // If there is a previous step, set its mEnd to this move's name
                         if (steps.Count > 0 && choreography.TryGetValue(beat, out var lastMove))
                         {
-                            Console.WriteLine($"[PracticeSectioner] Setting mEnd for previous step in section {sectionIdx + 1} (beat {beat})");
                             string lastMoveName = GetHamMoveName(lastMove);
                             steps[steps.Count - 1].mEnd = (Symbol)lastMoveName;
                         }
