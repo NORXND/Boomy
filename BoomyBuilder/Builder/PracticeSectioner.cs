@@ -167,11 +167,6 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                         usedMoveNamesBefore.Add(startName);
                     }
 
-                    // Debug print
-                    Console.WriteLine(
-                        $"[DEBUG] Beat {beat + 1}: {startName} -> {nextName} | mStart: {mStart}, mEnd: {mEnd}"
-                    );
-
                     steps.Add(new PracticeSection.PracticeStep()
                     {
                         mType = (Symbol)"learn",
