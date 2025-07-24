@@ -12,6 +12,7 @@ import { TimelineProvider } from '@/contexts/TimelineContext';
 import MetadataEditor from './MetadataEditor';
 import { DrumsEditor } from './DrumsEditor';
 import { EventsEditor } from './EventsEditor';
+import { BamPhrasesEditor } from './BamPhrasesEditor';
 
 const SECTION_NAMES = {
 	'moves-library': 'Moves Library',
@@ -19,6 +20,9 @@ const SECTION_NAMES = {
 	'camera-shots': 'Camera Shots',
 	'practice-sections': 'Practice Sections',
 	'song-data': 'Song Data',
+	drums: 'Drums Editor',
+	events: 'Song Events',
+	'bam-phrases': 'BAM Phrases',
 };
 
 function EditorContent() {
@@ -56,6 +60,8 @@ function EditorContent() {
 				return <PracticeSections />;
 			case 'song-data':
 				return <MetadataEditor />;
+			case 'bam-phrases':
+				return <BamPhrasesEditor />;
 			default:
 				return (
 					<div className="flex-1 flex items-center justify-center text-muted-foreground">

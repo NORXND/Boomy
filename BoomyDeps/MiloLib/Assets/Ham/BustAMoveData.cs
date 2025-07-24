@@ -16,9 +16,9 @@ namespace MiloLib.Assets.Ham
         public class BAMPhrase
         {
             // "How many times this bar phrasing repeats". Ranges from 1 to 100.
-            int count;
+            public int count;
             // "How many bars per phrase". Ranges from 1 to 100.
-            int bars;
+            public int bars;
 
             public BAMPhrase Read(EndianReader reader)
             {

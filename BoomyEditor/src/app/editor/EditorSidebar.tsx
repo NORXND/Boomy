@@ -355,7 +355,8 @@ export function EditorSidebar() {
 			| 'camera-shots'
 			| 'practice-sections'
 			| 'drums'
-			| 'events';
+			| 'events'
+			| 'bam-phrases';
 		setActiveSection(activeSection === typedSection ? null : typedSection);
 	};
 
@@ -453,6 +454,18 @@ export function EditorSidebar() {
 									}
 								>
 									Practice Drums (Slow Down Mode)
+								</SidebarMenuButton>
+								<SidebarMenuButton
+									onClick={() =>
+										handleSectionClick('bam-phrases')
+									}
+									className={
+										activeSection === 'bam-phrases'
+											? 'bg-accent'
+											: ''
+									}
+								>
+									Bust a Move Phrases
 								</SidebarMenuButton>
 								<SidebarMenuButton disabled>
 									Dancer Faces (TODO)

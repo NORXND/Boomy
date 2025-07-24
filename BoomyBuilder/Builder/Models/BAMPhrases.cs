@@ -6,7 +6,7 @@ namespace BoomyBuilder.Builder.Models.BAMPhrases
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
 
-    public partial class BAMPhrases
+    public partial class BAMPhrase
     {
         [JsonProperty("count", Required = Required.Always)]
         public required int Count { get; set; }
@@ -16,17 +16,17 @@ namespace BoomyBuilder.Builder.Models.BAMPhrases
 
     }
 
-    public partial class BAMPhrases
+    public partial class BAMPhrase
     {
-        public static BAMPhrases? FromJson(string json)
+        public static BAMPhrase? FromJson(string json)
         {
-            return JsonConvert.DeserializeObject<BAMPhrases>(json, Converter.Settings);
+            return JsonConvert.DeserializeObject<BAMPhrase>(json, Converter.Settings);
         }
     }
 
     public static class Serialize
     {
-        public static string ToJson(this BAMPhrases self) => JsonConvert.SerializeObject(self, Converter.Settings);
+        public static string ToJson(this BAMPhrase self) => JsonConvert.SerializeObject(self, Converter.Settings);
     }
 
     internal static class Converter

@@ -1,5 +1,22 @@
 import { SongState } from '@/store/songStore';
 import { Song, TestResult, TestResultType } from '../../types/song';
+import {
+	areRestsOnlyAtBeginningOrAfterFinishing,
+	hasFinishingMove,
+	isDifficultyHierarchyRespected,
+	isFirstMeasureNotEmpty,
+	noScoredMovesAfterFinishing,
+} from './choreographyChecks';
+import {
+	arePracticeMovesUsedAtMostTwice,
+	arePracticeSectionsConsecutive,
+	arePracticeSectionsProgressing,
+	isLastPracticeSectionFinishing,
+	isPracticeDifficultyHierarchyRespected,
+} from './practiceChecks';
+import { checkSongEvents } from './eventsChecks';
+import { isAnyCameraAtMeasureZero } from './cameraChecks';
+import { checkDrumsTracks, checkSongMetaImageSize } from './otherEvents';
 
 const utils = {
 	checkMove: async (
@@ -20,6 +37,16 @@ const utils = {
 			return null;
 		}
 	},
+	decodeFlags: (flags: number) => {
+		const flagNames: string[] = [];
+		if (flags & 2) flagNames.push('scored');
+		if (flags & 8) flagNames.push('final_pose');
+		if (flags & 0x10) flagNames.push('suppress_guide_gesture');
+		if (flags & 0x20) flagNames.push('omit_minigame');
+		if (flags & 0x40) flagNames.push('useful');
+		if (flags & 0x80) flagNames.push('suppress_practice_options');
+		return flagNames;
+	},
 };
 
 export type TestingUtils = typeof utils;
@@ -28,7 +55,24 @@ export type TestingUtils = typeof utils;
 export const TESTS: Record<
 	string,
 	(song: SongState, utils: TestingUtils) => Promise<TestResult>
-> = {};
+> = {
+	'Is first measure not empty?': isFirstMeasureNotEmpty,
+	'Has finishing move?': hasFinishingMove,
+	'Are rest moves at the beginning or finish?':
+		areRestsOnlyAtBeginningOrAfterFinishing,
+	'No scored moves after finishing': noScoredMovesAfterFinishing,
+	'Is difficulty hierarchy respected?': isDifficultyHierarchyRespected,
+	'Practice: moves used at most twice': arePracticeMovesUsedAtMostTwice,
+	'Practice: sections consecutive': arePracticeSectionsConsecutive,
+	'Practice: sections progressing': arePracticeSectionsProgressing,
+	'Practice: last section finishing': isLastPracticeSectionFinishing,
+	'Practice: difficulty hierarchy respected':
+		isPracticeDifficultyHierarchyRespected,
+	'Events: song events': checkSongEvents,
+	'Camera: no camera at measure 0': isAnyCameraAtMeasureZero,
+	'Drums: tracks have keys': checkDrumsTracks,
+	'Cover: image is 512x512': checkSongMetaImageSize,
+};
 
 export type { TestResult };
 

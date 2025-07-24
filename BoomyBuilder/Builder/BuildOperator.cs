@@ -71,6 +71,7 @@ namespace BoomyBuilder.Builder
             HamPartyJumpData partyJumpData = (HamPartyJumpData)(MovesDir.entries.First(static d => d.name == "HamPartyJumpData.jmp").obj ?? throw new Exception("HamPartyJumpData.jmp obj not found"));
             HamBattleData battleData = (HamBattleData)(MovesDir.entries.First(static d => d.name == "HamBattleData.btl").obj ?? throw new Exception("HamBattleData.btl obj not found"));
             HamBattleData partyBattleData = (HamBattleData)(MovesDir.entries.First(static d => d.name == "HamPartyBattleData.btl").obj ?? throw new Exception("HamPartyBattleData.btl obj not found"));
+            BustAMoveData bustAMoveData = (BustAMoveData)(MovesDir.entries.First(static d => d.name == "BustAMoveData.bam").obj ?? throw new Exception("BustAMoveData.bam obj not found"));
 
             List<HamMove> hamMoves = [];
             AssetsImporter.ImportAsset(Request, this, hamMoves);
@@ -86,6 +87,7 @@ namespace BoomyBuilder.Builder
             Dictionary<Difficulty, List<PracticeStepResult>> practiceSections = CreatePracticeSection(this, MovesDir, MoveDataDir, choreography);
             BattleMaster.CreateBattle(Request.BattleSteps, battleData, Request.TotalMeasures);
             BattleMaster.CreateBattle(Request.PartyBattleSteps, partyBattleData, Request.TotalMeasures);
+            BAMPhraser.CreateBAMPhrases(this, bustAMoveData);
 
             Sequentioner.Sequentioner.CreateSequences(this, MovesDir, MoveDataDir, choreography, practiceSections);
             TempoMapConverter tempoMapConverter = new(tempoMap: Request.TempoChange);

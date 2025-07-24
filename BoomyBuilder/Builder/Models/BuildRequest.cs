@@ -65,7 +65,7 @@ namespace BoomyBuilder.Builder.BuildRequest
         public required List<BattleEvent> PartyBattleSteps { get; set; }
 
         [JsonProperty("bam_phrases", Required = Required.Always)]
-        public required List<BAMPhrases> BamPhrases { get; set; }
+        public required List<BAMPhrase> BamPhrases { get; set; }
 
         [JsonProperty("total_measures", Required = Required.Always)]
         public required int TotalMeasures { get; set; }

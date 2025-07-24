@@ -15,6 +15,7 @@ type EditorSection =
 	| 'song-data'
 	| 'drums'
 	| 'events'
+	| 'bam-phrases'
 	| null;
 
 interface EditorContextType {

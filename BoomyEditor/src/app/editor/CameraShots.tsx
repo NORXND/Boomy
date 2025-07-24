@@ -4,7 +4,6 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from '@/components/ui/resizable';
-import { TimelineRoot } from './timeline/TimelineRoot';
 import { TimelineProvider } from '../contexts/TimelineContext';
 import { SharedMovePreview } from '@/components/SharedMovePreview';
 import { NewTimelineRoot } from './timeline_new/NewTimelineRoot';
