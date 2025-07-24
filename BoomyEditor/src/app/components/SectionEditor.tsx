@@ -239,6 +239,7 @@ export function SectionEditor({
 											{move
 												? `${move.move_origin}/${move.move_song}`
 												: ''}
+											{` • Measure: ${measure}`}
 										</div>
 									</div>
 									<Button

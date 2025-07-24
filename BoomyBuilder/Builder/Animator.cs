@@ -35,21 +35,19 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var measure in track.Keys)
                 {
-                    float frame = (float)tempoConverter.MeasureToFrame(measure, beatOffset: -1);
+                    float frame = (float)tempoConverter.MeasureToFrame(measure, beatOffset: 0);
                     Move move = track[measure];
 
+                    string moveName = move.HamMoveName.Replace(".move", "").Replace("_" + move.SongName, "");
                     if (move.HamMoveName == "Rest.move" || move.HamMoveName == "rest.move" || move.HamMoveName == "rest")
                     {
-                        // Rest or groove moves are not added to the graph
-                        continue;
+                        moveName = "groove";
                     }
-                    {
-                        move.HamMoveName = "groove";
-                    }
+
 
                     key.keys.Add(new AnimEventSymbol()
                     {
-                        Text = (Symbol)move.HamMoveName.Replace(".move", ""),
+                        Text = (Symbol)moveName,
                         Pos = frame
                     });
                 }
@@ -74,7 +72,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = (float)tempoConverter.BeatToFrame(beat);
+                    float time = (float)tempoConverter.MeasureToFrame(beat);
                     CameraPosition position = track[beat];
 
 
@@ -118,8 +116,9 @@ namespace BoomyBuilder.Builder.Animator
                 }
 
                 // Now proceed with the existing logic for section steps
-                foreach (var sect in section)
+                for (int i = 0; i < section.Count; i++)
                 {
+                    PracticeStepResult? sect = section[i];
                     foreach (var pair in sect.AllStartSteps)
                     {
                         int measure = pair.Key;
@@ -132,6 +131,28 @@ namespace BoomyBuilder.Builder.Animator
                             Text = (Symbol)moveName,
                             Pos = startPos
                         });
+
+                        if (sect.AllStartSteps.ContainsKey(measure + 1))
+                        {
+                            if (sect.AllStartSteps[measure + 1] == endMoveName)
+                            {
+                                // If the next start step is the same as the end step, we don't need to add it
+                                continue;
+                            }
+                        }
+
+                        if (i != section.Count - 1)
+                        {
+                            if (section[i + 1].AllStartSteps.ContainsKey(measure + 1))
+                            {
+                                if (section[i + 1].AllStartSteps[measure + 1] == endMoveName)
+                                {
+                                    // If the next section's start step is the same as the end step, we don't need to add it
+                                    continue;
+                                }
+                            }
+                        }
+
                         key.keys.Add(new AnimEventSymbol()
                         {
                             Text = (Symbol)endMoveName,
@@ -144,16 +165,17 @@ namespace BoomyBuilder.Builder.Animator
             CreateClips(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "clip").First(), choreography[Difficulty.Easy]);
             CreateClips(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "clip").First(), choreography[Difficulty.Medium]);
             CreateExpertClips(expert.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "clip").First(), choreography[Difficulty.Expert]);
-            CreatePractice(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Easy], practiceSections[Difficulty.Easy]);
 
             CreateMoves(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "move").First(), choreography[Difficulty.Easy]);
             CreateMoves(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "move").First(), choreography[Difficulty.Medium]);
             CreateMoves(expert.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "move").First(), choreography[Difficulty.Expert]);
-            CreatePractice(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Medium], practiceSections[Difficulty.Medium]);
 
             CreateCameras(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "shot").First(), camPositions[Difficulty.Easy]);
             CreateCameras(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "shot").First(), camPositions[Difficulty.Medium]);
             CreateCameras(expert.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "shot").First(), camPositions[Difficulty.Expert]);
+
+            CreatePractice(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Easy], practiceSections[Difficulty.Easy]);
+            CreatePractice(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Medium], practiceSections[Difficulty.Medium]);
             CreatePractice(expert.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Expert], practiceSections[Difficulty.Expert]);
         }
     }

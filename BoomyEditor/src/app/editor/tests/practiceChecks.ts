@@ -266,31 +266,64 @@ export async function isPracticeDifficultyHierarchyRespected(
 	song: SongState,
 	utils: TestingUtils
 ): Promise<TestResult> {
-	const getMeasureSet = (sections: any[]) =>
-		new Set(sections.flatMap((section: number[]) => section));
+	// Helper to get move+clip for a measure in a difficulty
+	const getMoveClip = (
+		difficulty: 'easy' | 'medium' | 'expert',
+		measure: number
+	) => {
+		const moves =
+			difficulty === 'easy'
+				? song.currentSong?.timeline.easy.moves
+				: difficulty === 'medium'
+				? song.currentSong?.timeline.medium.moves
+				: song.currentSong?.timeline.expert.moves;
+		const move = moves?.find((m) => m.measure === measure);
+		return move ? `${move.move}:${move.clip}` : null;
+	};
 
-	const easy = song.currentSong?.practice?.easy ?? [];
-	const medium = song.currentSong?.practice?.medium ?? [];
-	const expert = song.currentSong?.practice?.expert ?? [];
+	const easySections = song.currentSong?.practice?.easy ?? [];
+	const mediumSections = song.currentSong?.practice?.medium ?? [];
+	const expertSections = song.currentSong?.practice?.expert ?? [];
+
+	// Collect all move+clip keys used in easy and medium practice sections
+	const easyKeys = new Set<string>();
+	for (const section of easySections) {
+		for (const measure of section) {
+			const key = getMoveClip('easy', measure);
+			if (key) easyKeys.add(key);
+		}
+	}
+	const mediumKeys = new Set<string>();
+	for (const section of mediumSections) {
+		for (const measure of section) {
+			const key = getMoveClip('medium', measure);
+			if (key) mediumKeys.add(key);
+		}
+	}
+	// Collect all move+clip keys used in expert practice sections
+	const expertKeys = new Set<string>();
+	for (const section of expertSections) {
+		for (const measure of section) {
+			const key = getMoveClip('expert', measure);
+			if (key) expertKeys.add(key);
+		}
+	}
 
 	const missing: string[] = [];
-
-	const easySet = getMeasureSet(easy);
-	const mediumSet = getMeasureSet(medium);
-	const missingInMedium = [...easySet].filter((k) => !mediumSet.has(k));
-	if (missingInMedium.length > 0) {
+	const missingEasyInExpert = [...easyKeys].filter((k) => !expertKeys.has(k));
+	if (missingEasyInExpert.length > 0) {
 		missing.push(
-			`medium is missing measures from easy: ${missingInMedium.join(
+			`expert is missing moves+clips from easy: ${missingEasyInExpert.join(
 				', '
 			)}`
 		);
 	}
-
-	const expertSet = getMeasureSet(expert);
-	const missingInExpert = [...mediumSet].filter((k) => !expertSet.has(k));
-	if (missingInExpert.length > 0) {
+	const missingMediumInExpert = [...mediumKeys].filter(
+		(k) => !expertKeys.has(k)
+	);
+	if (missingMediumInExpert.length > 0) {
 		missing.push(
-			`expert is missing measures from medium: ${missingInExpert.join(
+			`expert is missing moves+clips from medium: ${missingMediumInExpert.join(
 				', '
 			)}`
 		);
@@ -307,6 +340,6 @@ export async function isPracticeDifficultyHierarchyRespected(
 
 	return {
 		status: TestResultType.success,
-		output: 'Each higher practice difficulty contains all measures from the lower difficulties.',
+		output: 'Expert contains all moves+clips from easy and medium practice sections.',
 	};
 }

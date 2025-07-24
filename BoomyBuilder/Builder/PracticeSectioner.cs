@@ -165,6 +165,7 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                         usedMoveNamesBefore.Add(startName);
                     }
 
+
                     steps.Add(new PracticeSection.PracticeStep()
                     {
                         mType = (Symbol)"learn",
@@ -223,8 +224,8 @@ namespace BoomyBuilder.Builder.PracticeSectioner
                     // Pass a copy so each section gets the correct "used before" set
                     var newSteps = CreatePracticeStep(
                         sectionsInput, i, choreography,
-                        new HashSet<int>(usedBeatsBefore),
-                        new HashSet<string>(usedMoveNamesBefore)
+                        usedBeatsBefore,
+                        usedMoveNamesBefore
                     );
                     for (int j = 0; j < newSteps.Steps.Count; j++)
                     {

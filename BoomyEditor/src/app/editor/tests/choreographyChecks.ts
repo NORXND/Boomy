@@ -252,45 +252,43 @@ export async function isDifficultyHierarchyRespected(
 	song: SongState,
 	utils: TestingUtils
 ): Promise<TestResult> {
-	const supereasy = song.currentSong?.supereasy ?? [];
 	const easy = song.currentSong?.timeline.easy.moves ?? [];
 	const medium = song.currentSong?.timeline.medium.moves ?? [];
 	const expert = song.currentSong?.timeline.expert.moves ?? [];
 
-	// Helper to create a unique key for a move (by measure and move name)
-	const moveKey = (m: any) => `${m.measure}:${m.move}`;
+	// Helper to create a unique key for a move (by move name and clip)
+	const moveKey = (m: any) => `${m.move}:${m.clip}`;
 
 	const missing: string[] = [];
 
-	const supereasyKeys = new Set(supereasy.map(moveKey));
+	const expertKeys = new Set(expert.map(moveKey));
+
 	const easyKeys = new Set(easy.map(moveKey));
-	const missingInEasy = [...supereasyKeys].filter((k) => !easyKeys.has(k));
-	if (missingInEasy.length > 0) {
+	const missingEasyInExpert = [...easyKeys].filter((k) => !expertKeys.has(k));
+	if (missingEasyInExpert.length > 0) {
 		missing.push(
-			`easy is missing moves from supereasy: ${missingInEasy.join(', ')}`
+			`expert is missing moves+clips from easy: ${missingEasyInExpert.join(
+				', '
+			)}`
 		);
 	}
 
 	const mediumKeys = new Set(medium.map(moveKey));
-	const missingInMedium = [...easyKeys].filter((k) => !mediumKeys.has(k));
-	if (missingInMedium.length > 0) {
+	const missingMediumInExpert = [...mediumKeys].filter(
+		(k) => !expertKeys.has(k)
+	);
+	if (missingMediumInExpert.length > 0) {
 		missing.push(
-			`medium is missing moves from easy: ${missingInMedium.join(', ')}`
-		);
-	}
-
-	const expertKeys = new Set(expert.map(moveKey));
-	const missingInExpert = [...mediumKeys].filter((k) => !expertKeys.has(k));
-	if (missingInExpert.length > 0) {
-		missing.push(
-			`expert is missing moves from medium: ${missingInExpert.join(', ')}`
+			`expert is missing moves+clips from medium: ${missingMediumInExpert.join(
+				', '
+			)}`
 		);
 	}
 
 	if (missing.length > 0) {
 		return {
 			status: TestResultType.warning,
-			output: `Difficulty hierarchy not respected: ${missing.join(
+			output: `Expert does not contain all moves+clips from lower difficulties: ${missing.join(
 				' | '
 			)}`,
 		};
@@ -298,6 +296,6 @@ export async function isDifficultyHierarchyRespected(
 
 	return {
 		status: TestResultType.success,
-		output: 'Each higher difficulty contains all moves from the lower difficulties.',
+		output: 'Expert contains all moves+clips from easy and medium.',
 	};
 }

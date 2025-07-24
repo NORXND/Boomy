@@ -89,13 +89,13 @@ export async function checkSongEvents(
 		}
 	}
 
-	// 4. Battle steps checks
+	// 4. Battle steps checks (battleSteps track only)
 	const battleEvents = song.currentSong?.battleSteps ?? [];
 	const battleStart = battleEvents.find((e) => e.type === 'battle_start');
 	if (!battleStart)
 		errors.push('Missing battle_start event in battle steps.');
 
-	// Minigame start/end matching
+	// Minigame start/end matching (battleSteps only)
 	const minigameStarts = battleEvents
 		.filter((e) => e.type === 'minigame_start')
 		.sort((a, b) => a.measure - b.measure);
@@ -113,7 +113,7 @@ export async function checkSongEvents(
 		for (let i = 0; i < minigameStarts.length; i++) {
 			if (minigameStarts[i].measure >= minigameEnds[i].measure) {
 				errors.push(
-					`minigame_start at beat ${minigameStarts[i].measure} does not end properly at ${minigameEnds[i].measure}.`
+					`minigame_start at measure ${minigameStarts[i].measure} does not end properly at ${minigameEnds[i].measure}.`
 				);
 			}
 			if (
@@ -121,13 +121,41 @@ export async function checkSongEvents(
 				minigameStarts[i].measure < minigameEnds[i - 1].measure
 			) {
 				errors.push(
-					`minigame_start at beat ${minigameStarts[i].measure} overlaps previous minigame.`
+					`minigame_start at measure ${minigameStarts[i].measure} overlaps previous minigame.`
 				);
 			}
 		}
 	}
 
-	// 5. Solo sessions matching and non-overlapping
+	// 5. Party battle matching and non-overlapping (main events only)
+	const partyBattleTypes = [
+		{ start: 'party_battle_start', end: 'party_battle_end' },
+	];
+	for (const { start, end } of partyBattleTypes) {
+		const starts = events
+			.filter((e) => e.type === start)
+			.sort((a, b) => a.beat - b.beat);
+		const ends = events
+			.filter((e) => e.type === end)
+			.sort((a, b) => a.beat - b.beat);
+		if (starts.length !== ends.length) {
+			errors.push(`Mismatched ${start} and ${end} events.`);
+		}
+		for (let i = 0; i < Math.min(starts.length, ends.length); i++) {
+			if (starts[i].beat >= ends[i].beat) {
+				errors.push(
+					`${start} at beat ${starts[i].beat} does not end properly at ${ends[i].beat}.`
+				);
+			}
+			if (i > 0 && starts[i].beat < ends[i - 1].beat) {
+				errors.push(
+					`${start} at beat ${starts[i].beat} overlaps previous party battle session.`
+				);
+			}
+		}
+	}
+
+	// 6. Solo sessions matching and non-overlapping
 	const soloTypes = [
 		{ start: 'player1_solo_start', end: 'player1_solo_end' },
 		{ start: 'player2_solo_start', end: 'player2_solo_end' },
@@ -151,34 +179,6 @@ export async function checkSongEvents(
 			if (i > 0 && starts[i].beat < ends[i - 1].beat) {
 				errors.push(
 					`${start} at beat ${starts[i].beat} overlaps previous solo session.`
-				);
-			}
-		}
-	}
-
-	// 6. Party battle matching and non-overlapping
-	const partyBattleTypes = [
-		{ start: 'party_battle_start', end: 'party_battle_end' },
-	];
-	for (const { start, end } of partyBattleTypes) {
-		const starts = events
-			.filter((e) => e.type === start)
-			.sort((a, b) => a.beat - b.beat);
-		const ends = events
-			.filter((e) => e.type === end)
-			.sort((a, b) => a.beat - b.beat);
-		if (starts.length !== ends.length) {
-			errors.push(`Mismatched ${start} and ${end} events.`);
-		}
-		for (let i = 0; i < Math.min(starts.length, ends.length); i++) {
-			if (starts[i].beat >= ends[i].beat) {
-				errors.push(
-					`${start} at beat ${starts[i].beat} does not end properly at ${ends[i].beat}.`
-				);
-			}
-			if (i > 0 && starts[i].beat < ends[i - 1].beat) {
-				errors.push(
-					`${start} at beat ${starts[i].beat} overlaps previous party battle session.`
 				);
 			}
 		}

@@ -8,7 +8,6 @@ namespace BoomyBuilder.Builder
     {
         public static void CreateBattle(List<BattleEvent> evnts, HamBattleData data, int totalMeasures)
         {
-            // Sort events by measure
             var sorted = evnts.OrderBy(e => e.Measure).ToList();
 
             var result = new Dictionary<int, (BattleEvent start, BattleEvent end)>();
@@ -69,7 +68,6 @@ namespace BoomyBuilder.Builder
                     case BattleEventType.MinigameEnd:
                         if (currentMini == null)
                             throw new BoomyException($"Unmatched: found 'minigame_end' at measure {ev.Measure} without a preceding 'start'.");
-                        // Minigame must last at least 5 measures
                         if (ev.Measure - currentMini.Measure + 1 < 5)
                             throw new BoomyException($"Minigame too short: starts at measure {currentMini.Measure}, ends at {ev.Measure} (must last at least 5 measures).");
                         result.Add(groupIndex++, (currentMini, ev));
@@ -90,24 +88,19 @@ namespace BoomyBuilder.Builder
             if (currentMini != null)
                 throw new BoomyException($"Unmatched: found 'minigame_start' at measure {currentMini.Measure} without a closing 'end'.");
 
-
-            // Find the battle_start event measure
             var battleStartEvent = sorted.FirstOrDefault(e => e.Type == BattleEventType.BattleStart);
             if (battleStartEvent == null)
                 throw new BoomyException("No 'battle_start' event present.");
             int battleStartMeasure = battleStartEvent.Measure;
 
-            // Collect all solo/minigame event ranges (start/end pairs)
             var eventRanges = result.Values
                 .Select(pair => (start: pair.start.Measure, end: pair.end.Measure))
                 .OrderBy(r => r.start)
                 .ToList();
 
-            // Build bridge ranges between events
             var bridges = new List<(int start, int end)>();
             int lastEnd = 0;
 
-            // If first event starts after measure 0, add bridge from 0 to before first event
             if (eventRanges.Count == 0 || eventRanges[0].start > 0)
             {
                 bridges.Add((0, eventRanges.Count > 0 ? eventRanges[0].start - 1 : totalMeasures - 1));
@@ -118,7 +111,6 @@ namespace BoomyBuilder.Builder
                 lastEnd = eventRanges[0].end;
             }
 
-            // Add bridges between events
             for (int i = 0; i < eventRanges.Count - 1; i++)
             {
                 int bridgeStart = eventRanges[i].end + 1;
@@ -128,7 +120,6 @@ namespace BoomyBuilder.Builder
                 lastEnd = eventRanges[i + 1].end;
             }
 
-            // Add bridge after last event to the last measure if needed
             if (lastEnd < totalMeasures - 1)
             {
                 bridges.Add((lastEnd + 1, totalMeasures - 1));
@@ -138,10 +129,7 @@ namespace BoomyBuilder.Builder
             foreach (var (start, end) in bridges)
             {
                 if (start > end) continue;
-
-                // Play range starts from battleStartMeasure if bridge is before battle start
                 int playStart = start < battleStartMeasure ? battleStartMeasure : start;
-
                 data.mBattleSteps.Add(new HamBattleData.BattleStep
                 {
                     mPlayers = PlayerFlags.kHamPlayerBoth,
@@ -154,17 +142,19 @@ namespace BoomyBuilder.Builder
             }
 
             // Add solo and minigame steps
-            foreach ((BattleEvent start, BattleEvent end) group in result.Values)
+            foreach (var pair in result.Values)
             {
-                BattleEvent startEv = group.start;
-                BattleEvent endEv = group.end;
+                var startEv = pair.start;
+                var endEv = pair.end;
 
-                if (startEv.Type != endEv.Type)
+                BattleEventType type = startEv.Type;
+
+                if ((type == BattleEventType.Player1SoloStart && endEv.Type != BattleEventType.Player1SoloEnd) ||
+                    (type == BattleEventType.Player2SoloStart && endEv.Type != BattleEventType.Player2SoloEnd) ||
+                    (type == BattleEventType.MinigameStart && endEv.Type != BattleEventType.MinigameEnd))
                 {
                     throw new BoomyException($"Mismatched event types: {startEv.Type} (start) vs {endEv.Type} (end) at measure {startEv.Measure}");
                 }
-
-                BattleEventType type = startEv.Type;
 
                 switch (type)
                 {
