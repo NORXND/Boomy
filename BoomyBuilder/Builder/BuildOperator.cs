@@ -99,23 +99,19 @@ namespace BoomyBuilder.Builder
             WorkingMilo.Save(miloOutputPath, Request.Compress ? MiloFile.Type.CompressedZlibAlt : MiloFile.Type.Uncompressed);
 
             // Copy .mogg file (required)
-            string moggSourcePath = Path.Combine(Request.Path, inputFolderName + ".mogg");
             string oggSourcePath = Path.Combine(Request.Path, inputFolderName + ".ogg");
             string moggDestPath = Path.Combine(songDir, inputFolderName + ".mogg");
-            if (File.Exists(moggSourcePath))
+            if (File.Exists(oggSourcePath))
             {
-                File.Copy(moggSourcePath, moggDestPath, true);
+                int result = MakemoggNative.makemogg_create_unencrypted(oggSourcePath, moggDestPath);
+                if (result != 0)
+                {
+                    throw new BoomyException($"Failed to create .mogg file from .ogg: {oggSourcePath}. Error code: {result}");
+                }
             }
             else
             {
-                if (File.Exists(oggSourcePath))
-                {
-                    BoomyConverters.Mogg.MoggCreator.CreateMoggFile(oggSourcePath, moggDestPath);
-                }
-                else
-                {
-                    throw new BoomyException($"Required .mogg file not found: {moggSourcePath}. Please build it.");
-                }
+                throw new BoomyException($"Required .ogg file not found: {oggSourcePath}.");
             }
 
             // Handle cover image conversion and copying
