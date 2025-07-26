@@ -42,7 +42,17 @@ namespace BoomyBuilder.Builder
             long lastTick1 = 0;
             foreach (var tempo in op.Request.TempoChange)
             {
-                var tick = MeasureToTick(tempo.Measure - 1);
+                var tick = 0;
+                if (tempo.Measure < 1)
+                {
+                    tick = MeasureToTick(tempo.Measure);
+                }
+                else
+                {
+                    tick = MeasureToTick(tempo.Measure - 1);
+                }
+
+
                 var tempoEvent = new SetTempoEvent(Tempo.FromBeatsPerMinute(tempo.BPM).MicrosecondsPerQuarterNote)
                 {
                     DeltaTime = tick - lastTick1
