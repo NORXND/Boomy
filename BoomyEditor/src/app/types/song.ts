@@ -64,13 +64,7 @@ export interface DrumsEvent {
 
 export interface SongEvent {
 	beat: number;
-	type:
-		| 'music_start'
-		| 'preview'
-		| 'freestyle_start'
-		| 'freestyle_end'
-		| 'music_end'
-		| 'end';
+	type: 'music_start' | 'preview' | 'freestyle' | 'music_end' | 'end';
 }
 
 export interface PartyJumpEvent {
@@ -81,12 +75,11 @@ export interface PartyJumpEvent {
 export interface BattleEvent {
 	measure: number;
 	type:
-		| 'battle_start'
-		| 'player1_solo_start'
-		| 'player1_solo_end'
-		| 'player2_solo_start'
-		| 'player2_solo_end'
+		| 'battle_reset'
+		| 'player1_solo'
+		| 'player2_solo'
 		| 'minigame_start'
+		| 'minigame_idle'
 		| 'minigame_end';
 }
 

@@ -56,6 +56,9 @@ namespace BoomyBuilder.Builder
             var textTrack = new TrackChunk();
             textTrack.Events.Add(new SequenceTrackNameEvent("EVENTS"));
 
+            // Collect all text events as (tick, value)
+            var allTextEvents = new List<(int tick, string value)>();
+
             foreach (var evt in op.Request.Events)
             {
                 int tick = BeatToTick(evt.Beat);
@@ -63,24 +66,35 @@ namespace BoomyBuilder.Builder
                 {
                     SongEventType.MusicStart => "[music_start]",
                     SongEventType.Preview => "[preview]",
-                    SongEventType.FreestyleStart => "[freestyle_start]",
-                    SongEventType.FreestyleEnd => "[freestyle_end]",
+                    SongEventType.Freestyle => "[freestyle_start]",
                     SongEventType.MusicEnd => "[music_end]",
                     SongEventType.End => "[end]",
                 };
+                allTextEvents.Add((tick, value));
 
-                // Calculate the last absolute tick by summing DeltaTimes
-                long lastTick2 = 0;
-                foreach (var ev in textTrack.Events)
+                // If Freestyle, schedule [freestyle_end] 8 measures later
+                if (evt.Type == SongEventType.Freestyle)
                 {
-                    lastTick2 += ev.DeltaTime;
+                    double endBeat = evt.Beat + 8 * BEATS_PER_MEASURE;
+                    int endTick = BeatToTick(endBeat);
+                    allTextEvents.Add((endTick, "[freestyle_end]"));
                 }
+            }
 
+            // Sort all text events by tick
+            allTextEvents = allTextEvents.OrderBy(e => e.tick).ToList();
+
+            // Write to track with correct delta times
+            int lastTick = 0;
+            foreach (var (tick, value) in allTextEvents)
+            {
                 textTrack.Events.Add(new TextEvent(value)
                 {
-                    DeltaTime = tick - lastTick2
+                    DeltaTime = tick - lastTick
                 });
+                lastTick = tick;
             }
+
             midiFile.Chunks.Add(textTrack);
 
             // Track 2: Drums, named DRUMS
@@ -109,7 +123,7 @@ namespace BoomyBuilder.Builder
                 .ToList();
 
             // Write to track with correct delta times
-            int lastTick = 0;
+            lastTick = 0;
             foreach (var (tick, note, isOn) in drumEvents)
             {
                 int delta = tick - lastTick;

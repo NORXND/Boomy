@@ -54,12 +54,19 @@ namespace BoomyBuilder.Builder.SongMetadata
             }
 
             // Handle midi_events FOR loop
-            string midiEventsStr = string.Empty;
+            string midiEventsStr = "(midi_events\n";
             foreach (var evt in midiEvents)
             {
-                midiEventsStr += $"      ({evt.Key.Item3} {evt.Sound})\n";
+                midiEventsStr += $"      ({evt.Key.Item3} {evt.Sound})\n"; // 6 spaces indent
             }
-            template = Regex.Replace(template, "%FOR I IN MIDIEVENTS%(.|\n)*?%ENDFOR%", midiEventsStr.TrimEnd(), RegexOptions.Multiline);
+            midiEventsStr += ")"; // 3 spaces indent to match closing parenthesis in template
+
+            template = Regex.Replace(
+                template,
+                "%FOR I IN MIDIEVENTS%(.|\n)*?%ENDFOR%",
+                midiEventsStr,
+                RegexOptions.Multiline
+            );
 
             // Write to output
             Directory.CreateDirectory(outputDir);

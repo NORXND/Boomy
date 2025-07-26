@@ -25,7 +25,7 @@ export function MoveChoreography() {
 						</ResizablePanelGroup>
 					</ResizablePanel>
 					<ResizableHandle />
-					<ResizablePanel>
+					<ResizablePanel defaultSize={50}>
 						<NewTimelineRoot mode="choreography"></NewTimelineRoot>
 					</ResizablePanel>
 				</ResizablePanelGroup>

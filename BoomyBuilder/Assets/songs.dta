@@ -22,11 +22,7 @@
    (gender %GENDER%)
    (bpm %BPM%)
    (song_length %SONGLENGTH%)
-   (midi_events
-      %FOR I IN MIDIEVENTS%
-(%KEY% %SOUND%)
-      %ENDFOR%
-   )
+   %FOR I IN MIDIEVENTS%(.|\n)*?%ENDFOR%
    (default_character %DEFAULTCHAR%)
    (default_character_alt %DEFAULTARTCHAR%)
    (backup_character %BACKUPCHAR%)

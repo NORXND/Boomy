@@ -77,3 +77,22 @@ export async function checkSongMetaImageSize(
 		};
 	}
 }
+
+export async function checkBamPhraseCount(
+	song: SongState,
+	utils: TestingUtils
+): Promise<TestResult> {
+	const bam = song.currentSong?.bamPhrases ?? [];
+	const phraseCount = bam.length;
+
+	if (phraseCount < 4) {
+		return {
+			status: TestResultType.error,
+			output: `Bust a Move must contain at least 4 phrases (found ${phraseCount}).`,
+		};
+	}
+	return {
+		status: TestResultType.success,
+		output: `Bust a Move contains ${phraseCount} phrases.`,
+	};
+}

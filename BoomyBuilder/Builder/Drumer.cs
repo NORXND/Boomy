@@ -74,40 +74,93 @@ namespace BoomyBuilder.Builder.Drumer
             {".wav", "SynthSample"},
         };
 
+        public static readonly Dictionary<string, (string note, string midiLabel)> SoundToMidiMap = new()
+        {
+            { "agogo_1", ("D#0", "midi_agogo") },
+            { "agogo_2", ("D#0", "midi_agogo") },
+            { "claps_1", ("D#0", "midi_claps") },
+            { "claps_2", ("F0", "midi_claps") },
+            { "claps_3", ("D#0", "midi_claps") },
+            { "conga_1", ("E0", "midi_conga") },
+            { "conga_2", ("D#0", "midi_conga") },
+            { "crash_1", ("F0", "midi_crash") },
+            { "crash_2", ("E0", "midi_crash") },
+            { "crash_splash_1", ("F0", "midi_crash") },
+            { "hihat_closed_1", ("D0", "midi_hat") },
+            { "hihat_closed_2", ("E0", "midi_hat") },
+            { "hihat_closed_e_1", ("D0", "midi_hat") },
+            { "hihat_open_1", ("E0", "midi_open_hat") },
+            { "hihat_open_2", ("D#0", "midi_open_hat") },
+            { "kick_2", ("C0", "midi_kick") },
+            { "kick_3", ("C0", "midi_kick") },
+            { "kick_4", ("C0", "midi_kick") },
+            { "kick_5", ("C0", "midi_kick") },
+            { "ride_bell_1", ("E0", "midi_ride") },
+            { "shaker_1", ("D0", "midi_shaker") },
+            { "shaker_2", ("D#0", "midi_shaker") },
+            { "snare_1", ("C#0", "midi_snare") },
+            { "snare_2", ("C#0", "midi_snare") },
+            { "snare_3", ("A0", "midi_snare") }, // If you want both, use a list/array
+            { "snare_4", ("C#0", "midi_snare") },
+            { "snare_e_2", ("C#0", "midi_snare") },
+            { "snare_rim_1", ("D#0", "midi_snare_rim") },
+            { "snare_rim_2", ("C#0", "midi_snare_rim") },
+            { "snare_rim_e_1", ("C#0", "midi_snare_rim") },
+            { "tabla_1", ("C0", "midi_tabla") },
+            { "tabla_2", ("F0", "midi_tabla") },
+            { "tamb_1", ("E0", "midi_tamb") },
+            { "tom_1", ("D#0", "midi_tom") },
+            { "tom_2", ("D#0", "midi_tom") },
+            { "tom_3", ("E0", "midi_tom") },
+            { "tom_4", ("F0", "midi_tom") },
+        };
+
         public static List<MidiEvent> GenerateMidiEvents(BuildOperator op)
         {
             List<Drums> drums = op.Request.Drums;
 
-            // Use the original availableNoteNames list so enums are preserved
-            var availableNotes = new Drumer().availableNoteNames;
-
             var midiEvents = new List<MidiEvent>();
-            int keyIndex = 0;
             List<string> importedFiles = [];
 
             DirectoryMeta MidiDir = op.WorkingMilo!.dirMeta.entries.First(static d => d.name == "midi_bank").dir ?? throw new Exception("midi_bank dir not found");
 
             foreach (var drum in drums)
             {
-                if (keyIndex >= availableNotes.Count)
-                    break; // No more available keys
-
-                var note = availableNotes[keyIndex]; // (NoteName, int, string)
-
-                midiEvents.Add(new MidiEvent(
-                    note, // Pass the tuple directly, preserving enum and int
-                    drum.Sound
-                )
-                {
-                    Keys = drum.Events.ToList()
-                });
-
                 string name = drum.Sound;
+
+                // Find all notes for this sample name
+                if (SoundToMidiMap.TryGetValue(name, out var mapping))
+                {
+                    // If you want to support multiple notes per sound, change mapping to a list/array
+                    // For now, mapping is (string note, string midiLabel)
+                    var note = mapping.note.ToLowerInvariant();
+                    var midiLabel = mapping.midiLabel;
+
+                    midiEvents.Add(new MidiEvent(
+                        // Find the availableNoteNames tuple matching this note string
+                        FindNoteTuple(note),
+                        name
+                    )
+                    {
+                        Keys = drum.Events.ToList()
+                    });
+                }
+                else
+                {
+                    // Fallback: assign first available note
+                    midiEvents.Add(new MidiEvent(
+                        new Drumer().availableNoteNames[0],
+                        name
+                    )
+                    {
+                        Keys = drum.Events.ToList()
+                    });
+                }
+
                 string path = Path.Combine(op.Request.MovesPath, "midi_bank", name);
 
                 if (Path.Exists(path))
                 {
-                    //  Import Bark
                     string[] allFiles = Directory.GetFiles(path);
 
                     foreach (string assetPath in allFiles)
@@ -140,11 +193,19 @@ namespace BoomyBuilder.Builder.Drumer
                         }
                     }
                 }
-
-                keyIndex++;
             }
 
             return midiEvents;
+
+            // Helper to find the tuple in availableNoteNames by note string (e.g. "c#0")
+            static (NoteName, int, string) FindNoteTuple(string noteStr)
+            {
+                var availableNotes = new Drumer().availableNoteNames;
+                var found = availableNotes.FirstOrDefault(n => n.Item3.Equals(noteStr, StringComparison.OrdinalIgnoreCase));
+                if (found == default)
+                    throw new Exception($"Note {noteStr} not found in availableNoteNames.");
+                return found;
+            }
         }
 
 

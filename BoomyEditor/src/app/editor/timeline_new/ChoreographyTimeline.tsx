@@ -275,13 +275,17 @@ export const ChoreographyTimeline = React.memo(
 			[selectedCells]
 		);
 
-		// Copy selected moves
+		// Copy selected moves to clipboard
 		const handleCopy = useCallback(() => {
 			if (selectedCells.length === 0 || !currentSong) return;
 
 			const copied = [];
+			const sortedCells = [...selectedCells].sort(
+				(a, b) => a.measure - b.measure
+			);
+			const firstMeasure = sortedCells[0].measure;
 
-			for (const cell of selectedCells) {
+			for (const cell of sortedCells) {
 				const difficultyMap: Record<
 					string,
 					'supereasy' | 'easy' | 'medium' | 'expert'
@@ -291,7 +295,6 @@ export const ChoreographyTimeline = React.memo(
 					medium: 'medium',
 					expert: 'expert',
 				};
-
 				const mappedDifficulty = difficultyMap[cell.difficulty];
 
 				let events = [];
@@ -306,32 +309,56 @@ export const ChoreographyTimeline = React.memo(
 				);
 				if (moveEvent) {
 					copied.push({
-						difficulty: cell.difficulty,
-						measure: cell.measure,
-						event: { ...moveEvent },
+						offset: cell.measure - firstMeasure,
+						move: { ...moveEvent },
 					});
 				}
 			}
 
-			setClipboardData(copied);
+			const clipboardPayload = {
+				boomy: 'copypaste1',
+				type: 'move',
+				data: copied,
+			};
+
+			try {
+				navigator.clipboard.writeText(JSON.stringify(clipboardPayload));
+				setClipboardData(copied); // still keep for legacy paste
+			} catch (err) {
+				console.error('Failed to write to clipboard:', err);
+			}
 		}, [selectedCells, currentSong]);
 
-		// Paste copied moves
+		// Paste moves from clipboard at target track/measure
 		const handlePaste = useCallback(
-			(
+			async (
 				targetDifficulty: 'supereasy' | 'easy' | 'medium' | 'expert',
 				targetMeasure: number
 			) => {
-				if (clipboardData.length === 0 || !currentSong) return;
+				let clipboardPayload = null;
+				try {
+					const text = await navigator.clipboard.readText();
+					clipboardPayload = JSON.parse(text);
+				} catch {
+					// fallback to legacy
+					if (clipboardData.length === 0 || !currentSong) return;
+					clipboardPayload = {
+						boomy: 'copypaste1',
+						type: 'move',
+						data: clipboardData,
+					};
+				}
 
-				// Calculate the offset from the first copied measure to the target measure
-				const firstMeasure = Math.min(
-					...clipboardData.map((item) => item.measure)
-				);
-				const measureOffset = targetMeasure - firstMeasure;
+				if (
+					!clipboardPayload ||
+					clipboardPayload.boomy !== 'copypaste1' ||
+					clipboardPayload.type !== 'move' ||
+					!Array.isArray(clipboardPayload.data)
+				) {
+					return;
+				}
 
-				// Process the clipboard data
-				for (const item of clipboardData) {
+				for (const item of clipboardPayload.data) {
 					const difficultyMap: Record<
 						string,
 						'supereasy' | 'easy' | 'medium' | 'expert'
@@ -341,11 +368,10 @@ export const ChoreographyTimeline = React.memo(
 						medium: 'medium',
 						expert: 'expert',
 					};
-
 					const mappedDifficulty = difficultyMap[targetDifficulty];
-					const newMeasure = item.measure + measureOffset;
+					const newMeasure = targetMeasure + (item.offset ?? 0);
 
-					// Remove any existing events at the target measure
+					// Remove any existing event at this measure
 					let existingEventIndex;
 					if (mappedDifficulty === 'supereasy') {
 						existingEventIndex = currentSong.supereasy.findIndex(
@@ -358,17 +384,15 @@ export const ChoreographyTimeline = React.memo(
 							(event) => event.measure === newMeasure
 						);
 					}
-
 					if (existingEventIndex !== -1) {
 						removeMoveEvent(mappedDifficulty, existingEventIndex);
 					}
 
 					// Add the new event
 					const newEvent = {
-						...item.event,
-						beat: newMeasure,
+						...item.move,
+						measure: newMeasure,
 					};
-
 					addMoveEvent(mappedDifficulty, newEvent);
 				}
 			},

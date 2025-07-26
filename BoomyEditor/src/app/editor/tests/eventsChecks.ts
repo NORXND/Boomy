@@ -6,15 +6,15 @@ import { TestResultType } from '@/types/song';
 type EventType =
 	| 'music_start'
 	| 'music_end'
-	| 'freestyle_start'
-	| 'freestyle_end'
+	| 'freestyle'
 	| 'preview'
-	| 'player1_solo_start'
-	| 'player1_solo_end'
-	| 'player2_solo_start'
-	| 'player2_solo_end'
-	| 'party_battle_start'
-	| 'party_battle_end'
+	| 'player1_solo'
+	| 'player2_solo'
+	| 'battle_reset'
+	| 'battle_end'
+	| 'minigame_start'
+	| 'minigame_end'
+	| 'minigame_idle'
 	| 'party_jump_start'
 	| 'party_jump_end'
 	| 'end'
@@ -39,46 +39,28 @@ export async function checkSongEvents(
 	if (!songEnd) errors.push('Missing music_end event.');
 	if (!songEnd) errors.push('Missing song_end event.');
 
-	// 2. Freestyle section matching and uniqueness
-	const freestyleEvents = events
-		.filter(
-			(e) => e.type === 'freestyle_start' || e.type === 'freestyle_end'
-		)
-		.sort((a, b) => a.beat - b.beat);
-	let fsState: 'none' | 'started' | 'ended' = 'none';
-	let freestyleCount = 0;
-	for (const e of freestyleEvents) {
-		if (e.type === 'freestyle_start') {
-			if (fsState === 'started') {
-				errors.push('Freestyle section started before previous ended.');
-			}
-			fsState = 'started';
-			freestyleCount++;
-		} else if (e.type === 'freestyle_end') {
-			if (fsState !== 'started') {
-				errors.push(
-					'Freestyle section ended without a matching start.'
-				);
-			}
-			fsState = 'ended';
+	// 2. Freestyle existence and timing
+	const freestyleStart = events
+		.filter((e) => e.type === 'freestyle_start')
+		.sort((a, b) => a.beat - b.beat)[0];
+
+	if (!freestyleStart) {
+		errors.push('No freestyle section found. Freestyle will not work.');
+	} else if (songEnd && typeof songEnd.beat === 'number') {
+		const measureDiff = songEnd.beat - freestyleStart.beat;
+		if (measureDiff < 9) {
+			errors.push(
+				`Freestyle section starts too late (only ${measureDiff} beats before song_end, should be at least 9).`
+			);
 		}
-	}
-	if (fsState === 'started') {
-		errors.push('Freestyle section started but never ended.');
-	}
-	if (freestyleCount === 0) {
-		warnings.push('No freestyle section found. Freestyle will not work.');
-	}
-	if (freestyleCount > 1) {
-		errors.push('Multiple freestyle sections found. Only one is allowed.');
 	}
 
 	// 3. All events (preview, freestyle) after song_start and before song_end
 	const songStartBeat = songStart?.beat ?? -Infinity;
 	const songEndBeat = songEnd?.beat ?? Infinity;
 	const previewEvents = events.filter((e) => e.type === 'preview');
-	const freestyleBeats = freestyleEvents;
-	for (const e of [...previewEvents, ...freestyleBeats]) {
+	const freestyleEvents = events.filter((e) => e.type === 'freestyle');
+	for (const e of [...previewEvents, ...freestyleEvents]) {
 		if (e.beat <= songStartBeat) {
 			errors.push(
 				`${e.type} event at beat ${e.beat} is before song_start.`
@@ -91,9 +73,9 @@ export async function checkSongEvents(
 
 	// 4. Battle steps checks (battleSteps track only)
 	const battleEvents = song.currentSong?.battleSteps ?? [];
-	const battleStart = battleEvents.find((e) => e.type === 'battle_start');
+	const battleStart = battleEvents.find((e) => e.type === 'battle_reset');
 	if (!battleStart)
-		errors.push('Missing battle_start event in battle steps.');
+		errors.push('Missing battle_reset event in battle steps.');
 
 	// Minigame start/end matching (battleSteps only)
 	const minigameStarts = battleEvents
@@ -116,6 +98,7 @@ export async function checkSongEvents(
 					`minigame_start at measure ${minigameStarts[i].measure} does not end properly at ${minigameEnds[i].measure}.`
 				);
 			}
+			// Check for overlap: next start must not be before previous end
 			if (
 				i > 0 &&
 				minigameStarts[i].measure < minigameEnds[i - 1].measure
@@ -124,61 +107,16 @@ export async function checkSongEvents(
 					`minigame_start at measure ${minigameStarts[i].measure} overlaps previous minigame.`
 				);
 			}
-		}
-	}
-
-	// 5. Party battle matching and non-overlapping (main events only)
-	const partyBattleTypes = [
-		{ start: 'party_battle_start', end: 'party_battle_end' },
-	];
-	for (const { start, end } of partyBattleTypes) {
-		const starts = events
-			.filter((e) => e.type === start)
-			.sort((a, b) => a.beat - b.beat);
-		const ends = events
-			.filter((e) => e.type === end)
-			.sort((a, b) => a.beat - b.beat);
-		if (starts.length !== ends.length) {
-			errors.push(`Mismatched ${start} and ${end} events.`);
-		}
-		for (let i = 0; i < Math.min(starts.length, ends.length); i++) {
-			if (starts[i].beat >= ends[i].beat) {
+			// Check that only minigame_idle events (if any) are between start and end
+			const between = battleEvents.filter(
+				(e) =>
+					e.measure > minigameStarts[i].measure &&
+					e.measure < minigameEnds[i].measure
+			);
+			const nonIdle = between.filter((e) => e.type !== 'minigame_idle');
+			if (nonIdle.length > 0) {
 				errors.push(
-					`${start} at beat ${starts[i].beat} does not end properly at ${ends[i].beat}.`
-				);
-			}
-			if (i > 0 && starts[i].beat < ends[i - 1].beat) {
-				errors.push(
-					`${start} at beat ${starts[i].beat} overlaps previous party battle session.`
-				);
-			}
-		}
-	}
-
-	// 6. Solo sessions matching and non-overlapping
-	const soloTypes = [
-		{ start: 'player1_solo_start', end: 'player1_solo_end' },
-		{ start: 'player2_solo_start', end: 'player2_solo_end' },
-	];
-	for (const { start, end } of soloTypes) {
-		const starts = events
-			.filter((e) => e.type === start)
-			.sort((a, b) => a.beat - b.beat);
-		const ends = events
-			.filter((e) => e.type === end)
-			.sort((a, b) => a.beat - b.beat);
-		if (starts.length !== ends.length) {
-			errors.push(`Mismatched ${start} and ${end} events.`);
-		}
-		for (let i = 0; i < Math.min(starts.length, ends.length); i++) {
-			if (starts[i].beat >= ends[i].beat) {
-				errors.push(
-					`${start} at beat ${starts[i].beat} does not end properly at ${ends[i].beat}.`
-				);
-			}
-			if (i > 0 && starts[i].beat < ends[i - 1].beat) {
-				errors.push(
-					`${start} at beat ${starts[i].beat} overlaps previous solo session.`
+					`Only minigame_idle events are allowed between minigame_start at measure ${minigameStarts[i].measure} and minigame_end at measure ${minigameEnds[i].measure}.`
 				);
 			}
 		}

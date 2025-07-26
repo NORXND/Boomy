@@ -234,47 +234,74 @@ export const CameraShotsTimeline = React.memo(
 			[selectedCells]
 		);
 
-		// Copy selected camera shots
+		// Copy selected camera shots to clipboard (no difficulty)
 		const handleCopy = useCallback(() => {
 			if (selectedCells.length === 0 || !currentSong) return;
 
 			const copied = [];
+			const sortedCells = [...selectedCells].sort(
+				(a, b) => a.beat - b.beat
+			);
+			const firstBeat = sortedCells[0].beat;
 
-			for (const cell of selectedCells) {
+			for (const cell of sortedCells) {
 				const events = currentSong.timeline[cell.difficulty].cameras;
-
 				const cameraEvent = events.find(
 					(event) => event.beat === cell.beat
 				);
 				if (cameraEvent) {
 					copied.push({
-						difficulty: cell.difficulty,
-						beat: cell.beat,
+						offset: cell.beat - firstBeat,
 						event: { ...cameraEvent },
 					});
 				}
 			}
 
-			setClipboardData(copied);
+			const clipboardPayload = {
+				boomy: 'copypaste1',
+				type: 'camera',
+				data: copied,
+			};
+
+			try {
+				navigator.clipboard.writeText(JSON.stringify(clipboardPayload));
+				setClipboardData(copied); // fallback for legacy paste
+			} catch (err) {
+				console.error('Failed to write to clipboard:', err);
+			}
 		}, [selectedCells, currentSong]);
 
-		// Handle paste copied camera shots
+		// Paste camera shots from clipboard at target track/beat (no difficulty in data)
 		const handlePaste = useCallback(
-			(
+			async (
 				targetDifficulty: 'easy' | 'medium' | 'expert',
 				targetBeat: number
 			) => {
-				if (clipboardData.length === 0 || !currentSong) return;
+				let clipboardPayload = null;
+				try {
+					const text = await navigator.clipboard.readText();
+					clipboardPayload = JSON.parse(text);
+				} catch {
+					// fallback to legacy
+					if (clipboardData.length === 0 || !currentSong) return;
+					clipboardPayload = {
+						boomy: 'copypaste1',
+						type: 'camera',
+						data: clipboardData,
+					};
+				}
 
-				// Calculate the offset from the first copied beat to the target beat
-				const firstBeat = Math.min(
-					...clipboardData.map((item) => item.beat)
-				);
-				const beatOffset = targetBeat - firstBeat;
+				if (
+					!clipboardPayload ||
+					clipboardPayload.boomy !== 'copypaste1' ||
+					clipboardPayload.type !== 'camera' ||
+					!Array.isArray(clipboardPayload.data)
+				) {
+					return;
+				}
 
-				// Process the clipboard data
-				for (const item of clipboardData) {
-					const newBeat = item.beat + beatOffset;
+				for (const item of clipboardPayload.data) {
+					const newBeat = targetBeat + (item.offset ?? 0);
 
 					// Remove any existing camera at the target beat
 					const existingEventIndex = currentSong.timeline[

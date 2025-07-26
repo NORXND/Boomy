@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useSongStore } from '../store/songStore';
 import { SearchIndex } from '@/types/song';
 import Fuse from 'fuse.js';
+import { Button } from '@/components/ui/button'; // If you use a Button component
 
 interface FileSystemItem {
 	name: string;
@@ -58,6 +59,7 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [pendingQuery, setPendingQuery] = useState('');
 	const [searchIndex, setSearchIndex] = useState<SearchIndex | null>(null);
+	const [searchMode, setSearchMode] = useState<'move' | 'song'>('move');
 
 	const moveLibraryPath = currentSong?.move_lib;
 
@@ -243,14 +245,15 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 		const songList = Object.entries(searchIndex.songs_by_name || {}).map(
 			([songKey, songData]) => {
 				const [categoryKey, songName] = songKey.split(':');
-				return { songKey, songName, categoryKey, name: songData.name };
+				return { songKey, songName, categoryKey, name: songName };
 			}
 		);
+
 		return new Fuse(songList, {
-			keys: ['name'],
-			threshold: 0.4,
+			keys: ['name', 'songName'],
+			threshold: 0.2, // More forgiving for partial matches
 			ignoreLocation: true,
-			minMatchCharLength: 2,
+			minMatchCharLength: 1,
 		});
 	}, [searchIndex]);
 
@@ -264,13 +267,13 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 					moveName,
 					songName,
 					categoryKey,
-					name: moveData.name,
+					name: moveName, // Only search by move name!
 				};
 			}
 		);
 		return new Fuse(moveList, {
 			keys: ['name'],
-			threshold: 0.7,
+			threshold: 0.2,
 			ignoreLocation: true,
 			minMatchCharLength: 2,
 		});
@@ -285,84 +288,105 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 		const query = searchQuery.trim();
 		const grouped: Record<string, FileSystemItem> = {};
 
-		// Songs: show song node, but do not add moves
-		const songResults = songFuse.search(query);
-		songResults.forEach(({ item }) => {
-			const { categoryKey, songName } = item;
-			if (!grouped[categoryKey]) {
-				const matchingCategory = categories.find(
-					(c) => c.name === categoryKey
-				);
-				if (matchingCategory) {
-					grouped[categoryKey] = {
-						...matchingCategory,
-						children: [],
-						isExpanded: true,
-						isLoaded: true,
-					};
+		if (searchMode === 'song') {
+			const songResults = songFuse.search(query);
+			songResults.forEach(({ item }) => {
+				const { categoryKey, songName } = item;
+				if (!grouped[categoryKey]) {
+					const matchingCategory = categories.find(
+						(c) => c.name === categoryKey
+					);
+					if (matchingCategory) {
+						grouped[categoryKey] = {
+							...matchingCategory,
+							children: [],
+							isExpanded: true,
+							isLoaded: true,
+						};
+					}
 				}
-			}
-			const category = grouped[categoryKey];
-			if (
-				category &&
-				!category.children?.find((s) => s.name === songName)
-			) {
-				const song: FileSystemItem = {
-					name: songName,
-					path: `${category.path}/${songName}`,
-					isDirectory: true,
-					isExpanded: true,
-					isLoaded: true,
-					children: [],
-				};
-				category.children?.push(song);
-			}
-		});
-
-		// Moves: show move in its song/category, expand all
-		const moveResults = moveFuse.search(query);
-		moveResults.forEach(({ item }) => {
-			const { categoryKey, songName, moveName } = item;
-			if (!grouped[categoryKey]) {
-				const matchingCategory = categories.find(
-					(c) => c.name === categoryKey
-				);
-				if (matchingCategory) {
-					grouped[categoryKey] = {
-						...matchingCategory,
-						children: [],
-						isExpanded: true,
-						isLoaded: true,
-					};
-				}
-			}
-			const category = grouped[categoryKey];
-			if (category) {
-				let song = category.children?.find((s) => s.name === songName);
-				if (!song) {
-					song = {
+				const category = grouped[categoryKey];
+				if (
+					category &&
+					!category.children?.find((s) => s.name === songName)
+				) {
+					// Find all moves for this song
+					const moves: FileSystemItem[] = [];
+					if (searchIndex && searchIndex.moves_by_name) {
+						Object.entries(searchIndex.moves_by_name).forEach(
+							([moveKey]) => {
+								const [cat, song, move] = moveKey.split(':');
+								if (cat === categoryKey && song === songName) {
+									moves.push({
+										name: move,
+										path: `${category.path}/${songName}/${move}`,
+										isDirectory: false,
+									});
+								}
+							}
+						);
+					}
+					const song: FileSystemItem = {
 						name: songName,
 						path: `${category.path}/${songName}`,
 						isDirectory: true,
 						isExpanded: true,
 						isLoaded: true,
-						children: [],
+						children: moves.sort((a, b) =>
+							a.name.localeCompare(b.name)
+						),
 					};
 					category.children?.push(song);
 				}
-				if (!song.children?.find((m) => m.name === moveName)) {
-					const move: FileSystemItem = {
-						name: moveName,
-						path: `${song.path}/${moveName}`,
-						isDirectory: false,
-					};
-					song.children?.push(move);
+			});
+		} else {
+			// Moves: show move in its song/category, expand all
+			const moveResults = moveFuse.search(query);
+			moveResults.forEach(({ item }) => {
+				const { categoryKey, songName, moveName } = item;
+				if (!grouped[categoryKey]) {
+					const matchingCategory = categories.find(
+						(c) => c.name === categoryKey
+					);
+					if (matchingCategory) {
+						grouped[categoryKey] = {
+							...matchingCategory,
+							children: [],
+							isExpanded: true,
+							isLoaded: true,
+						};
+					}
 				}
-			}
-		});
+				const category = grouped[categoryKey];
+				if (category) {
+					let song = category.children?.find(
+						(s) => s.name === songName
+					);
+					if (!song) {
+						song = {
+							name: songName,
+							path: `${category.path}/${songName}`,
+							isDirectory: true,
+							isExpanded: true,
+							isLoaded: true,
+							children: [],
+						};
+						category.children?.push(song);
+					}
+					if (!song.children?.find((m) => m.name === moveName)) {
+						const move: FileSystemItem = {
+							name: moveName,
+							path: `${song.path}/${moveName}`,
+							isDirectory: false,
+						};
+						song.children?.push(move);
+					}
+				}
+			});
+		}
 
 		return Object.values(grouped);
-	}, [categories, searchQuery, searchIndex, songFuse, moveFuse]);
+	}, [categories, searchQuery, searchIndex, songFuse, moveFuse, searchMode]);
 
 	// Count total moves in filtered results
 	const countMovesInTree = (items: FileSystemItem[]): number => {
@@ -502,12 +526,38 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 					Move Library
 				</h3>
 
+				{/* Search mode selector */}
+				<div className="flex gap-2 mb-2">
+					<Button
+						type="button"
+						variant={
+							searchMode === 'move' ? 'default' : 'secondary'
+						}
+						onClick={() => setSearchMode('move')}
+					>
+						Search by Move
+					</Button>
+					<Button
+						type="button"
+						variant={
+							searchMode === 'song' ? 'default' : 'secondary'
+						}
+						onClick={() => setSearchMode('song')}
+					>
+						Search by Song
+					</Button>
+				</div>
+
 				{/* Search input */}
 				<div className="relative">
 					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<input
 						type="text"
-						placeholder="Search moves, songs, categories..."
+						placeholder={
+							searchMode === 'move'
+								? 'Search moves...'
+								: 'Search songs...'
+						}
 						value={pendingQuery}
 						onChange={(e) => setPendingQuery(e.target.value)}
 						onKeyDown={(e) => {
@@ -543,7 +593,7 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 						(searchQuery
 							? filteredMoveCount > 0
 								? `${filteredMoveCount} of ${totalMoveCount} moves found`
-								: `No moves found for "${searchQuery}"`
+								: `No results found for "${searchQuery}"`
 							: `${totalMoveCount} moves total`)}
 				</div>
 			</div>
@@ -553,10 +603,13 @@ export function MoveFileExplorer({ onMoveSelect }: MoveFileExplorerProps) {
 				{searchQuery && filteredMoveCount === 0 ? (
 					<div className="h-full flex items-center justify-center">
 						<div className="text-center text-muted-foreground">
-							<div className="text-sm">No moves found</div>
+							<div className="text-sm">No results found</div>
 							<div className="text-xs mt-1">
-								Try searching for move names, song names, or
-								categories
+								Try searching for{' '}
+								{searchMode === 'move'
+									? 'move names'
+									: 'song names'}{' '}
+								or switch search mode.
 							</div>
 						</div>
 					</div>

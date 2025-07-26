@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
 	Clock,
 	Flag,
@@ -51,22 +51,15 @@ export interface EventsTimelineProps {
 }
 
 // Event types
-type EventType =
-	| 'music_start'
-	| 'preview'
-	| 'freestyle_start'
-	| 'freestyle_end'
-	| 'music_end'
-	| 'end';
+type EventType = 'music_start' | 'preview' | 'freestyle' | 'music_end' | 'end';
 
 // Battle event types for the Battle track
 type BattleEventType =
-	| 'battle_start'
-	| 'player1_solo_start'
-	| 'player1_solo_end'
-	| 'player2_solo_start'
-	| 'player2_solo_end'
+	| 'battle_reset'
+	| 'player1_solo'
+	| 'player2_solo'
 	| 'minigame_start'
+	| 'minigame_idle'
 	| 'minigame_end';
 
 // Party Jump event types for the Party Jump track
@@ -155,7 +148,7 @@ export const EventsTimeline = React.memo(
 		// Battle event dialog state
 		const [showAddBattleDialog, setShowAddBattleDialog] = useState(false);
 		const [selectedBattleType, setSelectedBattleType] =
-			useState<BattleEventType>('battle_start');
+			useState<BattleEventType>('battle_reset');
 		const [selectedBattleBeat, setSelectedBattleBeat] = useState<
 			number | null
 		>(null);
@@ -173,7 +166,7 @@ export const EventsTimeline = React.memo(
 		const [showAddPartyBattleDialog, setShowAddPartyBattleDialog] =
 			useState(false);
 		const [selectedPartyBattleType, setSelectedPartyBattleType] =
-			useState<BattleEventType>('player1_solo_start');
+			useState<BattleEventType>('battle_reset');
 		const [selectedPartyBattleBeat, setSelectedPartyBattleBeat] = useState<
 			number | null
 		>(null);
@@ -209,9 +202,45 @@ export const EventsTimeline = React.memo(
 		}, []);
 
 		// Handle adding a new event - use addEvent function from songStore
+		const [freestyleWarning, setFreestyleWarning] = useState<string | null>(
+			null
+		);
+
 		const handleAddEvent = useCallback(() => {
 			if (selectedBeat === null || !selectedEventType || !currentSong)
 				return;
+
+			// Check for freestyle event placement
+			if (selectedEventType === 'freestyle') {
+				// Find music_end event beat
+				const musicEndEvent = (currentSong.events || []).find(
+					(e) => e.type === 'music_end'
+				);
+				if (musicEndEvent) {
+					// Find measure index for selectedBeat
+					const selectedMeasureIdx = timelineData.measures.findIndex(
+						(m) =>
+							selectedBeat >= m.startBeat &&
+							selectedBeat < m.startBeat + m.beatCount
+					);
+					// Find measure index for music_end event
+					const musicEndMeasureIdx = timelineData.measures.findIndex(
+						(m) =>
+							musicEndEvent.beat >= m.startBeat &&
+							musicEndEvent.beat < m.startBeat + m.beatCount
+					);
+					if (
+						musicEndMeasureIdx !== -1 &&
+						selectedMeasureIdx !== -1 &&
+						musicEndMeasureIdx - selectedMeasureIdx <= 8
+					) {
+						setFreestyleWarning(
+							'Freestyle must be placed at least 9 measures before Music End.'
+						);
+						return;
+					}
+				}
+			}
 
 			// Remove any existing event at this beat
 			const events = currentSong.events || [];
@@ -229,7 +258,13 @@ export const EventsTimeline = React.memo(
 			});
 
 			setShowAddEventDialog(false);
-		}, [selectedBeat, selectedEventType, currentSong]);
+			setFreestyleWarning(null);
+		}, [
+			selectedBeat,
+			selectedEventType,
+			currentSong,
+			timelineData.measures,
+		]);
 
 		// Handle click to delete event - use removeEvent function from songStore
 		const handleEventClick = useCallback(
@@ -362,9 +397,7 @@ export const EventsTimeline = React.memo(
 					return <Play className="h-4 w-4 text-green-500" />;
 				case 'preview':
 					return <Clock className="h-4 w-4 text-yellow-500" />;
-				case 'freestyle_start':
-					return <PersonStanding className="h-4 w-4 text-blue-500" />;
-				case 'freestyle_end':
+				case 'freestyle':
 					return <PersonStanding className="h-4 w-4 text-blue-500" />;
 				case 'music_end':
 					return <Flag className="h-4 w-4 text-red-500" />;
@@ -410,17 +443,11 @@ export const EventsTimeline = React.memo(
 				text: 'text-yellow-500',
 				label: 'Preview',
 			},
-			freestyle_start: {
+			freestyle: {
 				bg: 'bg-blue-500/20',
 				border: 'border-blue-500',
 				text: 'text-blue-500',
-				label: 'Freestyle Start',
-			},
-			freestyle_end: {
-				bg: 'bg-blue-500/20',
-				border: 'border-blue-500',
-				text: 'text-blue-500',
-				label: 'Freestyle End',
+				label: 'Freestyle (+ 8 Measures)',
 			},
 			music_end: {
 				bg: 'bg-red-500/20',
@@ -441,41 +468,35 @@ export const EventsTimeline = React.memo(
 			BattleEventType,
 			{ bg: string; border: string; text: string; label: string }
 		> = {
-			battle_start: {
+			battle_reset: {
 				bg: 'bg-red-500/20',
 				border: 'border-red-500',
 				text: 'text-red-500',
-				label: 'Battle Start',
+				label: 'Battle Reset (Start / End of Solo)',
 			},
-			player1_solo_start: {
+			player1_solo: {
 				bg: 'bg-orange-500/20',
 				border: 'border-orange-500',
 				text: 'text-orange-500',
-				label: 'Player 1 Solo Start',
+				label: 'Player 1 Solo',
 			},
-			player1_solo_end: {
-				bg: 'bg-cyan-500/20',
-				border: 'border-cyan-500',
-				text: 'text-cyan-500',
-				label: 'Player 1 Solo End',
-			},
-			player2_solo_start: {
+			player2_solo: {
 				bg: 'bg-lime-500/20',
 				border: 'border-lime-500',
 				text: 'text-lime-500',
 				label: 'Player 2 Solo Start',
-			},
-			player2_solo_end: {
-				bg: 'bg-blue-500/20',
-				border: 'border-blue-500',
-				text: 'text-blue-500',
-				label: 'Player 2 Solo End',
 			},
 			minigame_start: {
 				bg: 'bg-pink-500/20',
 				border: 'border-pink-500',
 				text: 'text-pink-500',
 				label: 'Minigame Start',
+			},
+			minigame_idle: {
+				bg: 'bg-indigo-500/20',
+				border: 'border-indigo-500',
+				text: 'text-indigo-500',
+				label: 'Minigame Idle',
 			},
 			minigame_end: {
 				bg: 'bg-indigo-500/20',
@@ -528,6 +549,36 @@ export const EventsTimeline = React.memo(
 		// Calculate total width for the scrollable container
 		const totalWidth =
 			trackHeaderWidth + timelineData.totalBeats * pixelsPerBeat;
+
+		// --- AUTOSCROLL LOGIC ---
+		useEffect(() => {
+			if (!autoScroll || !timelineScrollRef.current) return;
+
+			const scrollContainer = timelineScrollRef.current;
+			const cursorX = calculateCursorPosition();
+
+			const containerScrollLeft = scrollContainer.scrollLeft;
+			const containerWidth = scrollContainer.clientWidth;
+
+			// If cursor is outside the visible area, scroll to center it
+			if (
+				cursorX < containerScrollLeft ||
+				cursorX > containerScrollLeft + containerWidth - 40 // 40px margin
+			) {
+				// Scroll so that the cursor is roughly centered
+				const targetScroll = Math.max(0, cursorX - containerWidth / 2);
+				scrollContainer.scrollTo({
+					left: targetScroll,
+					behavior: 'smooth',
+				});
+			}
+		}, [
+			currentTime,
+			autoScroll,
+			calculateCursorPosition,
+			timelineScrollRef,
+		]);
+		// --- END AUTOSCROLL LOGIC ---
 
 		return (
 			<div className="flex h-full flex-col">
@@ -643,14 +694,13 @@ export const EventsTimeline = React.memo(
 									}}
 								>
 									{/* Measure label and BPM change */}
-									<div className="h-8 px-2 flex items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted/70 gap-2">
-										<div
-											className="text-xs font-medium text-center"
-											onClick={() =>
-												handleSeek(measure.startTime)
-											}
-											title={`Jump to measure ${measure.number}`}
-										>
+									<div
+										className="h-8 px-2 flex items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted/70 gap-2"
+										onClick={() =>
+											handleSeek(measure.startTime)
+										}
+									>
+										<div className="text-xs font-medium text-center">
 											<div>{measure.number}</div>
 											<div className="text-muted-foreground">
 												{measure.bpm.toFixed(0)}
@@ -753,10 +803,13 @@ export const EventsTimeline = React.memo(
 															width: `${pixelsPerBeat}px`,
 														}}
 														onClick={() =>
+															handleSeek(beat)
+														} // <-- Always seek on click
+														onDoubleClick={() =>
 															handleAddEventClick(
 																beat
 															)
-														}
+														} // Optional: double click to add event
 													>
 														{/* Only one event per beat */}
 														{events.length > 0 ? (
@@ -784,11 +837,6 @@ export const EventsTimeline = React.memo(
 																				<div
 																					key={`${event.originalIndex}-${idx}`}
 																					className={`flex-1 border rounded p-1 flex flex-col items-center justify-center transition-colors ${style.bg} ${style.border}`}
-																					onClick={(
-																						e
-																					) =>
-																						e.stopPropagation()
-																					}
 																				>
 																					<div
 																						className={`rounded-full p-1 ${style.bg} flex items-center justify-center`}
@@ -814,6 +862,7 @@ export const EventsTimeline = React.memo(
 																							onClick={(
 																								e
 																							) => {
+																								e.stopPropagation(); // Prevent seek
 																								if (
 																									event.originalIndex !==
 																									undefined
@@ -1200,11 +1249,8 @@ export const EventsTimeline = React.memo(
 											<SelectItem value="preview">
 												Preview
 											</SelectItem>
-											<SelectItem value="freestyle_start">
-												Freestyle Start
-											</SelectItem>
-											<SelectItem value="freestyle_end">
-												Freestyle End
+											<SelectItem value="freestyle">
+												Freestyle
 											</SelectItem>
 											<SelectItem value="music_end">
 												Music End
@@ -1224,6 +1270,12 @@ export const EventsTimeline = React.memo(
 									Add Event
 								</Button>
 							</div>
+							{/* Freestyle warning message */}
+							{freestyleWarning && (
+								<div className="mt-4 text-sm text-red-500">
+									{freestyleWarning}
+								</div>
+							)}
 						</DialogContent>
 					</Dialog>
 
@@ -1262,23 +1314,20 @@ export const EventsTimeline = React.memo(
 											<SelectValue placeholder="Select battle event type" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="battle_start">
-												Battle Start
+											<SelectItem value="battle_reset">
+												Battle Reset
 											</SelectItem>
-											<SelectItem value="player1_solo_start">
-												Player 1 Solo Start
+											<SelectItem value="player1_solo">
+												Player 1 Solo
 											</SelectItem>
-											<SelectItem value="player1_solo_end">
-												Player 1 Solo End
-											</SelectItem>
-											<SelectItem value="player2_solo_start">
-												Player 2 Solo Start
-											</SelectItem>
-											<SelectItem value="player2_solo_end">
-												Player 2 Solo End
+											<SelectItem value="player2_solo">
+												Player 2 Solo
 											</SelectItem>
 											<SelectItem value="minigame_start">
 												Minigame Start
+											</SelectItem>
+											<SelectItem value="minigame_idle">
+												Minigame Idle
 											</SelectItem>
 											<SelectItem value="minigame_end">
 												Minigame End
@@ -1417,23 +1466,20 @@ export const EventsTimeline = React.memo(
 											<SelectValue placeholder="Select party battle event type" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="battle_start">
-												Battle Start
+											<SelectItem value="battle_reset">
+												Battle Reset
 											</SelectItem>
-											<SelectItem value="player1_solo_start">
-												Player 1 Solo Start
+											<SelectItem value="player1_solo">
+												Player 1 Solo
 											</SelectItem>
-											<SelectItem value="player1_solo_end">
-												Player 1 Solo End
-											</SelectItem>
-											<SelectItem value="player2_solo_start">
-												Player 2 Solo Start
-											</SelectItem>
-											<SelectItem value="player2_solo_end">
-												Player 2 Solo End
+											<SelectItem value="player2_solo">
+												Player 2 Solo
 											</SelectItem>
 											<SelectItem value="minigame_start">
 												Minigame Start
+											</SelectItem>
+											<SelectItem value="minigame_idle">
+												Minigame Idle
 											</SelectItem>
 											<SelectItem value="minigame_end">
 												Minigame End

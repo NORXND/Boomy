@@ -260,10 +260,8 @@ namespace BoomyBuilder.Builder.Models
         MusicStart,
         [EnumMember(Value = "preview")]
         Preview,
-        [EnumMember(Value = "freestyle_start")]
-        FreestyleStart,
-        [EnumMember(Value = "freestyle_end")]
-        FreestyleEnd,
+        [EnumMember(Value = "freestyle")]
+        Freestyle,
         [EnumMember(Value = "music_end")]
         MusicEnd,
         [EnumMember(Value = "end")]
@@ -280,18 +278,16 @@ namespace BoomyBuilder.Builder.Models
 
     public enum BattleEventType
     {
-        [EnumMember(Value = "battle_start")]
-        BattleStart,
-        [EnumMember(Value = "player1_solo_start")]
-        Player1SoloStart,
-        [EnumMember(Value = "player1_solo_end")]
-        Player1SoloEnd,
-        [EnumMember(Value = "player2_solo_start")]
-        Player2SoloStart,
-        [EnumMember(Value = "player2_solo_end")]
-        Player2SoloEnd,
+        [EnumMember(Value = "battle_reset")]
+        BattleReset,
+        [EnumMember(Value = "player1_solo")]
+        Player1Solo,
+        [EnumMember(Value = "player2_solo")]
+        Player2Solo,
         [EnumMember(Value = "minigame_start")]
         MinigameStart,
+        [EnumMember(Value = "minigame_idle")]
+        MinigameIdle,
         [EnumMember(Value = "minigame_end")]
         MinigameEnd,
     }

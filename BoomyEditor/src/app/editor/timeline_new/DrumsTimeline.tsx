@@ -14,6 +14,12 @@ import { MidiBanks } from '../../components/MidiBanks';
 import { useSongStore } from '../../store/songStore';
 import { DrumsEvent } from '../../types/song';
 import type { TimelineData } from './NewTimelineRoot';
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 const TRACK_COLORS = [
 	'bg-red-500',
@@ -60,6 +66,11 @@ export const DrumsTimeline = React.memo(
 			number | null
 		>(null);
 		const [showMidiBanks, setShowMidiBanks] = useState(false);
+
+		// State for selected events: [{trackIndex, beatIndex}]
+		const [selectedEvents, setSelectedEvents] = useState<
+			{ trackIndex: number; beatIndex: number }[]
+		>([]);
 
 		const addBankAsTrack = useCallback(
 			(bankName: string) => {
@@ -119,6 +130,91 @@ export const DrumsTimeline = React.memo(
 			[drumsEvents, updateDrums]
 		);
 
+		// Copy selected drum events to clipboard
+		const handleCopy = useCallback(() => {
+			if (selectedEvents.length === 0 || !currentSong) return;
+
+			// Group by track
+			const grouped: Record<
+				string,
+				{ track: string; events: { offset: number; beat: number }[] }
+			> = {};
+			for (const { trackIndex, beatIndex } of selectedEvents) {
+				const track = drumsEvents[trackIndex];
+				if (!grouped[track.sound])
+					grouped[track.sound] = { track: track.sound, events: [] };
+				grouped[track.sound].events.push({
+					beat: beatIndex,
+					offset: 0,
+				}); // offset will be set below
+			}
+			// Calculate offset per track
+			for (const group of Object.values(grouped)) {
+				const minBeat = Math.min(...group.events.map((e) => e.beat));
+				for (const e of group.events) {
+					e.offset = e.beat - minBeat;
+				}
+			}
+
+			const clipboardPayload = {
+				boomy: 'copypaste1',
+				type: 'drums',
+				data: Object.values(grouped),
+			};
+
+			try {
+				navigator.clipboard.writeText(JSON.stringify(clipboardPayload));
+			} catch (err) {
+				console.error('Failed to write to clipboard:', err);
+			}
+		}, [selectedEvents, drumsEvents, currentSong]);
+
+		// Paste drum events from clipboard at target beat (respects track)
+		const handlePaste = useCallback(
+			async (targetBeat: number) => {
+				let clipboardPayload = null;
+				try {
+					const text = await navigator.clipboard.readText();
+					clipboardPayload = JSON.parse(text);
+				} catch {
+					return;
+				}
+
+				if (
+					!clipboardPayload ||
+					clipboardPayload.boomy !== 'copypaste1' ||
+					clipboardPayload.type !== 'drums' ||
+					!Array.isArray(clipboardPayload.data)
+				) {
+					return;
+				}
+
+				const newDrumsEvents = JSON.parse(JSON.stringify(drumsEvents));
+
+				for (const group of clipboardPayload.data) {
+					const trackIdx = newDrumsEvents.findIndex(
+						(t: { sound: string }) => t.sound === group.track
+					);
+					if (trackIdx === -1) continue; // skip if track not found
+
+					for (const event of group.events) {
+						const newBeat = targetBeat + (event.offset ?? 0);
+						if (
+							!newDrumsEvents[trackIdx].events.includes(newBeat)
+						) {
+							newDrumsEvents[trackIdx].events.push(newBeat);
+						}
+					}
+					// Sort events in track
+					newDrumsEvents[trackIdx].events.sort(
+						(a: number, b: number) => a - b
+					);
+				}
+				updateDrums(newDrumsEvents);
+			},
+			[drumsEvents, updateDrums]
+		);
+
 		const totalWidth = timelineData.measures.length * 8 * STEP_WIDTH;
 
 		if (!currentSong) {
@@ -128,6 +224,59 @@ export const DrumsTimeline = React.memo(
 				</div>
 			);
 		}
+
+		// Add this helper to check if a cell is selected
+		const isCellSelected = (trackIndex: number, beatIndex: number) =>
+			selectedEvents.some(
+				(sel) =>
+					sel.trackIndex === trackIndex && sel.beatIndex === beatIndex
+			);
+
+		// Add this handler for selecting cells
+		const handleCellSelect = useCallback(
+			(trackIndex: number, beatIndex: number, e: React.MouseEvent) => {
+				if (e.shiftKey && selectedEvents.length > 0) {
+					// Range selection
+					const last = selectedEvents[selectedEvents.length - 1];
+					const range: { trackIndex: number; beatIndex: number }[] =
+						[];
+					const trackStart = Math.min(last.trackIndex, trackIndex);
+					const trackEnd = Math.max(last.trackIndex, trackIndex);
+					const beatStart = Math.min(last.beatIndex, beatIndex);
+					const beatEnd = Math.max(last.beatIndex, beatIndex);
+					for (let t = trackStart; t <= trackEnd; t++) {
+						for (let b = beatStart; b <= beatEnd; b++) {
+							range.push({ trackIndex: t, beatIndex: b });
+						}
+					}
+					setSelectedEvents(range);
+				} else if (e.ctrlKey || e.metaKey) {
+					// Multi-select
+					setSelectedEvents((prev) => {
+						const exists = prev.some(
+							(sel) =>
+								sel.trackIndex === trackIndex &&
+								sel.beatIndex === beatIndex
+						);
+						if (exists) {
+							return prev.filter(
+								(sel) =>
+									!(
+										sel.trackIndex === trackIndex &&
+										sel.beatIndex === beatIndex
+									)
+							);
+						} else {
+							return [...prev, { trackIndex, beatIndex }];
+						}
+					});
+				} else {
+					// Single select
+					setSelectedEvents([{ trackIndex, beatIndex }]);
+				}
+			},
+			[selectedEvents]
+		);
 
 		return (
 			<div className="h-full flex flex-col bg-background text-white">
@@ -280,35 +429,86 @@ export const DrumsTimeline = React.memo(
 																				2 ===
 																			0;
 																		return (
-																			<div
+																			<ContextMenu
 																				key={
 																					beatIndex
 																				}
-																				className={cn(
-																					'w-10 h-full flex items-center justify-center border-r cursor-pointer',
-																					isQuarter
-																						? 'bg-muted/10'
-																						: 'bg-transparent',
-																					'hover:bg-muted/30'
-																				)}
-																				onClick={() =>
-																					toggleEvent(
-																						trackIndex,
-																						beatIndex
-																					)
-																				}
 																			>
-																				{hasEvent && (
+																				<ContextMenuTrigger
+																					asChild
+																				>
 																					<div
-																						className={`w-5 h-5 rounded-full ${
-																							TRACK_COLORS[
-																								trackIndex %
-																									TRACK_COLORS.length
-																							]
-																						}`}
-																					/>
-																				)}
-																			</div>
+																						key={
+																							beatIndex
+																						}
+																						className={cn(
+																							'w-10 h-full flex items-center justify-center border-r cursor-pointer',
+																							isQuarter
+																								? 'bg-muted/10'
+																								: 'bg-transparent',
+																							'hover:bg-muted/30',
+																							isCellSelected(
+																								trackIndex,
+																								beatIndex
+																							) &&
+																								'ring-2 ring-primary'
+																						)}
+																						onClick={(
+																							e
+																						) => {
+																							handleCellSelect(
+																								trackIndex,
+																								beatIndex,
+																								e
+																							);
+																							// Optionally, also toggle event on click if desired
+																							// toggleEvent(trackIndex, beatIndex);
+																						}}
+																						onContextMenu={(
+																							e
+																						) => {
+																							handleCellSelect(
+																								trackIndex,
+																								beatIndex,
+																								e
+																							);
+																						}}
+																					>
+																						{hasEvent && (
+																							<div
+																								className={`w-5 h-5 rounded-full ${
+																									TRACK_COLORS[
+																										trackIndex %
+																											TRACK_COLORS.length
+																									]
+																								}`}
+																							/>
+																						)}
+																					</div>
+																				</ContextMenuTrigger>
+																				<ContextMenuContent>
+																					<ContextMenuItem
+																						onClick={() =>
+																							handleCopy()
+																						}
+																						disabled={
+																							selectedEvents.length ===
+																							0
+																						}
+																					>
+																						Copy
+																					</ContextMenuItem>
+																					<ContextMenuItem
+																						onClick={() =>
+																							handlePaste(
+																								beatIndex
+																							)
+																						}
+																					>
+																						Paste
+																					</ContextMenuItem>
+																				</ContextMenuContent>
+																			</ContextMenu>
 																		);
 																	}
 																)}

@@ -1,3 +1,4 @@
+import { BattleEvent, SongEvent } from '@/types/song';
 import path from 'path-browserify';
 import { toast } from 'sonner';
 
@@ -157,6 +158,63 @@ export default async function loadSong3(songPath: string) {
 	if (song.moveLibRev !== 'mlib2') {
 		reportCorrupted();
 		return;
+	}
+
+	// We dropped support for
+	// Battle events: 'player1_solo_end' | 'player2_solo_end' | 'battle_start'
+	// Song events: 'freestyle_end'
+
+	function convertBattleEventType(type: string): string | null {
+		switch (type) {
+			case 'player1_solo_start':
+				return 'player1_solo';
+			case 'player2_solo_start':
+				return 'player2_solo';
+			case 'player1_solo_end':
+			case 'player2_solo_end':
+			case 'battle_start':
+				return 'battle_reset';
+			default:
+				return type;
+		}
+	}
+
+	function convertSongEventType(type: string): string | null {
+		switch (type) {
+			case 'freestyle_start':
+				return 'freestyle';
+			case 'freestyle_end':
+				return null;
+			default:
+				return type;
+		}
+	}
+
+	if (song.battleSteps) {
+		song.battleSteps = song.battleSteps
+			.map((event: BattleEvent) => ({
+				...event,
+				type: convertBattleEventType(event.type),
+			}))
+			.filter((event: BattleEvent) => event.type !== null);
+	}
+
+	if (song.partyBattleSteps) {
+		song.partyBattleSteps = song.partyBattleSteps
+			.map((event: BattleEvent) => ({
+				...event,
+				type: convertBattleEventType(event.type),
+			}))
+			.filter((event: BattleEvent) => event.type !== null);
+	}
+
+	if (song.events) {
+		song.events = song.events
+			.map((event: SongEvent) => ({
+				...event,
+				type: convertSongEventType(event.type),
+			}))
+			.filter((event: SongEvent) => event.type !== null);
 	}
 
 	const dirName = getLastPathSegment(songPath);
