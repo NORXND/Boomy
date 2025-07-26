@@ -456,21 +456,24 @@ export const DrumsTimeline = React.memo(
 																						onClick={(
 																							e
 																						) => {
-																							handleCellSelect(
+																							// Left click: toggle event only
+																							toggleEvent(
 																								trackIndex,
-																								beatIndex,
-																								e
+																								beatIndex
 																							);
-																							// Optionally, also toggle event on click if desired
-																							// toggleEvent(trackIndex, beatIndex);
 																						}}
-																						onContextMenu={(
+																						onMouseDown={(
 																							e
 																						) => {
-																							handleCellSelect(
-																								trackIndex,
-																								beatIndex,
-																								e
+																							// Right click: select cell only
+																							e.preventDefault();
+																							setSelectedEvents(
+																								[
+																									{
+																										trackIndex,
+																										beatIndex,
+																									},
+																								]
 																							);
 																						}}
 																					>

@@ -22,7 +22,7 @@
   <Content Include="Assets\**\*">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </Content>
-    <Content Include="..\BoomyDeps\makemogg\**\*">
+  <Content Include="..\BoomyDeps\makemogg\**\*">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </Content>
 </ItemGroup>

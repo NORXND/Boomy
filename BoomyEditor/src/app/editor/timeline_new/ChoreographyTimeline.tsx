@@ -33,6 +33,7 @@ export interface ChoreographyTimelineProps {
 	timelineScrollRef: React.RefObject<HTMLDivElement>;
 	pixelsPerBeat: number;
 	trackHeaderWidth: number;
+	addUndoAction: (action: any) => void; // <-- Add this prop
 }
 
 // Type for selected cells
@@ -54,6 +55,7 @@ export const ChoreographyTimeline = React.memo(
 		timelineScrollRef,
 		pixelsPerBeat,
 		trackHeaderWidth,
+		addUndoAction,
 	}: ChoreographyTimelineProps) {
 		// Use selective state from the store to prevent re-renders when unrelated state changes
 		const currentSong = useSongStore((state) => state.currentSong);
@@ -163,7 +165,6 @@ export const ChoreographyTimeline = React.memo(
 						e.dataTransfer.getData('application/json')
 					);
 
-					// Map our difficulty to the song store's difficulty format
 					const difficultyMap: Record<
 						string,
 						'supereasy' | 'easy' | 'medium' | 'expert'
@@ -196,6 +197,14 @@ export const ChoreographyTimeline = React.memo(
 								(event) => event.measure === measure.number
 							);
 							if (eventIndex !== -1) {
+								// Add to undo stack: move:remove
+								addUndoAction({
+									type: 'move:remove',
+									data: {
+										track: mappedDifficulty,
+										event: events[eventIndex],
+									},
+								});
 								removeMoveEvent(mappedDifficulty, eventIndex);
 							}
 						}
@@ -210,12 +219,21 @@ export const ChoreographyTimeline = React.memo(
 						};
 
 						addMoveEvent(mappedDifficulty, moveEvent);
+
+						// Add to undo stack: move:add
+						addUndoAction({
+							type: 'move:add',
+							data: {
+								track: mappedDifficulty,
+								event: moveEvent,
+							},
+						});
 					}
 				} catch (err) {
 					console.error('Failed to handle drop:', err);
 				}
 			},
-			[addMoveEvent, removeMoveEvent, currentSong]
+			[addMoveEvent, removeMoveEvent, currentSong, addUndoAction]
 		);
 
 		// Handle cell selection
@@ -358,6 +376,9 @@ export const ChoreographyTimeline = React.memo(
 					return;
 				}
 
+				const addedEvents: any[] = [];
+				const removedEvents: any[] = [];
+
 				for (const item of clipboardPayload.data) {
 					const difficultyMap: Record<
 						string,
@@ -373,19 +394,27 @@ export const ChoreographyTimeline = React.memo(
 
 					// Remove any existing event at this measure
 					let existingEventIndex;
+					let existingEvent;
 					if (mappedDifficulty === 'supereasy') {
 						existingEventIndex = currentSong.supereasy.findIndex(
 							(event) => event.measure === newMeasure
 						);
+						existingEvent =
+							currentSong.supereasy[existingEventIndex];
 					} else {
 						existingEventIndex = currentSong.timeline[
 							mappedDifficulty
 						].moves.findIndex(
 							(event) => event.measure === newMeasure
 						);
+						existingEvent =
+							currentSong.timeline[mappedDifficulty].moves[
+								existingEventIndex
+							];
 					}
-					if (existingEventIndex !== -1) {
+					if (existingEventIndex !== -1 && existingEvent) {
 						removeMoveEvent(mappedDifficulty, existingEventIndex);
+						removedEvents.push(existingEvent);
 					}
 
 					// Add the new event
@@ -394,16 +423,42 @@ export const ChoreographyTimeline = React.memo(
 						measure: newMeasure,
 					};
 					addMoveEvent(mappedDifficulty, newEvent);
+					addedEvents.push(newEvent);
+				}
+
+				// Add to undo stack as bulk operation
+				if (addedEvents.length > 0) {
+					addUndoAction({
+						type: 'move:bulkadd',
+						data: {
+							track: targetDifficulty,
+							events: addedEvents,
+						},
+					});
+				}
+				if (removedEvents.length > 0) {
+					addUndoAction({
+						type: 'move:bulkremove',
+						data: {
+							track: targetDifficulty,
+							events: removedEvents,
+						},
+					});
 				}
 			},
-			[clipboardData, currentSong, addMoveEvent, removeMoveEvent]
+			[
+				clipboardData,
+				currentSong,
+				addMoveEvent,
+				removeMoveEvent,
+				addUndoAction,
+			]
 		);
 
 		// Delete selected moves
 		const handleDelete = useCallback(() => {
 			if (selectedCells.length === 0 || !currentSong) return;
 
-			// Sort in reverse order by index to avoid index shifting issues
 			const toDelete = selectedCells
 				.map((cell) => {
 					const difficultyMap: Record<
@@ -432,6 +487,7 @@ export const ChoreographyTimeline = React.memo(
 						return {
 							difficulty: mappedDifficulty,
 							index: eventIndex,
+							event: events[eventIndex],
 						};
 					}
 					return null;
@@ -439,16 +495,22 @@ export const ChoreographyTimeline = React.memo(
 				.filter(Boolean)
 				.sort((a, b) => b!.index - a!.index);
 
-			// Remove each event
+			// Remove each event and add to undo stack
 			for (const item of toDelete) {
 				if (item) {
 					removeMoveEvent(item.difficulty, item.index);
+					addUndoAction({
+						type: 'move:remove',
+						data: {
+							track: item.difficulty,
+							event: item.event,
+						},
+					});
 				}
 			}
 
-			// Clear selection after deleting
 			setSelectedCells([]);
-		}, [selectedCells, currentSong, removeMoveEvent]);
+		}, [selectedCells, currentSong, removeMoveEvent, addUndoAction]);
 
 		// Handle move event click
 		const handleMoveEventClick = useCallback(

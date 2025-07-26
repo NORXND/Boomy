@@ -16,6 +16,8 @@ import {
 	Lock,
 	Unlock,
 	Layers,
+	Undo2,
+	Redo2,
 } from 'lucide-react';
 import { useSongStore } from '../../store/songStore';
 import { useTimelineContext } from '../../contexts/TimelineContext';
@@ -87,8 +89,6 @@ export function NewTimelineRoot({
 		currentSong,
 		saveSong,
 		isLoading: isSaving,
-		addTempoChange,
-		updateTempoChange,
 		totalMeasures,
 		setTotalMeasures,
 	} = useSongStore();
@@ -786,19 +786,362 @@ export function NewTimelineRoot({
 		return () => window.removeEventListener('keydown', handleKeyDown);
 	}, [currentSong, isSaving, saveSong]);
 
-	// The timeline components are already memoized, so we don't need to wrap them again
-	// Using the already memoized components directly
+	// --- Undo/Redo Types ---
+	type TimelineAction =
+		| {
+				type: 'move:add';
+				data: {
+					track: 'supereasy' | 'easy' | 'medium' | 'expert';
+					event: any;
+				};
+		  }
+		| {
+				type: 'move:remove';
+				data: {
+					track: 'supereasy' | 'easy' | 'medium' | 'expert';
+					event: any;
+				};
+		  }
+		| {
+				type: 'move:bulkadd';
+				data: {
+					track: 'supereasy' | 'easy' | 'medium' | 'expert';
+					events: any[];
+				};
+		  }
+		| {
+				type: 'move:bulkremove';
+				data: {
+					track: 'supereasy' | 'easy' | 'medium' | 'expert';
+					events: any[];
+				};
+		  }
+		| {
+				type: 'camera:add';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					event: any;
+				};
+		  }
+		| {
+				type: 'camera:remove';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					event: any;
+				};
+		  }
+		| {
+				type: 'camera:bulkadd';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					events: any[];
+				};
+		  }
+		| {
+				type: 'camera:bulkremove';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					events: any[];
+				};
+		  }
+		| { type: 'drum:add'; data: { track: string; event: any } }
+		| { type: 'drum:remove'; data: { track: string; event: any } }
+		| { type: 'drum:bulkadd'; data: { track: string; events: any[] } }
+		| { type: 'drum:bulkremove'; data: { track: string; events: any[] } }
+		| { type: 'event:add'; data: { event: any } }
+		| { type: 'event:remove'; data: { event: any } };
 
-	const parentRef = useRef<HTMLDivElement>(null);
+	// --- Undo/Redo State ---
+	const [undoStack, setUndoStack] = useState<TimelineAction[]>([]);
+	const [redoStack, setRedoStack] = useState<TimelineAction[]>([]);
 
-	const measureCount = timelineData?.measures?.length ?? 0;
+	// --- Undo/Redo Handlers ---
+	const addUndoAction = useCallback((action: TimelineAction) => {
+		setUndoStack((stack) => [...stack, action]);
+		setRedoStack([]); // Clear redo on new action
+	}, []);
 
-	const rowVirtualizer = useVirtualizer({
-		count: measureCount,
-		getScrollElement: () => parentRef.current,
-		estimateSize: () => 60,
-		overscan: 5,
-	});
+	const undo = useCallback(() => {
+		if (undoStack.length === 0) return;
+		const last = undoStack[undoStack.length - 1];
+		setUndoStack((stack) => stack.slice(0, -1));
+		setRedoStack((stack) => [...stack, last]);
+
+		switch (last.type) {
+			case 'move:add':
+				useSongStore
+					.getState()
+					.removeMoveEvent(last.data.track, last.data.event.index);
+				break;
+			case 'move:remove':
+				useSongStore
+					.getState()
+					.addMoveEvent(last.data.track, last.data.event);
+				break;
+			case 'move:bulkadd':
+				last.data.events.forEach((ev) =>
+					useSongStore
+						.getState()
+						.removeMoveEvent(last.data.track, ev.index)
+				);
+				break;
+			case 'move:bulkremove':
+				last.data.events.forEach((ev) =>
+					useSongStore.getState().addMoveEvent(last.data.track, ev)
+				);
+				break;
+			case 'camera:add':
+				useSongStore
+					.getState()
+					.removeCameraEvent(last.data.track, last.data.event.index);
+				break;
+			case 'camera:remove':
+				useSongStore
+					.getState()
+					.addCameraEvent(last.data.track, last.data.event);
+				break;
+			case 'camera:bulkadd':
+				last.data.events.forEach((ev) =>
+					useSongStore
+						.getState()
+						.removeCameraEvent(last.data.track, ev.index)
+				);
+				break;
+			case 'camera:bulkremove':
+				last.data.events.forEach((ev) =>
+					useSongStore.getState().addCameraEvent(last.data.track, ev)
+				);
+				break;
+			case 'drum:add': {
+				// Remove drum event by updating drums array
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: track.events.filter(
+										(e: any) =>
+											JSON.stringify(e) !==
+											JSON.stringify(last.data.event)
+									),
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+			case 'drum:remove': {
+				// Add drum event by updating drums array
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: [...track.events, last.data.event],
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+			case 'drum:bulkadd': {
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: track.events.filter(
+										(e: any) =>
+											!last.data.events.some(
+												(ev: any) =>
+													JSON.stringify(e) ===
+													JSON.stringify(ev)
+											)
+									),
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+			case 'drum:bulkremove': {
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: [
+										...track.events,
+										...last.data.events,
+									],
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+		}
+	}, [undoStack]);
+
+	const redo = useCallback(() => {
+		if (redoStack.length === 0) return;
+		const last = redoStack[redoStack.length - 1];
+		setRedoStack((stack) => stack.slice(0, -1));
+		setUndoStack((stack) => [...stack, last]);
+
+		switch (last.type) {
+			case 'move:add':
+				useSongStore
+					.getState()
+					.addMoveEvent(last.data.track, last.data.event);
+				break;
+			case 'move:remove':
+				useSongStore
+					.getState()
+					.removeMoveEvent(last.data.track, last.data.event.index);
+				break;
+			case 'move:bulkadd':
+				last.data.events.forEach((ev) =>
+					useSongStore.getState().addMoveEvent(last.data.track, ev)
+				);
+				break;
+			case 'move:bulkremove':
+				last.data.events.forEach((ev) =>
+					useSongStore
+						.getState()
+						.removeMoveEvent(last.data.track, ev.index)
+				);
+				break;
+			case 'camera:add':
+				useSongStore
+					.getState()
+					.addCameraEvent(last.data.track, last.data.event);
+				break;
+			case 'camera:remove':
+				useSongStore
+					.getState()
+					.removeCameraEvent(last.data.track, last.data.event.index);
+				break;
+			case 'camera:bulkadd':
+				last.data.events.forEach((ev) =>
+					useSongStore.getState().addCameraEvent(last.data.track, ev)
+				);
+				break;
+			case 'camera:bulkremove':
+				last.data.events.forEach((ev) =>
+					useSongStore
+						.getState()
+						.removeCameraEvent(last.data.track, ev.index)
+				);
+				break;
+			case 'drum:add': {
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: [...track.events, last.data.event],
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+			case 'drum:remove': {
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: track.events.filter(
+										(e: any) =>
+											JSON.stringify(e) !==
+											JSON.stringify(last.data.event)
+									),
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+			case 'drum:bulkadd': {
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: [
+										...track.events,
+										...last.data.events,
+									],
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+			case 'drum:bulkremove': {
+				const drums = useSongStore.getState().currentSong?.drums || [];
+				const trackIdx = drums.findIndex(
+					(t) => t.sound === last.data.track
+				);
+				if (trackIdx !== -1) {
+					const newDrums = drums.map((track, i) =>
+						i === trackIdx
+							? {
+									...track,
+									events: track.events.filter(
+										(e: any) =>
+											!last.data.events.some(
+												(ev: any) =>
+													JSON.stringify(e) ===
+													JSON.stringify(ev)
+											)
+									),
+							  }
+							: track
+					);
+					useSongStore.getState().updateDrums(newDrums);
+				}
+				break;
+			}
+		}
+	}, [redoStack]);
 
 	// Memoize stable callback functions to prevent recreation on each render
 	const calculateCursorPositionMemo = useCallback(calculateCursorPosition, [
@@ -810,17 +1153,8 @@ export function NewTimelineRoot({
 	// Memoize the timeline props to prevent recreation on each render
 	// The important part is to ensure that our props object is stable across renders
 	// This is critical for preventing unnecessary child re-renders in StrictMode
-	const timelineProps = useMemo(() => {
-		// Log for debugging in development, only for active instance
-		if (
-			process.env.NODE_ENV === 'development' &&
-			(mountedRef.current.size <= 1 ||
-				Array.from(mountedRef.current).pop() === instanceId)
-		) {
-			console.log('Recalculating timelineProps');
-		}
-
-		return {
+	const timelineProps = useMemo(
+		() => ({
 			timelineData,
 			currentTime,
 			isPlaying,
@@ -829,20 +1163,22 @@ export function NewTimelineRoot({
 			handleSeek: handleSeekMemo,
 			timeToBeat: timeToBeatMemo,
 			timelineScrollRef,
-			// Include instanceId for child components to detect which instance they belong to
 			_instanceId: instanceId,
-		};
-	}, [
-		timelineData,
-		currentTime,
-		isPlaying,
-		autoScroll,
-		calculateCursorPositionMemo,
-		handleSeekMemo,
-		timeToBeatMemo,
-		timelineScrollRef,
-		instanceId,
-	]);
+			addUndoAction, // Pass to all timelines
+		}),
+		[
+			timelineData,
+			currentTime,
+			isPlaying,
+			autoScroll,
+			calculateCursorPositionMemo,
+			handleSeekMemo,
+			timeToBeatMemo,
+			timelineScrollRef,
+			instanceId,
+			addUndoAction,
+		]
+	);
 
 	return (
 		<div className="h-full flex flex-col overflow-hidden max-w-full">
@@ -916,8 +1252,28 @@ export function NewTimelineRoot({
 								</div>
 							</div>
 
-							{/* Playback Controls */}
+							{/* Playback Controls & Global Undo/Redo */}
 							<div className="flex items-center gap-2">
+								{/* Undo/Redo Buttons */}
+								<button
+									onClick={undo}
+									className="p-2 rounded hover:bg-muted transition-colors"
+									title="Undo"
+									disabled={undoStack.length === 0}
+								>
+									<Undo2 className="w-4 h-4" />
+								</button>
+								<button
+									onClick={redo}
+									className="p-2 rounded hover:bg-muted transition-colors"
+									title="Redo"
+									disabled={redoStack.length === 0}
+								>
+									<Redo2 className="w-4 h-4" />
+								</button>
+
+								<div className="w-px h-6 bg-border mx-2" />
+
 								<button
 									onClick={() => handleSeek(0)}
 									className="p-2 rounded hover:bg-muted transition-colors"

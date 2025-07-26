@@ -30,8 +30,8 @@ namespace BoomyBuilder.Builder
                 switch (ev.Type)
                 {
                     case BattleEventType.BattleReset:
-                        bool isFirstBattleReset = (i == 0);
-                        int musicRangeStart = isFirstBattleReset ? firstMeasure : start;
+                        // Only the first BattleReset (with the lowest measure) gets musicRange.start = 1
+                        int musicRangeStart = (ev.Measure == firstMeasure) ? 1 : start;
                         data.mBattleSteps.Add(new HamBattleData.BattleStep
                         {
                             mPlayers = PlayerFlags.kHamPlayerBoth,
@@ -106,17 +106,17 @@ namespace BoomyBuilder.Builder
                         });
 
                         // After minigame, add reset step starting 2 measures before minigame start
-                        // int resetStart = Math.Max(0, minigameStart - 2);
-                        // int resetEnd = (j + 1 < count) ? sorted[j + 1].Measure - 1 : totalMeasures - 1;
-                        // data.mBattleSteps.Add(new HamBattleData.BattleStep
-                        // {
-                        //     mPlayers = PlayerFlags.kHamPlayerBoth,
-                        //     mMusicRange = new HamBattleData.BattleStep.Range() { start = resetStart, end = resetEnd },
-                        //     mPlayRange = new HamBattleData.BattleStep.Range() { start = resetStart, end = resetEnd },
-                        //     mCam = (Symbol)"",
-                        //     mNonplayAction = (Symbol)"idle",
-                        //     mState = (Symbol)"normal",
-                        // });
+                        int resetStart = Math.Max(0, minigameStart - 2);
+                        int resetEnd = (j + 1 < count) ? sorted[j + 1].Measure - 1 : totalMeasures - 1;
+                        data.mBattleSteps.Add(new HamBattleData.BattleStep
+                        {
+                            mPlayers = PlayerFlags.kHamPlayerBoth,
+                            mMusicRange = new HamBattleData.BattleStep.Range() { start = resetStart, end = resetEnd },
+                            mPlayRange = new HamBattleData.BattleStep.Range() { start = resetStart, end = resetEnd },
+                            mCam = (Symbol)"",
+                            mNonplayAction = (Symbol)"idle",
+                            mState = (Symbol)"normal",
+                        });
 
                         i = j + 1; // Skip to after MinigameEnd
                         break;

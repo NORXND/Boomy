@@ -37,6 +37,7 @@ export function EditorSidebar() {
 		currentSong,
 		isLoading: isSaving,
 		totalMeasures,
+		clearSong,
 	} = useSongStore();
 
 	const songStore = useSongStore.getState();
@@ -360,6 +361,10 @@ export function EditorSidebar() {
 		setActiveSection(activeSection === typedSection ? null : typedSection);
 	};
 
+	function handleExit() {
+		clearSong();
+	}
+
 	return (
 		<>
 			<Sidebar>
@@ -502,6 +507,15 @@ export function EditorSidebar() {
 									disabled={!currentSong}
 								>
 									<h1 className="font-bold">Export & Save</h1>
+								</SidebarMenuButton>
+								<SidebarMenuButton
+									size="lg"
+									onClick={handleExit}
+									disabled={!currentSong}
+								>
+									<h1 className="font-bold">
+										Exit (without saving)
+									</h1>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>

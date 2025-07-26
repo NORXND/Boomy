@@ -288,6 +288,18 @@ export function setupEdgeHandlers() {
 				child.on('close', async (code) => {
 					let output;
 					let parseError = false;
+
+					try {
+						await fs.writeFile(
+							'build.log',
+							`STDIN:\n${JSON.stringify(
+								request
+							)}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`
+						);
+					} catch (logErr) {
+						console.error('Failed to write build.log:', logErr);
+					}
+
 					try {
 						output = JSON.parse(stdout.trim());
 						resolve(output);
@@ -299,18 +311,7 @@ export function setupEdgeHandlers() {
 							details: stdout + stderr,
 						};
 					}
-					if (parseError || (output && output.success === false)) {
-						try {
-							await fs.writeFile(
-								'build.log',
-								`STDIN:\n${JSON.stringify(
-									request
-								)}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`
-							);
-						} catch (logErr) {
-							console.error('Failed to write build.log:', logErr);
-						}
-					}
+
 					if (parseError) resolve(output);
 				});
 				child.stdin.write(JSON.stringify(request));

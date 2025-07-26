@@ -41,7 +41,7 @@ export async function checkSongEvents(
 
 	// 2. Freestyle existence and timing
 	const freestyleStart = events
-		.filter((e) => e.type === 'freestyle_start')
+		.filter((e) => e.type === 'freestyle')
 		.sort((a, b) => a.beat - b.beat)[0];
 
 	if (!freestyleStart) {

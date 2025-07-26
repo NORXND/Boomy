@@ -145,13 +145,13 @@ export async function createSong(
 			partyJumps: [],
 			battleSteps: [
 				{
-					type: 'battle_start',
+					type: 'battle_reset',
 					measure: 0,
 				},
 			],
 			partyBattleSteps: [
 				{
-					type: 'battle_start',
+					type: 'battle_reset',
 					measure: 0,
 				},
 			],
