@@ -27,6 +27,7 @@ export interface CameraShotsTimelineProps {
 	timelineScrollRef: React.RefObject<HTMLDivElement>;
 	pixelsPerBeat: number;
 	trackHeaderWidth: number;
+	addUndoAction: (action: any) => void;
 }
 
 // Type for selected cells
@@ -48,6 +49,7 @@ export const CameraShotsTimeline = React.memo(
 		timelineScrollRef,
 		pixelsPerBeat,
 		trackHeaderWidth,
+		addUndoAction,
 	}: CameraShotsTimelineProps) {
 		// Use selective state from the store to prevent re-renders when unrelated state changes
 		const currentSong = useSongStore((state) => state.currentSong);
@@ -160,6 +162,14 @@ export const CameraShotsTimeline = React.memo(
 							);
 							if (eventIndex !== -1) {
 								removeCameraEvent(difficulty, eventIndex);
+								addUndoAction({
+									type: 'camera:remove',
+									data: {
+										track: difficulty,
+										index: eventIndex,
+										event: events[eventIndex],
+									},
+								});
 							}
 						}
 
@@ -170,6 +180,13 @@ export const CameraShotsTimeline = React.memo(
 						};
 
 						addCameraEvent(difficulty, cameraEvent);
+						addUndoAction({
+							type: 'camera:add',
+							data: {
+								track: difficulty,
+								event: cameraEvent,
+							},
+						});
 					}
 				} catch (err) {
 					console.error('Failed to handle drop:', err);
@@ -300,6 +317,8 @@ export const CameraShotsTimeline = React.memo(
 					return;
 				}
 
+				const clipboardEvents = [];
+				const clipboardRemoveEvents: any[] = [];
 				for (const item of clipboardPayload.data) {
 					const newBeat = targetBeat + (item.offset ?? 0);
 
@@ -319,7 +338,23 @@ export const CameraShotsTimeline = React.memo(
 					};
 
 					addCameraEvent(targetDifficulty, newEvent);
+					clipboardEvents.push(newEvent);
 				}
+
+				addUndoAction({
+					type: 'camera:bulkremove',
+					data: {
+						track: targetDifficulty,
+						events: clipboardRemoveEvents,
+					},
+				});
+				addUndoAction({
+					type: 'camera:bulkadd',
+					data: {
+						track: targetDifficulty,
+						event: clipboardEvents,
+					},
+				});
 			},
 			[clipboardData, currentSong, addCameraEvent, removeCameraEvent]
 		);

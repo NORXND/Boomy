@@ -48,6 +48,7 @@ export interface EventsTimelineProps {
 	tempoChanges: TempoChange[];
 	pixelsPerBeat: number;
 	trackHeaderWidth: number;
+	addUndoAction: (action: any) => void;
 }
 
 // Event types
@@ -98,6 +99,7 @@ export const EventsTimeline = React.memo(
 		tempoChanges,
 		pixelsPerBeat,
 		trackHeaderWidth,
+		addUndoAction,
 	}: EventsTimelineProps) {
 		renderCount++;
 		// Debug: log every render and key props, but only in development
@@ -249,12 +251,31 @@ export const EventsTimeline = React.memo(
 			);
 			if (existingIdx !== -1) {
 				removeEvent(existingIdx);
+
+				addUndoAction({
+					type: 'events:remove',
+					data: {
+						track: 'song',
+						event: events[existingIdx],
+					},
+				});
 			}
 
 			// Add the new event
 			addEvent({
 				type: selectedEventType,
 				beat: selectedBeat,
+			});
+
+			addUndoAction({
+				type: 'events:add',
+				data: {
+					track: 'song',
+					event: {
+						type: selectedEventType,
+						beat: selectedBeat,
+					},
+				},
 			});
 
 			setShowAddEventDialog(false);
@@ -271,6 +292,16 @@ export const EventsTimeline = React.memo(
 			(eventIndex: number, e: React.MouseEvent) => {
 				e.stopPropagation();
 				removeEvent(eventIndex);
+
+				addUndoAction({
+					type: 'events:remove',
+					data: {
+						track: 'song',
+						event: useSongStore.getState().currentSong?.events[
+							eventIndex
+						],
+					},
+				});
 			},
 			[]
 		);
@@ -288,6 +319,18 @@ export const EventsTimeline = React.memo(
 				measure: selectedBattleBeat,
 				type: selectedBattleType,
 			});
+
+			addUndoAction({
+				type: 'events:add',
+				data: {
+					track: 'battle',
+					event: {
+						measure: selectedBattleBeat,
+						type: selectedBattleType,
+					},
+				},
+			});
+
 			setShowAddBattleDialog(false);
 		}, [selectedBattleBeat, selectedBattleType, addBattleStep]);
 
@@ -295,6 +338,14 @@ export const EventsTimeline = React.memo(
 		const handleRemoveBattleEvent = useCallback(
 			(index: number) => {
 				removeBattleStep(index);
+
+				addUndoAction({
+					type: 'events:remove',
+					data: {
+						track: 'battle',
+						event: battleSteps[index],
+					},
+				});
 			},
 			[removeBattleStep]
 		);
@@ -325,6 +376,18 @@ export const EventsTimeline = React.memo(
 				measure: selectedPartyJumpBeat,
 				type: selectedPartyJumpType,
 			});
+
+			addUndoAction({
+				type: 'events:add',
+				data: {
+					track: 'party',
+					event: {
+						measure: selectedPartyJumpBeat,
+						type: selectedPartyJumpType,
+					},
+				},
+			});
+
 			setShowAddPartyJumpDialog(false);
 		}, [
 			selectedPartyJumpBeat,
@@ -367,12 +430,31 @@ export const EventsTimeline = React.memo(
 			);
 			if (idx !== -1) {
 				removepartyBattleSteps(idx);
+				addUndoAction({
+					type: 'events:remove',
+					data: {
+						track: 'partybattle',
+						event: partyBattleSteps[idx],
+					},
+				});
 			}
 
 			addpartyBattleSteps({
 				measure: selectedPartyBattleBeat,
 				type: selectedPartyBattleType,
 			});
+
+			addUndoAction({
+				type: 'events:add',
+				data: {
+					track: 'partybattle',
+					event: {
+						measure: selectedPartyBattleBeat,
+						type: selectedPartyBattleType,
+					},
+				},
+			});
+
 			setShowAddPartyBattleDialog(false);
 		}, [
 			selectedPartyBattleBeat,
@@ -386,6 +468,13 @@ export const EventsTimeline = React.memo(
 		const handleRemovePartyBattleEvent = useCallback(
 			(index: number) => {
 				removepartyBattleSteps(index);
+				addUndoAction({
+					type: 'events:remove',
+					data: {
+						track: 'partybattle',
+						event: partyBattleSteps[index],
+					},
+				});
 			},
 			[removepartyBattleSteps]
 		);

@@ -844,22 +844,34 @@ export function NewTimelineRoot({
 					events: any[];
 				};
 		  }
-		| { type: 'drum:add'; data: { track: string; event: any } }
-		| { type: 'drum:remove'; data: { track: string; event: any } }
-		| { type: 'drum:bulkadd'; data: { track: string; events: any[] } }
-		| { type: 'drum:bulkremove'; data: { track: string; events: any[] } }
-		| { type: 'event:add'; data: { track: string; event: any } }
-		| { type: 'event:remove'; data: { track: string; event: any } };
+		| { type: 'drums:trackadd'; data: { track: string; event: any } }
+		| { type: 'drums:trackremove'; data: { track: string; event: any } }
+		| { type: 'drums:drumadd'; data: { track: string; event: any } }
+		| { type: 'drums:drumremove'; data: { track: string; event: any } }
+		| {
+				type: 'events:add';
+				data: {
+					track: 'song' | 'battle' | 'party' | 'partybattle';
+					event: any;
+				};
+		  }
+		| {
+				type: 'events:remove';
+				data: {
+					track: 'song' | 'battle' | 'party' | 'partybattle';
+					event: any;
+				};
+		  };
 
 	// --- Undo/Redo State ---
 	const [undoStack, setUndoStack] = useState<TimelineAction[]>([]);
 	const [redoStack, setRedoStack] = useState<TimelineAction[]>([]);
 
 	// --- Undo/Redo Handlers ---
-	const addUndoAction = useCallback((action: TimelineAction) => {
+	const addUndoAction = (action: TimelineAction) => {
 		setUndoStack((stack) => [...stack, action]);
 		setRedoStack([]); // Clear redo on new action
-	}, []);
+	};
 
 	const undo = useCallback(() => {
 		if (undoStack.length === 0) return;
@@ -868,32 +880,79 @@ export function NewTimelineRoot({
 		setRedoStack((stack) => [...stack, last]);
 
 		switch (last.type) {
-			case 'move:add':
-				useSongStore
-					.getState()
-					.removeMoveEvent(last.data.track, last.data.event.measure);
+			case 'move:add': {
+				// Find the event index by measure
+				let idx;
+				if (last.data.track === 'supereasy') {
+					idx = useSongStore
+						.getState()
+						.currentSong?.supereasy.findIndex(
+							(ev: any) => ev.measure === last.data.event.measure
+						);
+				} else {
+					idx = useSongStore
+						.getState()
+						.currentSong?.timeline?.[
+							last.data.track
+						]?.moves.findIndex(
+							(ev: any) => ev.measure === last.data.event.measure
+						);
+				}
+
+				if (idx) {
+					useSongStore
+						.getState()
+						.removeMoveEvent(last.data.track, idx);
+				}
+
 				break;
-			case 'move:remove':
+			}
+			case 'move:remove': {
 				useSongStore
 					.getState()
 					.addMoveEvent(last.data.track, last.data.event);
 				break;
-			case 'move:bulkadd':
-				last.data.events.forEach((ev) =>
-					useSongStore
-						.getState()
-						.removeMoveEvent(last.data.track, ev.measure)
-				);
+			}
+			case 'move:bulkadd': {
+				let moves;
+				if (last.data.track === 'supereasy') {
+					moves =
+						useSongStore.getState().currentSong?.supereasy || [];
+				} else {
+					moves =
+						useSongStore.getState().currentSong?.timeline?.[
+							last.data.track
+						].moves || [];
+				}
+
+				last.data.events.forEach((ev: any) => {
+					const idx = moves.findIndex(
+						(move: any) => move.measure === ev.measure
+					);
+					if (idx !== -1) {
+						useSongStore
+							.getState()
+							.removeMoveEvent(last.data.track, idx);
+					}
+				});
 				break;
-			case 'move:bulkremove':
-				last.data.events.forEach((ev) =>
-					useSongStore.getState().addMoveEvent(last.data.track, ev)
-				);
+			}
+			case 'move:bulkremove': {
+				last.data.events.forEach((ev: any) => {
+					useSongStore.getState().addMoveEvent(last.data.track, ev);
+				});
 				break;
+			}
 			case 'camera:add':
-				useSongStore
+				const idx = useSongStore
 					.getState()
-					.removeCameraEvent(last.data.track, last.data.event.beat);
+					.currentSong?.timeline?.[
+						last.data.track
+					]?.cameras.findIndex(
+						(ev: any) => ev.beat === last.data.event.beat
+					);
+
+				useSongStore.getState().removeCameraEvent(last.data.track, idx);
 				break;
 			case 'camera:remove':
 				useSongStore
@@ -901,104 +960,121 @@ export function NewTimelineRoot({
 					.addCameraEvent(last.data.track, last.data.event);
 				break;
 			case 'camera:bulkadd':
-				last.data.events.forEach((ev) =>
+				last.data.events.forEach((ev) => {
+					const idx = useSongStore
+						.getState()
+						.currentSong?.timeline?.[
+							last.data.track
+						]?.cameras.findIndex(
+							(cam: any) => cam.beat === ev.beat
+						);
+
 					useSongStore
 						.getState()
-						.removeCameraEvent(last.data.track, ev.beat)
-				);
+						.removeCameraEvent(last.data.track, idx);
+				});
 				break;
 			case 'camera:bulkremove':
 				last.data.events.forEach((ev) =>
 					useSongStore.getState().addCameraEvent(last.data.track, ev)
 				);
 				break;
-			case 'drum:add': {
-				// Remove drum event by updating drums array
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
+			case 'drums:trackadd': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+
+				const newDrumsEvents = currDrums.filter(
+					(_, i) => i !== last.data.event.index
 				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: track.events.filter(
-										(e: any) =>
-											JSON.stringify(e) !==
-											JSON.stringify(last.data.event)
-									),
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
-				}
+				console.log('Removing drum event:', last.data.event);
+
+				useSongStore.getState().updateDrums(newDrumsEvents);
+
 				break;
 			}
-			case 'drum:remove': {
-				// Add drum event by updating drums array
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: [...track.events, last.data.event],
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
-				}
+			case 'drums:trackremove': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+
+				const newDrumsEvents = [...currDrums, last.data.event];
+				useSongStore.getState().updateDrums(newDrumsEvents);
 				break;
 			}
-			case 'drum:bulkadd': {
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: track.events.filter(
-										(e: any) =>
-											!last.data.events.some(
-												(ev: any) =>
-													JSON.stringify(e) ===
-													JSON.stringify(ev)
-											)
-									),
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
-				}
+			case 'drums:drumadd': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+
+				const newDrumsEvents = currDrums.map((drum) => {
+					if (drum.sound === last.data.track) {
+						return {
+							...drum,
+							events: drum.events.filter(
+								(ev) => ev !== last.data.event.beatIndex
+							),
+						};
+					}
+					return drum;
+				});
+
+				useSongStore.getState().updateDrums(newDrumsEvents);
 				break;
 			}
-			case 'drum:bulkremove': {
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: [
-										...track.events,
-										...last.data.events,
-									],
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
-				}
+			case 'drums:drumremove': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+
+				const newDrumsEvents = currDrums.map((drum) => {
+					if (drum.sound === last.data.track) {
+						return {
+							...drum,
+							events: [...drum.events, last.data.event.beatIndex],
+						};
+					}
+					return drum;
+				});
+
+				useSongStore.getState().updateDrums(newDrumsEvents);
 				break;
+			}
+			case 'events:add': {
+				switch (last.data.track) {
+					case 'song':
+						const songIdx = useSongStore
+							.getState()
+							.currentSong?.events.findIndex(
+								(ev) =>
+									ev.beat === last.data.event.beat &&
+									ev.type === last.data.event.type
+							);
+						useSongStore.getState().removeEvent(songIdx);
+					case 'battle':
+						const battleIdx = useSongStore
+							.getState()
+							.currentSong?.battleSteps.findIndex(
+								(step) =>
+									step.measure === last.data.event.measure
+							);
+						useSongStore.getState().removeBattleStep(battleIdx);
+						break;
+					case 'partybattle':
+						const partyBattleIdx = useSongStore
+							.getState()
+							.currentSong?.partyBattleSteps.findIndex(
+								(step) =>
+									step.measure === last.data.event.measure
+							);
+						useSongStore
+							.getState()
+							.removepartyBattleSteps(partyBattleIdx);
+						break;
+					case 'party':
+						const partyIdx = useSongStore
+							.getState()
+							.currentSong?.partyJumps.findIndex(
+								(ev) => ev.measure === last.data.event.measure
+							);
+						useSongStore.getState().removePartyJump(partyIdx);
+				}
 			}
 		}
 	}, [undoStack]);
@@ -1010,133 +1086,228 @@ export function NewTimelineRoot({
 		setUndoStack((stack) => [...stack, last]);
 
 		switch (last.type) {
-			case 'move:add':
+			case 'move:add': {
+				// Redo add: add the move event back
 				useSongStore
 					.getState()
 					.addMoveEvent(last.data.track, last.data.event);
 				break;
-			case 'move:remove':
-				useSongStore
-					.getState()
-					.removeMoveEvent(last.data.track, last.data.event.index);
-				break;
-			case 'move:bulkadd':
-				last.data.events.forEach((ev) =>
-					useSongStore.getState().addMoveEvent(last.data.track, ev)
-				);
-				break;
-			case 'move:bulkremove':
-				last.data.events.forEach((ev) =>
+			}
+			case 'move:remove': {
+				// Redo remove: remove the move event by measure
+				let idx;
+				if (last.data.track === 'supereasy') {
+					idx = useSongStore
+						.getState()
+						.currentSong?.supereasy.findIndex(
+							(ev: any) => ev.measure === last.data.event.measure
+						);
+				} else {
+					idx = useSongStore
+						.getState()
+						.currentSong?.timeline?.[
+							last.data.track
+						]?.moves.findIndex(
+							(ev: any) => ev.measure === last.data.event.measure
+						);
+				}
+				if (idx !== undefined && idx !== -1) {
 					useSongStore
 						.getState()
-						.removeMoveEvent(last.data.track, ev.index)
-				);
+						.removeMoveEvent(last.data.track, idx);
+				}
 				break;
-			case 'camera:add':
+			}
+			case 'move:bulkadd': {
+				// Redo bulk add: add all move events back
+				last.data.events.forEach((ev: any) => {
+					useSongStore.getState().addMoveEvent(last.data.track, ev);
+				});
+				break;
+			}
+			case 'move:bulkremove': {
+				// Redo bulk remove: remove all move events by measure
+				let moves;
+				if (last.data.track === 'supereasy') {
+					moves =
+						useSongStore.getState().currentSong?.supereasy || [];
+				} else {
+					moves =
+						useSongStore.getState().currentSong?.timeline?.[
+							last.data.track
+						].moves || [];
+				}
+				last.data.events.forEach((ev: any) => {
+					const idx = moves.findIndex(
+						(move: any) => move.measure === ev.measure
+					);
+					if (idx !== -1) {
+						useSongStore
+							.getState()
+							.removeMoveEvent(last.data.track, idx);
+					}
+				});
+				break;
+			}
+			case 'camera:add': {
+				// Redo add: add the camera event back
 				useSongStore
 					.getState()
 					.addCameraEvent(last.data.track, last.data.event);
 				break;
-			case 'camera:remove':
-				useSongStore
+			}
+			case 'camera:remove': {
+				// Redo remove: remove the camera event by beat
+				const idx = useSongStore
 					.getState()
-					.removeCameraEvent(last.data.track, last.data.event.index);
-				break;
-			case 'camera:bulkadd':
-				last.data.events.forEach((ev) =>
-					useSongStore.getState().addCameraEvent(last.data.track, ev)
-				);
-				break;
-			case 'camera:bulkremove':
-				last.data.events.forEach((ev) =>
+					.currentSong?.timeline?.[
+						last.data.track
+					]?.cameras.findIndex(
+						(ev: any) => ev.beat === last.data.event.beat
+					);
+				if (idx !== undefined && idx !== -1) {
 					useSongStore
 						.getState()
-						.removeCameraEvent(last.data.track, ev.index)
-				);
-				break;
-			case 'drum:add': {
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: [...track.events, last.data.event],
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
+						.removeCameraEvent(last.data.track, idx);
 				}
 				break;
 			}
-			case 'drum:remove': {
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: track.events.filter(
-										(e: any) =>
-											JSON.stringify(e) !==
-											JSON.stringify(last.data.event)
-									),
-							  }
-							: track
+			case 'camera:bulkadd': {
+				// Redo bulk add: add all camera events back
+				last.data.events.forEach((ev: any) => {
+					useSongStore.getState().addCameraEvent(last.data.track, ev);
+				});
+				break;
+			}
+			case 'camera:bulkremove': {
+				// Redo bulk remove: remove all camera events by beat
+				const cameras =
+					useSongStore.getState().currentSong?.timeline?.[
+						last.data.track
+					]?.cameras || [];
+				last.data.events.forEach((ev: any) => {
+					const idx = cameras.findIndex(
+						(cam: any) => cam.beat === ev.beat
 					);
-					useSongStore.getState().updateDrums(newDrums);
+					if (idx !== -1) {
+						useSongStore
+							.getState()
+							.removeCameraEvent(last.data.track, idx);
+					}
+				});
+				break;
+			}
+			case 'drums:trackadd': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+				const newDrumsEvents = [...currDrums, last.data.event];
+				useSongStore.getState().updateDrums(newDrumsEvents);
+				break;
+			}
+			case 'drums:trackremove': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+				const newDrumsEvents = currDrums.filter(
+					(_, i) => i !== last.data.event.index
+				);
+				useSongStore.getState().updateDrums(newDrumsEvents);
+				break;
+			}
+			case 'drums:drumadd': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+				const newDrumsEvents = currDrums.map((drum) => {
+					if (drum.sound === last.data.track) {
+						return {
+							...drum,
+							events: [...drum.events, last.data.event.beatIndex],
+						};
+					}
+					return drum;
+				});
+				useSongStore.getState().updateDrums(newDrumsEvents);
+				break;
+			}
+			case 'drums:drumremove': {
+				const currDrums = useSongStore.getState().currentSong?.drums;
+				if (!currDrums) return;
+				const newDrumsEvents = currDrums.map((drum) => {
+					if (drum.sound === last.data.track) {
+						return {
+							...drum,
+							events: drum.events.filter(
+								(ev) => ev !== last.data.event.beatIndex
+							),
+						};
+					}
+					return drum;
+				});
+				useSongStore.getState().updateDrums(newDrumsEvents);
+				break;
+			}
+			case 'events:add': {
+				switch (last.data.track) {
+					case 'song':
+						useSongStore.getState().addEvent(last.data.event);
+						break;
+					case 'battle':
+						useSongStore.getState().addBattleStep(last.data.event);
+						break;
+					case 'partybattle':
+						useSongStore
+							.getState()
+							.addpartyBattleSteps(last.data.event);
+						break;
+					case 'party':
+						useSongStore.getState().addPartyJump(last.data.event);
+						break;
 				}
 				break;
 			}
-			case 'drum:bulkadd': {
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: [
-										...track.events,
-										...last.data.events,
-									],
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
-				}
-				break;
-			}
-			case 'drum:bulkremove': {
-				const drums = useSongStore.getState().currentSong?.drums || [];
-				const trackIdx = drums.findIndex(
-					(t) => t.sound === last.data.track
-				);
-				if (trackIdx !== -1) {
-					const newDrums = drums.map((track, i) =>
-						i === trackIdx
-							? {
-									...track,
-									events: track.events.filter(
-										(e: any) =>
-											!last.data.events.some(
-												(ev: any) =>
-													JSON.stringify(e) ===
-													JSON.stringify(ev)
-											)
-									),
-							  }
-							: track
-					);
-					useSongStore.getState().updateDrums(newDrums);
+			case 'events:remove': {
+				switch (last.data.track) {
+					case 'song': {
+						const songIdx = useSongStore
+							.getState()
+							.currentSong?.events.findIndex(
+								(ev) =>
+									ev.beat === last.data.event.beat &&
+									ev.type === last.data.event.type
+							);
+						useSongStore.getState().removeEvent(songIdx);
+						break;
+					}
+					case 'battle': {
+						const battleIdx = useSongStore
+							.getState()
+							.currentSong?.battleSteps.findIndex(
+								(step) =>
+									step.measure === last.data.event.measure
+							);
+						useSongStore.getState().removeBattleStep(battleIdx);
+						break;
+					}
+					case 'partybattle': {
+						const partyBattleIdx = useSongStore
+							.getState()
+							.currentSong?.partyBattleSteps.findIndex(
+								(step) =>
+									step.measure === last.data.event.measure
+							);
+						useSongStore
+							.getState()
+							.removepartyBattleSteps(partyBattleIdx);
+						break;
+					}
+					case 'party': {
+						const partyIdx = useSongStore
+							.getState()
+							.currentSong?.partyJumps.findIndex(
+								(ev) => ev.measure === last.data.event.measure
+							);
+						useSongStore.getState().removePartyJump(partyIdx);
+						break;
+					}
 				}
 				break;
 			}

@@ -45,17 +45,16 @@ export interface DrumsTimelineProps {
 	timelineScrollRef: React.RefObject<HTMLDivElement>;
 	pixelsPerBeat: number;
 	trackHeaderWidth: number;
+	addUndoAction: (action: any) => void;
 }
 
 export const DrumsTimeline = React.memo(
 	function DrumsTimeline({
 		timelineData,
 		currentTime,
-		handleSeek,
 		calculateCursorPosition,
 		timelineScrollRef,
-		pixelsPerBeat,
-		trackHeaderWidth,
+		addUndoAction,
 	}: DrumsTimelineProps) {
 		const { currentSong, updateDrums } = useSongStore();
 		const drumsEvents = useMemo(
@@ -85,8 +84,9 @@ export const DrumsTimeline = React.memo(
 				updateDrums(newDrumsEvents);
 				setSelectedTrackIndex(newDrumsEvents.length - 1);
 				setShowMidiBanks(false);
-				toast('Track Added', {
-					description: `Added "${bankName}" as a drum track.`,
+				addUndoAction({
+					type: 'drums:trackadd',
+					data: { event: { index: newDrumsEvents.length - 1 } },
 				});
 			},
 			[drumsEvents, updateDrums]
@@ -94,6 +94,7 @@ export const DrumsTimeline = React.memo(
 
 		const deleteTrack = useCallback(
 			(index: number) => {
+				const oldTrack = drumsEvents[index];
 				const newDrumsEvents = drumsEvents.filter(
 					(_, i) => i !== index
 				);
@@ -106,8 +107,9 @@ export const DrumsTimeline = React.memo(
 				) {
 					setSelectedTrackIndex(selectedTrackIndex - 1);
 				}
-				toast('Track Deleted', {
-					description: 'The track has been removed.',
+				addUndoAction({
+					type: 'drums:trackremove',
+					data: { event: oldTrack },
 				});
 			},
 			[drumsEvents, updateDrums, selectedTrackIndex]
@@ -122,8 +124,23 @@ export const DrumsTimeline = React.memo(
 				if (eventPos === -1) {
 					track.events.push(beatIndex);
 					track.events.sort((a: number, b: number) => a - b);
+
+					addUndoAction({
+						type: 'drums:drumadd',
+						data: {
+							track: track.sound,
+							event: { beatIndex },
+						},
+					});
 				} else {
 					track.events.splice(eventPos, 1);
+					addUndoAction({
+						type: 'drums:drumremove',
+						data: {
+							track: track.sound,
+							event: { beatIndex },
+						},
+					});
 				}
 				updateDrums(newDrumsEvents);
 			},
@@ -236,22 +253,25 @@ export const DrumsTimeline = React.memo(
 		const handleCellSelect = useCallback(
 			(trackIndex: number, beatIndex: number, e: React.MouseEvent) => {
 				if (e.shiftKey && selectedEvents.length > 0) {
-					// Range selection
+					// Only allow range selection within the same track
 					const last = selectedEvents[selectedEvents.length - 1];
-					const range: { trackIndex: number; beatIndex: number }[] =
-						[];
-					const trackStart = Math.min(last.trackIndex, trackIndex);
-					const trackEnd = Math.max(last.trackIndex, trackIndex);
-					const beatStart = Math.min(last.beatIndex, beatIndex);
-					const beatEnd = Math.max(last.beatIndex, beatIndex);
-					for (let t = trackStart; t <= trackEnd; t++) {
+					if (last.trackIndex === trackIndex) {
+						const beatStart = Math.min(last.beatIndex, beatIndex);
+						const beatEnd = Math.max(last.beatIndex, beatIndex);
+						const range: {
+							trackIndex: number;
+							beatIndex: number;
+						}[] = [];
 						for (let b = beatStart; b <= beatEnd; b++) {
-							range.push({ trackIndex: t, beatIndex: b });
+							range.push({ trackIndex, beatIndex: b });
 						}
+						setSelectedEvents(range);
+					} else {
+						// If not same track, just select the clicked cell
+						setSelectedEvents([{ trackIndex, beatIndex }]);
 					}
-					setSelectedEvents(range);
 				} else if (e.ctrlKey || e.metaKey) {
-					// Multi-select
+					// Multi-select (add/remove individual cells)
 					setSelectedEvents((prev) => {
 						const exists = prev.some(
 							(sel) =>
@@ -456,11 +476,24 @@ export const DrumsTimeline = React.memo(
 																						onClick={(
 																							e
 																						) => {
-																							// Left click: toggle event only
-																							toggleEvent(
-																								trackIndex,
-																								beatIndex
-																							);
+																							if (
+																								e.shiftKey ||
+																								e.ctrlKey ||
+																								e.metaKey
+																							) {
+																								// Use selection logic
+																								handleCellSelect(
+																									trackIndex,
+																									beatIndex,
+																									e
+																								);
+																							} else {
+																								// Toggle event as before
+																								toggleEvent(
+																									trackIndex,
+																									beatIndex
+																								);
+																							}
 																						}}
 																						onMouseDown={(
 																							e
