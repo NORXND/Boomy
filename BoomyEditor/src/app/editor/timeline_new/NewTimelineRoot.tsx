@@ -319,10 +319,10 @@ export function NewTimelineRoot({
 
 			// Get total timeline width including track labels
 			const totalTimelineWidth =
-				128 +
+				TRACK_HEADER_WIDTH +
 				timelineData.measures.reduce(
 					(total, measure) =>
-						total + Math.max(160, measure.duration * 20),
+						total + measure.beatCount * pixelsPerBeat,
 					0
 				);
 
@@ -383,10 +383,10 @@ export function NewTimelineRoot({
 				const containerWidth = container.clientWidth;
 				const idealScrollLeft = cursorPosition - containerWidth / 2;
 				const totalTimelineWidth =
-					128 +
+					TRACK_HEADER_WIDTH +
 					timelineData.measures.reduce(
 						(total, measure) =>
-							total + Math.max(160, measure.duration * 20),
+							total + measure.beatCount * pixelsPerBeat,
 						0
 					);
 				const maxScrollLeft = Math.max(
@@ -848,8 +848,8 @@ export function NewTimelineRoot({
 		| { type: 'drum:remove'; data: { track: string; event: any } }
 		| { type: 'drum:bulkadd'; data: { track: string; events: any[] } }
 		| { type: 'drum:bulkremove'; data: { track: string; events: any[] } }
-		| { type: 'event:add'; data: { event: any } }
-		| { type: 'event:remove'; data: { event: any } };
+		| { type: 'event:add'; data: { track: string; event: any } }
+		| { type: 'event:remove'; data: { track: string; event: any } };
 
 	// --- Undo/Redo State ---
 	const [undoStack, setUndoStack] = useState<TimelineAction[]>([]);
@@ -871,7 +871,7 @@ export function NewTimelineRoot({
 			case 'move:add':
 				useSongStore
 					.getState()
-					.removeMoveEvent(last.data.track, last.data.event.index);
+					.removeMoveEvent(last.data.track, last.data.event.measure);
 				break;
 			case 'move:remove':
 				useSongStore
@@ -882,7 +882,7 @@ export function NewTimelineRoot({
 				last.data.events.forEach((ev) =>
 					useSongStore
 						.getState()
-						.removeMoveEvent(last.data.track, ev.index)
+						.removeMoveEvent(last.data.track, ev.measure)
 				);
 				break;
 			case 'move:bulkremove':
@@ -893,7 +893,7 @@ export function NewTimelineRoot({
 			case 'camera:add':
 				useSongStore
 					.getState()
-					.removeCameraEvent(last.data.track, last.data.event.index);
+					.removeCameraEvent(last.data.track, last.data.event.beat);
 				break;
 			case 'camera:remove':
 				useSongStore
@@ -904,7 +904,7 @@ export function NewTimelineRoot({
 				last.data.events.forEach((ev) =>
 					useSongStore
 						.getState()
-						.removeCameraEvent(last.data.track, ev.index)
+						.removeCameraEvent(last.data.track, ev.beat)
 				);
 				break;
 			case 'camera:bulkremove':
