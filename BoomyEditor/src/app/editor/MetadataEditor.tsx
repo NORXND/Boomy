@@ -161,6 +161,7 @@ export function MetadataEditor() {
 	const [imageUrl, setImageUrl] = useState<string | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const fileInputSoundRef = useRef<HTMLInputElement>(null);
 
 	// Load image on component mount
 	useEffect(() => {
@@ -340,6 +341,41 @@ export function MetadataEditor() {
 		}
 	};
 
+	const handleSoundClick = () => {
+		if (fileInputSoundRef.current) {
+			fileInputSoundRef.current.value = '';
+			fileInputSoundRef.current.click();
+		}
+	};
+
+	const handleSoundChange = async (
+		e: React.ChangeEvent<HTMLInputElement>
+	) => {
+		const file = e.target.files?.[0];
+		if (!file || !songPath || !songName) return;
+
+		// Validate file type
+		if (!file.name.toLowerCase().endsWith('.ogg')) {
+			toast.error('Please select an OGG audio file');
+			return;
+		}
+
+		try {
+			toast.loading('Processing sound...', { id: 'sound-upload' });
+
+			const buffer = await file.arrayBuffer();
+			const uint8Array = new Uint8Array(buffer);
+
+			const soundPath = join(songPath, `${songName}.ogg`);
+			await window.electronAPI.writeFileBuffer(soundPath, uint8Array);
+
+			toast.success('Sound file updated!', { id: 'sound-upload' });
+		} catch (error) {
+			toast.error('Failed to save sound file', { id: 'sound-upload' });
+			console.error('Error saving sound:', error);
+		}
+	};
+
 	return (
 		<div className="h-full flex flex-col">
 			<div className="p-4 bg-muted/20">
@@ -360,11 +396,33 @@ export function MetadataEditor() {
 										Characters & Venue
 									</TabsTrigger>
 								</TabsList>
-
 								<TabsContent
 									value="basic"
 									className="space-y-4"
 								>
+									<div className="space-y-2">
+										<Label>Sound File</Label>
+										<div className="flex gap-2 items-center">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={handleSoundClick}
+											>
+												Change Sound (.ogg)
+											</Button>
+											<input
+												type="file"
+												ref={fileInputSoundRef}
+												className="hidden"
+												accept=".ogg,audio/ogg"
+												onChange={handleSoundChange}
+											/>
+											<span className="text-xs text-muted-foreground">
+												Will be saved as:{' '}
+												<b>{songName}.ogg</b>
+											</span>
+										</div>
+									</div>
 									<div className="space-y-2">
 										<Label htmlFor="name">Song Name</Label>
 										<Input
