@@ -13,6 +13,7 @@ import MetadataEditor from './MetadataEditor';
 import { DrumsEditor } from './DrumsEditor';
 import { EventsEditor } from './EventsEditor';
 import { BamPhrasesEditor } from './BamPhrasesEditor';
+import { VisemesEditor } from './VisemesEditor';
 
 const SECTION_NAMES = {
 	'moves-library': 'Moves Library',
@@ -23,6 +24,7 @@ const SECTION_NAMES = {
 	drums: 'Drums Editor',
 	events: 'Song Events',
 	'bam-phrases': 'BAM Phrases',
+	visemes: 'Dancer Faces Editor',
 };
 
 function EditorContent() {
@@ -62,6 +64,8 @@ function EditorContent() {
 				return <MetadataEditor />;
 			case 'bam-phrases':
 				return <BamPhrasesEditor />;
+			case 'visemes':
+				return <VisemesEditor />;
 			default:
 				return (
 					<div className="flex-1 flex items-center justify-center text-muted-foreground">

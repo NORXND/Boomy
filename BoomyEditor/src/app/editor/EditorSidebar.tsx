@@ -481,8 +481,17 @@ export function EditorSidebar() {
 								>
 									Bust a Move Phrases
 								</SidebarMenuButton>
-								<SidebarMenuButton disabled>
-									Dancer Faces (TODO)
+								<SidebarMenuButton
+									onClick={() =>
+										handleSectionClick('visemes')
+									}
+									className={
+										activeSection === 'visemes'
+											? 'bg-accent'
+											: ''
+									}
+								>
+									Dancer Faces
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>

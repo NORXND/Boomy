@@ -28,7 +28,13 @@ import { EventsTimeline } from './EventsTimeline';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { DrumsTimeline } from './DrumsTimeline';
 import { useTempoChanges } from '../../store/songStore';
-import { TempoChange } from '@/types/song';
+import {
+	CameraEvent,
+	DancerFaceEvent,
+	MoveEvent,
+	TempoChange,
+} from '@/types/song';
+import { DancerFacesTimeline } from './DancerFacesTimeline';
 
 export interface TimeSignature {
 	numerator: number;
@@ -54,15 +60,17 @@ export interface TimelineData {
 	beatMap: number[]; // beatMap[beat] = time in seconds
 }
 
-type TimelineMode = 'choreography' | 'cameras' | 'events' | 'drums';
+type TimelineMode = 'choreography' | 'cameras' | 'events' | 'drums' | 'visemes';
 
 export interface NewTimelineRootProps {
 	mode?: TimelineMode;
+	timelineAdditionalProps?: any;
 }
 
 // --- Layout Constants ---
 const CELL_WIDTH = 150; // Fixed width for Event and Camera cells
 const DRUM_CELL_WIDTH = 40; // Width for a single drum step (1/8th note)
+const VISEME_CELL_WIDTH = 80; // Width for a single viseme step (beat)
 const TRACK_HEADER_WIDTH = 192; // w-48
 
 // Track mounted instances to handle StrictMode double mounting
@@ -70,6 +78,7 @@ const mountedRef = { current: new Set<string>() };
 
 export function NewTimelineRoot({
 	mode = 'choreography',
+	timelineAdditionalProps,
 }: NewTimelineRootProps) {
 	// Create a unique ID for this component instance
 	const instanceId = useRef(
@@ -126,6 +135,8 @@ export function NewTimelineRoot({
 				return CELL_WIDTH; // A cell is one beat
 			case 'drums':
 				return DRUM_CELL_WIDTH * 2; // A beat contains two drum steps
+			case 'visemes':
+				return VISEME_CELL_WIDTH; // A cell is half a beat for visemes
 			case 'choreography':
 			default:
 				return CELL_WIDTH / 4; // Default for choreography or other modes
@@ -792,49 +803,59 @@ export function NewTimelineRoot({
 				type: 'move:add';
 				data: {
 					track: 'supereasy' | 'easy' | 'medium' | 'expert';
-					event: any;
+					event: MoveEvent;
 				};
 		  }
 		| {
 				type: 'move:remove';
 				data: {
 					track: 'supereasy' | 'easy' | 'medium' | 'expert';
-					event: any;
+					event: MoveEvent;
 				};
 		  }
 		| {
 				type: 'move:bulkadd';
 				data: {
 					track: 'supereasy' | 'easy' | 'medium' | 'expert';
-					events: any[];
+					events: {
+						offset: number;
+						event: MoveEvent;
+					}[];
 				};
 		  }
 		| {
 				type: 'move:bulkremove';
 				data: {
 					track: 'supereasy' | 'easy' | 'medium' | 'expert';
-					events: any[];
+					events: {
+						offset: number;
+						event: MoveEvent;
+					}[];
 				};
 		  }
 		| {
 				type: 'camera:add';
 				data: {
 					track: 'easy' | 'medium' | 'expert';
-					event: any;
+					event: CameraEvent;
 				};
 		  }
 		| {
 				type: 'camera:remove';
 				data: {
 					track: 'easy' | 'medium' | 'expert';
-					event: any;
+					event: CameraEvent;
 				};
 		  }
 		| {
 				type: 'camera:bulkadd';
 				data: {
 					track: 'easy' | 'medium' | 'expert';
-					events: any[];
+					events: {
+						offset: number;
+						beat: number;
+						event: CameraEvent;
+					}[];
 				};
 		  }
 		| {
@@ -860,6 +881,34 @@ export function NewTimelineRoot({
 				data: {
 					track: 'song' | 'battle' | 'party' | 'partybattle';
 					event: any;
+				};
+		  }
+		| {
+				type: 'visemes:add';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					event: DancerFaceEvent;
+				};
+		  }
+		| {
+				type: 'visemes:remove';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					event: DancerFaceEvent;
+				};
+		  }
+		| {
+				type: 'visemes:bulkadd';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					events: { offset: number; event: DancerFaceEvent }[];
+				};
+		  }
+		| {
+				type: 'visemes:bulkremove';
+				data: {
+					track: 'easy' | 'medium' | 'expert';
+					events: { offset: number; event: DancerFaceEvent }[];
 				};
 		  };
 
@@ -1047,6 +1096,7 @@ export function NewTimelineRoot({
 									ev.type === last.data.event.type
 							);
 						useSongStore.getState().removeEvent(songIdx);
+						break;
 					case 'battle':
 						const battleIdx = useSongStore
 							.getState()
@@ -1074,7 +1124,66 @@ export function NewTimelineRoot({
 								(ev) => ev.measure === last.data.event.measure
 							);
 						useSongStore.getState().removePartyJump(partyIdx);
+						break;
 				}
+			}
+			case 'visemes:add': {
+				// Remove Viseme event
+				const { track, event } = last.data;
+				const visemes =
+					useSongStore.getState().currentSong?.dancerFaces?.[
+						track as 'easy' | 'medium' | 'expert'
+					] || [];
+				const idx = visemes.findIndex(
+					(v: DancerFaceEvent) =>
+						v.beat === event.beat &&
+						v.viseme === event.viseme &&
+						v.value === event.value
+				);
+				if (idx !== -1) {
+					useSongStore
+						.getState()
+						.removeDancerFaceEvent(
+							track as 'easy' | 'medium' | 'expert',
+							idx
+						);
+				}
+				break;
+			}
+			case 'visemes:remove': {
+				// Add Viseme event
+				const { track, event } = last.data;
+				useSongStore.getState().addDancerFaceEvent(track, event);
+				break;
+			}
+			case 'visemes:bulkadd': {
+				// Remove Viseme events
+				const { track, events } = last.data;
+				const visemes =
+					useSongStore.getState().currentSong?.dancerFaces?.[track] ||
+					[];
+				events.forEach(({ event }) => {
+					const idx = visemes.findIndex(
+						(v: DancerFaceEvent) =>
+							v.beat === event.beat &&
+							v.viseme === event.viseme &&
+							v.value === event.value
+					);
+					if (idx !== -1) {
+						useSongStore
+							.getState()
+							.removeDancerFaceEvent(track, idx);
+					}
+				});
+				break;
+			}
+			case 'visemes:bulkremove': {
+				// Add Viseme events
+				const { track, events } = last.data;
+				events.forEach(({ event }) => {
+					useSongStore.getState().addDancerFaceEvent(track, event);
+				});
+				break;
 			}
 		}
 	}, [undoStack]);
@@ -1309,6 +1418,58 @@ export function NewTimelineRoot({
 						break;
 					}
 				}
+				break;
+			}
+			case 'visemes:add': {
+				// Add Viseme event
+				const { track, event } = last.data;
+				useSongStore.getState().addDancerFaceEvent(track, event);
+				break;
+			}
+			case 'visemes:remove': {
+				// Remove Viseme event
+				const { track, event } = last.data;
+				const visemes =
+					useSongStore.getState().currentSong?.dancerFaces?.[track] ||
+					[];
+				const idx = visemes.findIndex(
+					(v: DancerFaceEvent) =>
+						v.beat === event.beat &&
+						v.viseme === event.viseme &&
+						v.value === event.value
+				);
+				if (idx !== -1) {
+					useSongStore.getState().removeDancerFaceEvent(track, idx);
+				}
+				break;
+			}
+			case 'visemes:bulkadd': {
+				// Add Viseme events
+				const { track, events } = last.data;
+				events.forEach(({ event }) => {
+					useSongStore.getState().addDancerFaceEvent(track, event);
+				});
+				break;
+			}
+			case 'visemes:bulkremove': {
+				// Remove Viseme events
+				const { track, events } = last.data;
+				const visemes =
+					useSongStore.getState().currentSong?.dancerFaces?.[track] ||
+					[];
+				events.forEach(({ event }) => {
+					const idx = visemes.findIndex(
+						(v: DancerFaceEvent) =>
+							v.beat === event.beat &&
+							v.viseme === event.viseme &&
+							v.value === event.value
+					);
+					if (idx !== -1) {
+						useSongStore
+							.getState()
+							.removeDancerFaceEvent(track, idx);
+					}
+				});
 				break;
 			}
 		}
@@ -1563,6 +1724,7 @@ export function NewTimelineRoot({
 							{...timelineProps}
 							trackHeaderWidth={TRACK_HEADER_WIDTH}
 							pixelsPerBeat={pixelsPerBeat}
+							{...timelineAdditionalProps}
 						/>
 					)}
 					{mode === 'cameras' && (
@@ -1570,6 +1732,7 @@ export function NewTimelineRoot({
 							{...timelineProps}
 							trackHeaderWidth={TRACK_HEADER_WIDTH}
 							pixelsPerBeat={pixelsPerBeat}
+							{...timelineAdditionalProps}
 						/>
 					)}
 					{mode === 'events' && (
@@ -1578,6 +1741,7 @@ export function NewTimelineRoot({
 							tempoChanges={timelineData.tempoChanges}
 							trackHeaderWidth={TRACK_HEADER_WIDTH}
 							pixelsPerBeat={pixelsPerBeat}
+							{...timelineAdditionalProps}
 						/>
 					)}
 					{mode === 'drums' && (
@@ -1585,6 +1749,15 @@ export function NewTimelineRoot({
 							{...timelineProps}
 							trackHeaderWidth={TRACK_HEADER_WIDTH}
 							pixelsPerBeat={pixelsPerBeat}
+							{...timelineAdditionalProps}
+						/>
+					)}
+					{mode === 'visemes' && (
+						<DancerFacesTimeline
+							{...timelineProps}
+							trackHeaderWidth={TRACK_HEADER_WIDTH}
+							pixelsPerBeat={pixelsPerBeat}
+							{...timelineAdditionalProps}
 						/>
 					)}
 				</>

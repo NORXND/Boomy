@@ -88,6 +88,12 @@ export interface BamPhrase {
 	bars: number;
 }
 
+export interface DancerFaceEvent {
+	viseme: string;
+	value: number; // 0-1
+	beat: number;
+}
+
 export interface Song {
 	move_lib: string;
 	timeline: {
@@ -112,6 +118,11 @@ export interface Song {
 	supereasy: MoveEvent[];
 	drums: DrumsEvent[];
 	events: SongEvent[];
+	dancerFaces: {
+		easy: DancerFaceEvent[];
+		medium: DancerFaceEvent[];
+		expert: DancerFaceEvent[];
+	};
 	partyJumps: PartyJumpEvent[];
 	battleSteps: BattleEvent[];
 	partyBattleSteps: BattleEvent[];

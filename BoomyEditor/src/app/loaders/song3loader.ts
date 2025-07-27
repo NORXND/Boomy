@@ -177,6 +177,15 @@ export default async function loadSong3(
 		return;
 	}
 
+	// We added support for dancer faces so it must be added
+	if (!song.dancerFaces) {
+		song.dancerFaces = {
+			easy: [],
+			medium: [],
+			expert: [],
+		};
+	}
+
 	if (!song.tempoChanges) {
 		reportCorrupted();
 		return;

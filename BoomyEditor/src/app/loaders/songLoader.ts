@@ -170,6 +170,11 @@ export async function createSong(
 					beat: 260,
 				},
 			],
+			dancerFaces: {
+				easy: [],
+				medium: [],
+				expert: [],
+			},
 			tempoChanges: [
 				{
 					measure: 0,

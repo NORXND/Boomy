@@ -16,6 +16,7 @@ type EditorSection =
 	| 'drums'
 	| 'events'
 	| 'bam-phrases'
+	| 'visemes'
 	| null;
 
 interface EditorContextType {

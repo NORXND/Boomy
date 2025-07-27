@@ -13,6 +13,7 @@ import type {
 	PartyJumpEvent,
 	BamPhrase,
 	BattleEvent,
+	DancerFaceEvent,
 } from '../types/song';
 import { toast } from 'sonner';
 
@@ -162,6 +163,21 @@ export interface SongState {
 	updateBamPhrase: (
 		index: number,
 		bamPhraseUpdate: Partial<BamPhrase>
+	) => void;
+
+	// DancerFaces actions
+	addDancerFaceEvent: (
+		track: 'easy' | 'medium' | 'expert',
+		dancerFaceEvent: DancerFaceEvent
+	) => void;
+	removeDancerFaceEvent: (
+		track: 'easy' | 'medium' | 'expert',
+		index: number
+	) => void;
+	updateDancerFaceEvent: (
+		track: 'easy' | 'medium' | 'expert',
+		index: number,
+		dancerFaceEventUpdate: Partial<DancerFaceEvent>
 	) => void;
 
 	// PartyJumps actions
@@ -1190,6 +1206,54 @@ export const useSongStore = create<SongState>()(
 					updatedSong.partyBattleSteps[index] = {
 						...updatedSong.partyBattleSteps[index],
 						...dataUpdate,
+					};
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			addDancerFaceEvent: (track, dancerFaceEvent) => {
+				const { currentSong } = get();
+				if (currentSong) {
+					const updatedSong = { ...currentSong };
+					if (!updatedSong.dancerFaces) {
+						updatedSong.dancerFaces = {
+							easy: [],
+							medium: [],
+							expert: [],
+						};
+					}
+					updatedSong.dancerFaces[track] = [
+						...(updatedSong.dancerFaces[track] || []),
+						dancerFaceEvent,
+					];
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			removeDancerFaceEvent: (track, index) => {
+				const { currentSong } = get();
+				if (currentSong?.dancerFaces?.[track]?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.dancerFaces = { ...updatedSong.dancerFaces };
+					updatedSong.dancerFaces[track] = [
+						...updatedSong.dancerFaces[track],
+					];
+					updatedSong.dancerFaces[track].splice(index, 1);
+					set({ currentSong: updatedSong });
+				}
+			},
+
+			updateDancerFaceEvent: (track, index, dancerFaceEventUpdate) => {
+				const { currentSong } = get();
+				if (currentSong?.dancerFaces?.[track]?.[index] !== undefined) {
+					const updatedSong = { ...currentSong };
+					updatedSong.dancerFaces = { ...updatedSong.dancerFaces };
+					updatedSong.dancerFaces[track] = [
+						...updatedSong.dancerFaces[track],
+					];
+					updatedSong.dancerFaces[track][index] = {
+						...updatedSong.dancerFaces[track][index],
+						...dancerFaceEventUpdate,
 					};
 					set({ currentSong: updatedSong });
 				}
