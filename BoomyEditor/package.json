@@ -1,7 +1,7 @@
 {
   "name": "boomyeditor",
   "productName": "BoomyEditor",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Dance Central 3 Song Editor",
   "main": ".vite/build/main.js",
   "scripts": {

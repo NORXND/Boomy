@@ -6,7 +6,10 @@ function getLastPathSegment(path: string): string {
 	return path.replace(/\\/g, '/').split('/').filter(Boolean).pop() || '';
 }
 
-export default async function loadSong3(songPath: string) {
+export default async function loadSong3(
+	songPath: string,
+	imported: boolean = false
+) {
 	const songJSONExist = await window.electronAPI.pathExists(
 		path.join(songPath, 'song.json')
 	);
@@ -31,7 +34,41 @@ export default async function loadSong3(songPath: string) {
 
 	// Checks
 	if (!song.move_lib) {
-		reportCorrupted();
+		if (!imported) {
+			reportCorrupted();
+			return;
+		} else {
+			const movelibFolder = await window.electronAPI.selectDirectoryPath({
+				title: 'Select Milo Move Library folder',
+			});
+			if (!movelibFolder) return;
+			const resolvedDest = Array.isArray(movelibFolder)
+				? movelibFolder[0]
+				: movelibFolder;
+			song.move_lib = resolvedDest;
+		}
+	}
+
+	// Move library check
+	const moveLibExists = await window.electronAPI.pathExists(
+		path.join(song.move_lib, '.boomy')
+	);
+
+	if (!moveLibExists) {
+		toast.error('Move Library not found!', {
+			description: 'Please select a valid Milo Move Library folder.',
+		});
+		return;
+	}
+
+	const moveLibContent = await window.electronAPI.readFile(
+		path.join(song.move_lib, '.boomy')
+	);
+
+	if (moveLibContent !== 'mlib2') {
+		toast.error('Unsupported Move Library version!', {
+			description: 'Please select a Milo Move Library v2.',
+		});
 		return;
 	}
 

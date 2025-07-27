@@ -1,3 +1,4 @@
+using BoomyBuilder.Builder.Models;
 using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Ham;
@@ -77,7 +78,16 @@ namespace BoomyBuilder.Builder
                     }
                 }
 
-                barksMilo.Save(Path.Combine(barkGenDir, "barks.milo_xbox"), buildOperator.Request.Compress ? MiloFile.Type.CompressedZlibAlt : MiloFile.Type.Uncompressed);
+
+                MiloFile.Type miloType = buildOperator.Request.Compress switch
+                {
+                    Compression.None => MiloFile.Type.Uncompressed,
+                    Compression.Default => MiloFile.Type.CompressedZlibAlt,
+                    Compression.Fallback => MiloFile.Type.CompressedZlib,
+                    _ => throw new BoomyException("Invalid compression type specified.")
+                };
+
+                barksMilo.Save(Path.Combine(barkGenDir, "barks.milo_xbox"), miloType);
             }
         }
     }

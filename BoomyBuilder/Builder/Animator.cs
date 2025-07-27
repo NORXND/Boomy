@@ -72,7 +72,7 @@ namespace BoomyBuilder.Builder.Animator
             {
                 foreach (var beat in track.Keys)
                 {
-                    float time = (float)tempoConverter.MeasureToFrame(beat);
+                    float time = (float)tempoConverter.BeatToFrame(beat);
                     CameraPosition position = track[beat];
 
 

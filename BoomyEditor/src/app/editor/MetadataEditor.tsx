@@ -31,14 +31,7 @@ import {
 import { SongMeta, GameOrigin, Gender, Venue, Character } from '@/types/song';
 import { toast } from 'sonner';
 import { join } from 'path-browserify';
-
-function hashString(str: string): number {
-	let hash = 5381;
-	for (let i = 0; i < str.length; i++) {
-		hash = (hash * 33) ^ str.charCodeAt(i);
-	}
-	return Math.abs(hash >>> 0);
-}
+import { hashRandomId } from '@/RandomIdGenerator';
 
 // Display name mappings for enums from song.ts
 const displayNames = {
@@ -251,7 +244,7 @@ export function MetadataEditor() {
 
 	const handleRandomId = () => {
 		const base = `${meta.name}-${meta.artist}-${Date.now()}`;
-		const newId = hashString(base);
+		const newId = hashRandomId(base);
 		setMeta((prev) => (prev ? { ...prev, songid: newId } : prev));
 	};
 

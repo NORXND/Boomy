@@ -1,6 +1,7 @@
 namespace BoomyBuilder.Builder.BuildRequest
 {
     using System.Globalization;
+    using BoomyBuilder.Builder.Models;
     using BoomyBuilder.Builder.Models.BAMPhrases;
     using BoomyBuilder.Builder.Models.BattleEvent;
     using BoomyBuilder.Builder.Models.Drums;
@@ -71,7 +72,7 @@ namespace BoomyBuilder.Builder.BuildRequest
         public required int TotalMeasures { get; set; }
 
         [JsonProperty("compress", Required = Required.Always)]
-        public required bool Compress { get; set; }
+        public required Compression Compress { get; set; }
 
         [JsonProperty("package", Required = Required.Always)]
         public required bool Package { get; set; }

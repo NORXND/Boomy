@@ -351,3 +351,9 @@ export interface SearchIndex {
 		total_moves: number;
 	};
 }
+
+export enum CompressionType {
+	None = 'none',
+	Default = 'default',
+	Fallback = 'fallback',
+}

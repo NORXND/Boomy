@@ -96,7 +96,16 @@ namespace BoomyBuilder.Builder
 
             // Save milo file
             string miloOutputPath = Path.Combine(genDir, inputFolderName + ".milo_xbox");
-            WorkingMilo.Save(miloOutputPath, Request.Compress ? MiloFile.Type.CompressedZlibAlt : MiloFile.Type.Uncompressed);
+
+            MiloFile.Type miloType = Request.Compress switch
+            {
+                Compression.None => MiloFile.Type.Uncompressed,
+                Compression.Default => MiloFile.Type.CompressedZlibAlt,
+                Compression.Fallback => MiloFile.Type.CompressedZlib,
+                _ => throw new BoomyException("Invalid compression type specified.")
+            };
+
+            WorkingMilo.Save(miloOutputPath, miloType);
 
             // Copy .mogg file (required)
             string oggSourcePath = Path.Combine(Request.Path, inputFolderName + ".ogg");

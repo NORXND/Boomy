@@ -20,6 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+} from '@/components/ui/select';
 import { useEditor } from './EditorContext';
 import { useSongName, useSongPath, useSongStore } from '@/store/songStore';
 import { toast } from 'sonner';
@@ -45,7 +52,9 @@ export function EditorSidebar() {
 	// Build dialog state
 	const [buildDialogOpen, setBuildDialogOpen] = useState(false);
 	const [buildPath, setBuildPath] = useState('');
-	const [compressOutput, setCompressOutput] = useState(true);
+	const [compressOutput, setCompressOutput] = useState<
+		'none' | 'default' | 'fallback'
+	>('default');
 	const [performTestsBeforeBuilding, setPerformTestsBeforeBuilding] =
 		useState(true);
 	const [packageSong, setPackageSong] = useState(false); // disabled for now
@@ -167,7 +176,7 @@ export function EditorSidebar() {
 
 	const buildAndSaveWithCustomPath = async (
 		customPath: string,
-		compression: boolean
+		compression: 'none' | 'default' | 'fallback'
 	) => {
 		const { currentSong, songPath, audioPath } = useSongStore.getState();
 
@@ -558,18 +567,33 @@ export function EditorSidebar() {
 							</div>
 						</div>
 
-						{/* Compression Checkbox */}
+						{/* Compression Type Selection */}
 						<div className="flex items-center space-x-2">
-							<Checkbox
-								id="compress"
-								checked={compressOutput}
-								onCheckedChange={(checked) =>
-									setCompressOutput(checked === true)
+							<Label htmlFor="compressionType">Compression</Label>
+							<Select
+								value={compressOutput}
+								onValueChange={(value) =>
+									setCompressOutput(
+										value as 'none' | 'default' | 'fallback'
+									)
 								}
-							/>
-							<Label htmlFor="compress">
-								Compress output files
-							</Label>
+							>
+								<SelectTrigger
+									id="compressionType"
+									className="w-40"
+								>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None</SelectItem>
+									<SelectItem value="default">
+										Default
+									</SelectItem>
+									<SelectItem value="fallback">
+										Fallback
+									</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 
 						{/* Tests Before Building Checkbox */}

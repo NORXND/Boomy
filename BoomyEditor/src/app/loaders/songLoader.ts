@@ -9,7 +9,7 @@ function cleanAsciiAlphanumericLower(str: string): string {
 	return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 }
 
-export async function openSong(songPath: string) {
+export async function openSong(songPath: string, imported: boolean = false) {
 	const dotBoomyExists = await window.electronAPI.pathExists(
 		path.join(songPath, '.boomy')
 	);
@@ -25,7 +25,7 @@ export async function openSong(songPath: string) {
 
 	switch (dotBoomyContent) {
 		case 'song3':
-			return loadSong3(songPath);
+			return loadSong3(songPath, imported);
 		case 'song2':
 			toast.error('Songs in 2nd revision are not longer supported.', {
 				description:

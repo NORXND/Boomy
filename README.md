@@ -20,26 +20,46 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 -   [x] Moves Editor
 -   [x] Camera Shots Editor
 -   [x] Practice Sections Editor
+-   [x] MIDI Editing
+-   [x] Creating MOGG files
+-   [x] Packaging into Xbox Packages
+-   [x] Exporting moves from DC3 songs
+-   [x] Exporting moves from DC1 / DC2 songs
+-   [ ] Dancer Faces editing
+-   [ ] Automatic routine generation
+-   [ ] Automatic practice sections generation
+-   [ ] Automatic camera shots generation
+-   [ ] Automatic events generation
 -   [ ] Importing existing DC3 songs
 -   [ ] Importing existing DC1 / DC2 songs
--   [ ] Exporting moves from DC3 songs
--   [ ] Exporting moves from DC1 / DC2 songs
+-   [ ] Flipping moves
+-   [ ] Advanced Transitions between moves
 
 ## Song Compatibility
 
 -   [x] Performance Mode
 -   [x] Rehearse (Break It Down)
+-   [x] Battle
+-   [x] Party
 -   [x] Keep The Beat
 -   [x] Strike A Pose
--   [ ] Make Your Move
+-   [x] Make Your Move
+
+### Tutorial
+
+Soon™
+
+## Support
+
+Report an issue duh. You can also talk to me on MiloHax or DCU Discord servers.
 
 ### Cotributing
 
 Boomy Builder building:
 
-Windows: `dotnet publish -c Release -r win-x64`
-Linux: `dotnet publish -c Release -r linux-x64`
-macOS: `dotnet publish -c Release -r osx-x64`
+Windows: `dotnet publish -c Release -r win-x64 --self-contained`
+Linux: `dotnet publish -c Release -r linux-x64 --self-contained`
+macOS: `dotnet publish -c Release -r osx-x64 --self-contained`
 
 ## Credits
 

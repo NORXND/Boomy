@@ -291,4 +291,14 @@ namespace BoomyBuilder.Builder.Models
         [EnumMember(Value = "minigame_end")]
         MinigameEnd,
     }
+
+    public enum Compression
+    {
+        [EnumMember(Value = "none")]
+        None,
+        [EnumMember(Value = "default")]
+        Default,
+        [EnumMember(Value = "fallback")]
+        Fallback,
+    }
 }

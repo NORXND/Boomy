@@ -86,7 +86,7 @@ export default function ImportSong() {
 
 			setSongPath(songFolder);
 
-			const songData = await openSong(songFolder);
+			const songData = await openSong(songFolder, true);
 
 			await loadSong(
 				songData.songData,

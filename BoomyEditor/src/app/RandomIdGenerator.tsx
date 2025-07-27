@@ -16,13 +16,20 @@ export function hashRandomId(str: string): number {
 	const timestamp = Date.now();
 	const combinedString = `${str}-${timestamp}`;
 
-	let hash = 0;
+	let hash = 0x811c9dc5; // FNV-1a 32-bit offset basis
 	for (let i = 0; i < combinedString.length; i++) {
-		hash = (hash * 31 + combinedString.charCodeAt(i)) | 0; // 32-bit signed int
+		hash ^= combinedString.charCodeAt(i);
+		hash = Math.imul(hash, 0x01000193) | 0; // FNV prime, keep 32 bits, signed
+		hash ^= (hash << 13) | 0;
+		hash ^= hash >> 7;
 	}
 
-	// Ensure positive signed integer (0 to 2,147,483,647)
-	return Math.abs(hash);
+	// Final avalanche
+	hash ^= (hash << 11) | 0;
+	hash ^= hash >> 17;
+
+	// Return as signed 32-bit integer
+	return hash | 0;
 }
 
 export function RandomIdGenerator({
