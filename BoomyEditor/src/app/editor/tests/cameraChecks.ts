@@ -8,7 +8,7 @@ export async function isAnyCameraAtMeasureZero(
 ): Promise<TestResult> {
 	const cameras = song.currentSong?.timeline?.easy?.cameras ?? [];
 
-	const found = cameras.some((cam) => cam.beat === 1);
+	const found = cameras.some((cam) => cam.beat === 0);
 
 	if (found) {
 		return {

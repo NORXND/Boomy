@@ -6,6 +6,7 @@ import {
 	X,
 	ScissorsLineDashed,
 	Camera,
+	WandSparkles,
 } from 'lucide-react';
 import { useSongStore } from '../../store/songStore';
 import { TimelineData, Measure } from './NewTimelineRoot';
@@ -15,6 +16,7 @@ import {
 	ContextMenuItem,
 	ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { generateCamerasForDifficulty } from './Generators';
 
 export interface CameraShotsTimelineProps {
 	timelineData: TimelineData;
@@ -52,6 +54,7 @@ export const CameraShotsTimeline = React.memo(
 		addUndoAction,
 	}: CameraShotsTimelineProps) {
 		// Use selective state from the store to prevent re-renders when unrelated state changes
+		const songState = useSongStore();
 		const currentSong = useSongStore((state) => state.currentSong);
 		const addCameraEvent = useSongStore((state) => state.addCameraEvent);
 		const removeCameraEvent = useSongStore(
@@ -424,6 +427,48 @@ export const CameraShotsTimeline = React.memo(
 			[currentSong, removeCameraEvent, handleCellClick]
 		);
 
+		const handleGenerate = async (track: 'easy' | 'medium' | 'expert') => {
+			const result = await generateCamerasForDifficulty(track, songState);
+
+			if (result) {
+				const removedEvents: any[] = [];
+				for (const camera of result) {
+					// Remove any existing event at this measure
+					let existingEventIndex;
+					let existingEvent;
+					existingEventIndex = currentSong.timeline[
+						track
+					].cameras.findIndex((event) => event.beat === camera.beat);
+					existingEvent =
+						currentSong.timeline[track].cameras[existingEventIndex];
+					if (existingEventIndex !== -1 && existingEvent) {
+						removeCameraEvent(track, existingEventIndex);
+						removedEvents.push(existingEvent);
+					}
+
+					addCameraEvent(track, camera);
+				}
+
+				if (removedEvents.length > 0) {
+					addUndoAction({
+						type: 'camera:bulkremove',
+						data: {
+							track,
+							events: removedEvents,
+						},
+					});
+				}
+
+				addUndoAction({
+					type: 'camera:bulkadd',
+					data: {
+						track,
+						events: result,
+					},
+				});
+			}
+		};
+
 		// Debug render only in development
 		if (process.env.NODE_ENV === 'development') {
 			console.log('Rerendering CameraShotsTimeline');
@@ -514,12 +559,20 @@ export const CameraShotsTimeline = React.memo(
 								>
 									{/* Track Label */}
 									<div
-										className="flex-shrink-0 border-r bg-muted/30 flex items-center px-3"
+										className="flex-shrink-0 border-r bg-muted/30 flex items-center justify-between px-3"
 										style={{ width: trackHeaderWidth }}
 									>
 										<span className="text-sm font-medium capitalize">
 											{track}
 										</span>
+
+										<WandSparkles
+											onClick={() =>
+												handleGenerate(track)
+											}
+											width={16}
+											height={16}
+										></WandSparkles>
 									</div>
 
 									{/* Track Cells */}

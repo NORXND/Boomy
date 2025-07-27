@@ -12,6 +12,7 @@ import {
 	Trash,
 	X,
 	ScissorsLineDashed,
+	WandSparkles,
 } from 'lucide-react';
 import { useSongStore } from '../../store/songStore';
 import type { TimelineData, Measure } from './NewTimelineRoot';
@@ -21,6 +22,7 @@ import {
 	ContextMenuItem,
 	ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { generateDifficultyMoves } from './Generators';
 
 export interface ChoreographyTimelineProps {
 	timelineData: TimelineData;
@@ -58,6 +60,7 @@ export const ChoreographyTimeline = React.memo(
 		addUndoAction,
 	}: ChoreographyTimelineProps) {
 		// Use selective state from the store to prevent re-renders when unrelated state changes
+		const songState = useSongStore();
 		const currentSong = useSongStore((state) => state.currentSong);
 		const addMoveEvent = useSongStore((state) => state.addMoveEvent);
 		const removeMoveEvent = useSongStore((state) => state.removeMoveEvent);
@@ -631,6 +634,63 @@ export const ChoreographyTimeline = React.memo(
 			return getMoveImageAndData;
 		};
 
+		// Generate lower difficulties
+		const handleGenerateLowerDifficulties = async (
+			track: 'supereasy' | 'easy' | 'medium'
+		) => {
+			const result = await generateDifficultyMoves(track, songState);
+
+			if (result) {
+				const removedEvents: any[] = [];
+				for (const move of result) {
+					// Remove any existing event at this measure
+					let existingEventIndex;
+					let existingEvent;
+					if (track === 'supereasy') {
+						existingEventIndex = currentSong.supereasy.findIndex(
+							(event) => event.measure === move.measure
+						);
+						existingEvent =
+							currentSong.supereasy[existingEventIndex];
+					} else {
+						existingEventIndex = currentSong.timeline[
+							track
+						].moves.findIndex(
+							(event) => event.measure === move.measure
+						);
+						existingEvent =
+							currentSong.timeline[track].moves[
+								existingEventIndex
+							];
+					}
+					if (existingEventIndex !== -1 && existingEvent) {
+						removeMoveEvent(track, existingEventIndex);
+						removedEvents.push(existingEvent);
+					}
+
+					addMoveEvent(track, move);
+				}
+
+				if (removedEvents.length > 0) {
+					addUndoAction({
+						type: 'move:bulkremove',
+						data: {
+							track,
+							events: removedEvents,
+						},
+					});
+				}
+
+				addUndoAction({
+					type: 'move:bulkadd',
+					data: {
+						track,
+						events: result,
+					},
+				});
+			}
+		};
+
 		const moveLibPath = useSongStore((state) => state.currentSong.move_lib);
 		const getMoveImageAndData = useMoveImageAndDataCache(moveLibPath);
 
@@ -746,12 +806,24 @@ export const ChoreographyTimeline = React.memo(
 							<div key={track} className="h-[90px] border-b flex">
 								{/* Track Label */}
 								<div
-									className="flex-shrink-0 bg-muted/30 flex items-center px-3 border-r"
+									className="flex-shrink-0 bg-muted/30 flex items-center justify-between px-3 border-r"
 									style={{ width: trackHeaderWidth }}
 								>
 									<span className="text-sm font-medium capitalize">
 										{track}
 									</span>
+
+									{track !== 'expert' && (
+										<WandSparkles
+											onClick={() =>
+												handleGenerateLowerDifficulties(
+													track
+												)
+											}
+											width={16}
+											height={16}
+										></WandSparkles>
+									)}
 								</div>
 
 								{/* Track Cells */}

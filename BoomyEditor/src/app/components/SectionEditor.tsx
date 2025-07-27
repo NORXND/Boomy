@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, X, Trash2, MoveIcon } from 'lucide-react';
+import { Plus, X, Trash2, MoveIcon, WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSongStore } from '../store/songStore';
+import { SongState, useSongStore } from '../store/songStore';
 import { MoveEvent } from '../types/song';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ export function SectionEditor({
 		addMoveToPracticeSection,
 		removeMoveFromPracticeSection,
 	} = useSongStore();
+	const songState = useSongStore();
 
 	const [dragOverSection, setDragOverSection] = useState<{
 		difficulty: 'easy' | 'medium' | 'expert';
@@ -125,6 +126,118 @@ export function SectionEditor({
 		moveIndex: number
 	) => {
 		removeMoveFromPracticeSection(difficulty, sectionIndex, moveIndex);
+	};
+
+	const checkMove = async (
+		state: SongState,
+		move: string,
+		song: string,
+		category: string
+	) => {
+		const movePath = `${state.currentSong.move_lib}/${category}/${song}/${move}`;
+
+		// Load move.json
+		const jsonPath = `${movePath}/move.json`;
+		const jsonExists = await window.electronAPI.pathExists(jsonPath);
+		if (jsonExists) {
+			const jsonData = await window.electronAPI.readJsonFile(jsonPath);
+			return jsonData;
+		} else {
+			return null;
+		}
+	};
+
+	const decodeFlags = (flags: number): string[] => {
+		const flagNames: string[] = [];
+		if (flags & 2) flagNames.push('Scored');
+		if (flags & 8) flagNames.push('Final Pose');
+		if (flags & 0x10) flagNames.push('Suppress Guide Gesture');
+		if (flags & 0x20) flagNames.push('Omit Minigame');
+		if (flags & 0x40) flagNames.push('Useful');
+		if (flags & 0x80) flagNames.push('Suppress Practice Options');
+		return flagNames;
+	};
+
+	const handleGenerateSection = async (
+		difficulty: 'easy' | 'medium' | 'expert'
+	) => {
+		if (!currentSong) return;
+
+		const timelineMoves = currentSong.timeline?.[difficulty]?.moves || [];
+		if (!timelineMoves.length) return;
+
+		// 1. Strip all rest moves (keep only scored)
+		const scoredMoves: MoveEvent[] = [];
+		for (const move of timelineMoves) {
+			const moveData = await checkMove(
+				songState,
+				move.move,
+				move.move_song,
+				move.move_origin
+			);
+			if (!moveData) continue;
+			const flags = decodeFlags(moveData.clips?.[move.clip]?.flags || 0);
+			if (flags.includes('Scored')) {
+				scoredMoves.push(move);
+			}
+		}
+
+		// Track first occurrence of each move
+		const firstOccurrence = new Map<string, number>();
+		scoredMoves.forEach((move, idx) => {
+			if (!firstOccurrence.has(move.move)) {
+				firstOccurrence.set(move.move, idx);
+			}
+		});
+
+		const sections: number[][] = [];
+		let usedMoves = new Set<string>();
+		let currentSection: number[] = [];
+
+		for (let i = 0; i < scoredMoves.length; i++) {
+			const move = scoredMoves[i];
+			const moveKey = move.move;
+
+			// If this is NOT the first occurrence of this move, skip it and start new section at next original move
+			if (firstOccurrence.get(moveKey) !== i) {
+				if (currentSection.length > 0)
+					sections.push([...currentSection]);
+				currentSection = [];
+				continue;
+			}
+
+			// Check for duplicate in current section or previously used
+			const isDuplicateInSection = currentSection.some((measure) => {
+				const m = scoredMoves.find((sm) => sm.measure === measure);
+				return m && m.move === moveKey;
+			});
+			const isUsedBefore = usedMoves.has(moveKey);
+
+			if (isDuplicateInSection || isUsedBefore) {
+				if (currentSection.length > 0)
+					sections.push([...currentSection]);
+				currentSection = [];
+			}
+
+			currentSection.push(move.measure);
+			usedMoves.add(moveKey);
+		}
+
+		if (currentSection.length > 0) sections.push(currentSection);
+
+		// Save generated sections
+		// Clear previous sections first if needed
+		while ((currentSong.practice?.[difficulty]?.length || 0) > 0) {
+			removePracticeSection(difficulty, 0);
+		}
+		for (const section of sections) {
+			addPracticeSection(difficulty, '');
+			const sectionIdx =
+				(currentSong.practice?.[difficulty]?.length || 0) - 1;
+			section.forEach((measure) => {
+				addMoveToPracticeSection(difficulty, sectionIdx, measure);
+			});
+		}
 	};
 
 	if (!currentSong) {
@@ -273,14 +386,22 @@ export function SectionEditor({
 		return (
 			<div className="space-y-4">
 				{/* Add Section Button */}
-				<Button
-					onClick={() => handleAddSection(difficulty)}
-					variant="outline"
-					className="w-full"
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					Add Section
-				</Button>
+				<div className="flex flex-row gap-4">
+					<Button
+						onClick={() => handleAddSection(difficulty)}
+						variant="outline"
+						className="flex-1"
+					>
+						<Plus className="h-4 w-4 mr-2" />
+						Add Section
+					</Button>
+					<Button
+						variant="outline"
+						onClick={() => handleGenerateSection(difficulty)}
+					>
+						<WandSparkles width={16} height={16}></WandSparkles>
+					</Button>
+				</div>
 
 				{/* Sections List */}
 				{sections.length === 0 ? (
