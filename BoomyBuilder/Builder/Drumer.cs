@@ -9,12 +9,14 @@ namespace BoomyBuilder.Builder.Drumer
     {
         public (NoteName, int, string) Key { get; set; }
         public string Sound { get; set; }
+        public string MidiLabel { get; set; }
         public List<int> Keys { get; set; }
 
-        public MidiEvent((NoteName, int, string) note, string sound)
+        public MidiEvent((NoteName, int, string) note, string sound, string midiLabel = "")
         {
             Key = note;
             Sound = sound;
+            MidiLabel = midiLabel;
             Keys = [];
         }
     }
@@ -142,7 +144,8 @@ namespace BoomyBuilder.Builder.Drumer
                     midiEvents.Add(new MidiEvent(
                         // Find the availableNoteNames tuple matching this note string
                         FindNoteTuple(note),
-                        name
+                        name,
+                        midiLabel
                     )
                     {
                         Keys = drum.Events.ToList()

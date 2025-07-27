@@ -57,7 +57,7 @@ namespace BoomyBuilder.Builder.SongMetadata
             string midiEventsStr = "(midi_events\n";
             foreach (var evt in midiEvents)
             {
-                midiEventsStr += $"      ({evt.Key.Item3} {evt.Sound})\n"; // 6 spaces indent
+                midiEventsStr += $"      ({evt.Key.Item3} {evt.MidiLabel})\n"; // 6 spaces indent
             }
             midiEventsStr += ")"; // 3 spaces indent to match closing parenthesis in template
 
