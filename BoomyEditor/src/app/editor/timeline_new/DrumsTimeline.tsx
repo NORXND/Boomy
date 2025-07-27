@@ -55,6 +55,7 @@ export const DrumsTimeline = React.memo(
 		calculateCursorPosition,
 		timelineScrollRef,
 		addUndoAction,
+		handleSeek,
 	}: DrumsTimelineProps) {
 		const { currentSong, updateDrums } = useSongStore();
 		const drumsEvents = useMemo(
@@ -151,26 +152,31 @@ export const DrumsTimeline = React.memo(
 		const handleCopy = useCallback(() => {
 			if (selectedEvents.length === 0 || !currentSong) return;
 
-			// Group by track
+			// Only include selected cells that actually have an event
+			const filledSelections = selectedEvents.filter(
+				({ trackIndex, beatIndex }) =>
+					drumsEvents[trackIndex]?.events.includes(beatIndex)
+			);
+
+			if (filledSelections.length === 0) return;
+
+			// Use the beatIndex of the first selected cell as the offset base
+			const offsetBase = selectedEvents[0].beatIndex;
+
+			// Group by track, only include filled events, and store offset from offsetBase
 			const grouped: Record<
 				string,
 				{ track: string; events: { offset: number; beat: number }[] }
 			> = {};
-			for (const { trackIndex, beatIndex } of selectedEvents) {
+
+			for (const { trackIndex, beatIndex } of filledSelections) {
 				const track = drumsEvents[trackIndex];
 				if (!grouped[track.sound])
 					grouped[track.sound] = { track: track.sound, events: [] };
 				grouped[track.sound].events.push({
 					beat: beatIndex,
-					offset: 0,
-				}); // offset will be set below
-			}
-			// Calculate offset per track
-			for (const group of Object.values(grouped)) {
-				const minBeat = Math.min(...group.events.map((e) => e.beat));
-				for (const e of group.events) {
-					e.offset = e.beat - minBeat;
-				}
+					offset: beatIndex - offsetBase,
+				});
 			}
 
 			const clipboardPayload = {
@@ -253,23 +259,20 @@ export const DrumsTimeline = React.memo(
 		const handleCellSelect = useCallback(
 			(trackIndex: number, beatIndex: number, e: React.MouseEvent) => {
 				if (e.shiftKey && selectedEvents.length > 0) {
-					// Only allow range selection within the same track
+					// Allow rectangular selection across tracks and beats
 					const last = selectedEvents[selectedEvents.length - 1];
-					if (last.trackIndex === trackIndex) {
-						const beatStart = Math.min(last.beatIndex, beatIndex);
-						const beatEnd = Math.max(last.beatIndex, beatIndex);
-						const range: {
-							trackIndex: number;
-							beatIndex: number;
-						}[] = [];
+					const trackStart = Math.min(last.trackIndex, trackIndex);
+					const trackEnd = Math.max(last.trackIndex, trackIndex);
+					const beatStart = Math.min(last.beatIndex, beatIndex);
+					const beatEnd = Math.max(last.beatIndex, beatIndex);
+					const range: { trackIndex: number; beatIndex: number }[] =
+						[];
+					for (let t = trackStart; t <= trackEnd; t++) {
 						for (let b = beatStart; b <= beatEnd; b++) {
-							range.push({ trackIndex, beatIndex: b });
+							range.push({ trackIndex: t, beatIndex: b });
 						}
-						setSelectedEvents(range);
-					} else {
-						// If not same track, just select the clicked cell
-						setSelectedEvents([{ trackIndex, beatIndex }]);
 					}
+					setSelectedEvents(range);
 				} else if (e.ctrlKey || e.metaKey) {
 					// Multi-select (add/remove individual cells)
 					setSelectedEvents((prev) => {
@@ -342,20 +345,30 @@ export const DrumsTimeline = React.memo(
 											Drum Tracks
 										</span>
 									</div>
-									{timelineData.measures.map((measure) => (
-										<div
-											key={measure.number}
-											className="flex flex-col border-r"
-											style={{
-												width: 8 * STEP_WIDTH,
-												minWidth: 8 * STEP_WIDTH,
-											}}
-										>
-											<div className="h-6 flex items-center justify-center border-b text-sm font-medium">
-												Measure {measure.number}
-											</div>
-										</div>
-									))}
+									{timelineData.measures.map(
+										(measure, measureIndex) => {
+											return (
+												<div
+													key={measure.number}
+													className="flex flex-col border-r cursor-pointer hover:bg-muted/20"
+													style={{
+														width: 8 * STEP_WIDTH,
+														minWidth:
+															8 * STEP_WIDTH,
+													}}
+													onClick={() =>
+														handleSeek(
+															measure.startTime
+														)
+													}
+												>
+													<div className="h-6 flex items-center justify-center border-b text-sm font-medium">
+														Measure {measure.number}
+													</div>
+												</div>
+											);
+										}
+									)}
 								</div>
 
 								{/* Body */}
@@ -476,19 +489,19 @@ export const DrumsTimeline = React.memo(
 																						onClick={(
 																							e
 																						) => {
+																							handleCellSelect(
+																								trackIndex,
+																								beatIndex,
+																								e
+																							);
 																							if (
-																								e.shiftKey ||
-																								e.ctrlKey ||
-																								e.metaKey
+																								!(
+																									e.shiftKey ||
+																									e.ctrlKey ||
+																									e.metaKey
+																								)
 																							) {
-																								// Use selection logic
-																								handleCellSelect(
-																									trackIndex,
-																									beatIndex,
-																									e
-																								);
-																							} else {
-																								// Toggle event as before
+																								// Only toggle event if not multi-selecting
 																								toggleEvent(
 																									trackIndex,
 																									beatIndex
@@ -498,16 +511,30 @@ export const DrumsTimeline = React.memo(
 																						onMouseDown={(
 																							e
 																						) => {
-																							// Right click: select cell only
-																							e.preventDefault();
-																							setSelectedEvents(
-																								[
-																									{
+																							// Only handle right-click (button 2)
+																							if (
+																								e.button ===
+																								2
+																							) {
+																								e.preventDefault();
+																								const alreadySelected =
+																									isCellSelected(
 																										trackIndex,
-																										beatIndex,
-																									},
-																								]
-																							);
+																										beatIndex
+																									);
+																								if (
+																									!alreadySelected
+																								) {
+																									setSelectedEvents(
+																										[
+																											{
+																												trackIndex,
+																												beatIndex,
+																											},
+																										]
+																									);
+																								}
+																							}
 																						}}
 																					>
 																						{hasEvent && (
