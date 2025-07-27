@@ -12,13 +12,13 @@ export async function isAnyCameraAtMeasureZero(
 
 	if (found) {
 		return {
-			status: TestResultType.error,
+			status: TestResultType.success,
 			output: 'There is at least one camera event at beat 1.',
 		};
 	}
 
 	return {
-		status: TestResultType.success,
-		output: 'No camera events are at measure 1.',
+		status: TestResultType.error,
+		output: 'No camera events are at beat 1.',
 	};
 }
