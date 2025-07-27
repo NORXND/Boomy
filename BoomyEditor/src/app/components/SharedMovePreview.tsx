@@ -26,20 +26,12 @@ interface SharedMovePreviewProps {
   onDifficultyChange?: (difficulty: "easy" | "medium" | "expert") => void;
 }
 
-export function SharedMovePreview({
-  onDifficultyChange,
-}: SharedMovePreviewProps) {
+export function SharedMovePreview({ onDifficultyChange }: SharedMovePreviewProps) {
   const { currentSong } = useSongStore();
   const { currentTime, timelineData } = useTimelineContext();
-  const [selectedTrack, setSelectedTrack] = useState<
-    "easy" | "medium" | "expert"
-  >("medium");
-  const [moveImageCache, setMoveImageCache] = useState<Record<string, string>>(
-    {}
-  );
-  const [moveDataCache, setMoveDataCache] = useState<Record<string, MoveData>>(
-    {}
-  );
+  const [selectedTrack, setSelectedTrack] = useState<"easy" | "medium" | "expert">("medium");
+  const [moveImageCache, setMoveImageCache] = useState<Record<string, string>>({});
+  const [moveDataCache, setMoveDataCache] = useState<Record<string, MoveData>>({});
   const [createdUrls, setCreatedUrls] = useState<string[]>([]);
 
   // Convert beat number to time using timeline data
@@ -57,8 +49,7 @@ export function SharedMovePreview({
       }
 
       // If beat is beyond all measures, calculate based on last measure
-      const lastMeasure =
-        timelineData.measures[timelineData.measures.length - 1];
+      const lastMeasure = timelineData.measures[timelineData.measures.length - 1];
       if (lastMeasure && beat >= lastMeasure.number) {
         // Calculate based on BPM of last measure
         const beatDuration = 60 / lastMeasure.bpm; // seconds per beat
@@ -68,7 +59,7 @@ export function SharedMovePreview({
 
       return 0;
     },
-    [timelineData]
+    [timelineData],
   );
 
   // Load move images and data
@@ -85,9 +76,7 @@ export function SharedMovePreview({
       // Get all unique move keys from timeline
       const allMoveKeys = new Set<string>();
       ["easy", "medium", "expert"].forEach((difficulty) => {
-        const moves =
-          currentSong.timeline[difficulty as keyof typeof currentSong.timeline]
-            ?.moves || [];
+        const moves = currentSong.timeline[difficulty as keyof typeof currentSong.timeline]?.moves || [];
         moves.forEach((move) => {
           const moveKey = `${move.move_origin}/${move.move_song}/${move.move}`;
           allMoveKeys.add(moveKey);
@@ -112,9 +101,7 @@ export function SharedMovePreview({
           const imagePath = `${movePath}/move.png`;
           const imageExists = await window.electronAPI.pathExists(imagePath);
           if (imageExists) {
-            const imageBuffer = await window.electronAPI.readFileBuffer(
-              imagePath
-            );
+            const imageBuffer = await window.electronAPI.readFileBuffer(imagePath);
             const blob = new Blob([imageBuffer], {
               type: "image/png",
             });
@@ -178,29 +165,16 @@ export function SharedMovePreview({
 
     const currentMove = currentIndex >= 0 ? allMoves[currentIndex] : null;
     const previousMove = currentIndex > 0 ? allMoves[currentIndex - 1] : null;
-    const nextMove =
-      currentIndex < allMoves.length - 1 ? allMoves[currentIndex + 1] : null;
+    const nextMove = currentIndex < allMoves.length - 1 ? allMoves[currentIndex + 1] : null;
 
     return { previousMove, currentMove, nextMove };
   }, [currentSong, currentTime, timelineData, beatToTime, selectedTrack]);
 
-  const renderMoveCard = (
-    move: TimelineMove | null,
-    size: "small" | "large",
-    position: "left" | "center" | "right"
-  ) => {
+  const renderMoveCard = (move: TimelineMove | null, size: "small" | "large", position: "left" | "center" | "right") => {
     if (!move) {
       return (
-        <div
-          className={`flex flex-col items-center justify-center bg-muted/30 rounded-lg border-2 border-dashed border-muted/50 transition-all duration-500 ${
-            size === "large" ? "w-60 h-48" : "w-32 h-24"
-          }`}
-        >
-          <PersonStanding
-            className={`text-muted-foreground ${
-              size === "large" ? "h-8 w-8" : "h-6 w-6"
-            }`}
-          />
+        <div className={`flex flex-col items-center justify-center bg-muted/30 rounded-lg border-2 border-dashed border-muted/50 transition-all duration-500 ${size === "large" ? "w-60 h-48" : "w-32 h-24"}`}>
+          <PersonStanding className={`text-muted-foreground ${size === "large" ? "h-8 w-8" : "h-6 w-6"}`} />
           <span className="text-xs text-muted-foreground mt-1">No move</span>
         </div>
       );
@@ -218,56 +192,23 @@ export function SharedMovePreview({
 
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-background rounded-lg border transition-all duration-500 transform ${
-          size === "large"
-            ? "w-60 h-48 border-primary scale-110 shadow-lg"
-            : "w-32 h-24 border-muted scale-95"
-        } ${
-          position === "left"
-            ? "-translate-x-3 opacity-75"
-            : position === "right"
-            ? "translate-x-3 opacity-75"
-            : ""
+        className={`flex flex-col items-center justify-center bg-background rounded-lg border transition-all duration-500 transform ${size === "large" ? "w-60 h-48 border-primary scale-110 shadow-lg" : "w-32 h-24 border-muted scale-95"} ${
+          position === "left" ? "-translate-x-3 opacity-75" : position === "right" ? "translate-x-3 opacity-75" : ""
         }`}
         style={{ opacity }}
-        title={`${displayName} - ${move.clip} (${move.difficulty})\nMeasure: ${
-          move.measure
-        }, Time: ${move.time.toFixed(1)}s`}
+        title={`${displayName} - ${move.clip} (${move.difficulty})\nMeasure: ${move.measure}, Time: ${move.time.toFixed(1)}s`}
       >
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={displayName}
-            className={`object-cover rounded transition-all duration-500 ${
-              size === "large" ? "w-36 h-16" : "w-24 h-12"
-            }`}
-            draggable={false}
-          />
+          <img src={imageUrl} alt={displayName} className={`object-cover rounded transition-all duration-500 ${size === "large" ? "w-36 h-16" : "w-24 h-12"}`} draggable={false} />
         ) : (
-          <div
-            className={`bg-muted/50 rounded flex items-center justify-center transition-all duration-500 ${
-              size === "large" ? "w-36 h-16" : "w-24 h-12"
-            }`}
-          >
-            <PersonStanding
-              className={`text-muted-foreground ${
-                size === "large" ? "h-6 w-6" : "h-4 w-4"
-              }`}
-            />
+          <div className={`bg-muted/50 rounded flex items-center justify-center transition-all duration-500 ${size === "large" ? "w-36 h-16" : "w-24 h-12"}`}>
+            <PersonStanding className={`text-muted-foreground ${size === "large" ? "h-6 w-6" : "h-4 w-4"}`} />
           </div>
         )}
-        <div
-          className={`text-center mt-1 px-1 ${
-            size === "large" ? "text-xs" : "text-xs"
-          }`}
-        >
+        <div className={`text-center mt-1 px-1 ${size === "large" ? "text-xs" : "text-xs"}`}>
           <div className="font-medium truncate max-w-full">{displayName}</div>
-          <div className="text-muted-foreground text-xs truncate">
-            {move.clip}
-          </div>
-          <div className="text-muted-foreground text-xs capitalize">
-            {move.difficulty}
-          </div>
+          <div className="text-muted-foreground text-xs truncate">{move.clip}</div>
+          <div className="text-muted-foreground text-xs capitalize">{move.difficulty}</div>
         </div>
       </div>
     );
@@ -296,12 +237,7 @@ export function SharedMovePreview({
       <div className="flex-shrink-0 p-4 border-b bg-background/80 backdrop-blur-sm">
         <h3 className="text-lg font-semibold">Move Preview</h3>
         <div className="text-sm text-muted-foreground">
-          Timeline: {currentTime.toFixed(2)}s
-          {timelineData && (
-            <span className="ml-2">
-              • {timelineData.measures.length} measures
-            </span>
-          )}
+          Timeline: {currentTime.toFixed(2)}s{timelineData && <span className="ml-2">• {timelineData.measures.length} measures</span>}
         </div>
 
         {/* Track Selection Tabs */}
@@ -311,9 +247,7 @@ export function SharedMovePreview({
               key={track}
               onClick={() => handleTrackChange(track)}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 capitalize ${
-                selectedTrack === track
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                selectedTrack === track ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}
             >
               {track}
@@ -326,9 +260,7 @@ export function SharedMovePreview({
       <div className="flex-1 flex items-center justify-center gap-8 p-8">
         {/* Previous Move */}
         <div className="flex flex-col items-center transition-all duration-500">
-          <div className="text-xs text-muted-foreground mb-3 font-medium">
-            Previous
-          </div>
+          <div className="text-xs text-muted-foreground mb-3 font-medium">Previous</div>
           {renderMoveCard(previousMove, "small", "left")}
         </div>
 
@@ -343,9 +275,7 @@ export function SharedMovePreview({
 
         {/* Next Move */}
         <div className="flex flex-col items-center transition-all duration-500">
-          <div className="text-xs text-muted-foreground mb-3 font-medium">
-            Next
-          </div>
+          <div className="text-xs text-muted-foreground mb-3 font-medium">Next</div>
           {renderMoveCard(nextMove, "small", "right")}
         </div>
       </div>

@@ -2,35 +2,15 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Plus, Trash, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useSongStore } from "../../store/songStore";
 import type { TimelineData } from "./NewTimelineRoot";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Slider } from "@/components/ui/slider"; // Make sure you have a slider component
 import { VisemesBanks } from "../../components/Visemes"; // Import your Visemes component
 
-const TRACK_COLORS = [
-  "bg-red-500",
-  "bg-blue-500",
-  "bg-green-500",
-  "bg-yellow-500",
-  "bg-purple-500",
-  "bg-pink-500",
-  "bg-indigo-500",
-  "bg-orange-500",
-];
+const TRACK_COLORS = ["bg-red-500", "bg-blue-500", "bg-green-500", "bg-yellow-500", "bg-purple-500", "bg-pink-500", "bg-indigo-500", "bg-orange-500"];
 
 const STEP_WIDTH = 80; // px
 const BEATS_PER_MEASURE = 4; // <-- Only 4 cells per measure
@@ -51,25 +31,9 @@ export interface DancerFacesTimelineProps {
 }
 
 export const DancerFacesTimeline = React.memo(
-  function DancerFacesTimeline({
-    timelineData,
-    currentTime,
-    calculateCursorPosition,
-    timelineScrollRef,
-    addUndoAction,
-    handleSeek,
-    difficulty,
-  }: DancerFacesTimelineProps) {
-    const {
-      currentSong,
-      addDancerFaceEvent,
-      updateDancerFaceEvent,
-      removeDancerFaceEvent,
-    } = useSongStore();
-    const dancerFaces = useMemo(
-      () => currentSong?.dancerFaces?.[difficulty] || [],
-      [currentSong, difficulty]
-    );
+  function DancerFacesTimeline({ timelineData, currentTime, calculateCursorPosition, timelineScrollRef, addUndoAction, handleSeek, difficulty }: DancerFacesTimelineProps) {
+    const { currentSong, addDancerFaceEvent, updateDancerFaceEvent, removeDancerFaceEvent } = useSongStore();
+    const dancerFaces = useMemo(() => currentSong?.dancerFaces?.[difficulty] || [], [currentSong, difficulty]);
 
     // Viseme tracks are imported from Visemes component
     const [visemeTracks, setVisemeTracks] = useState<string[]>([]);
@@ -77,9 +41,7 @@ export const DancerFacesTimeline = React.memo(
 
     // Sync visemeTracks with state
     useEffect(() => {
-      const uniqueVisemes = Array.from(
-        new Set(dancerFaces.map((ev) => ev.viseme))
-      );
+      const uniqueVisemes = Array.from(new Set(dancerFaces.map((ev) => ev.viseme)));
       setVisemeTracks((prev) => {
         const merged = [...prev];
         uniqueVisemes.forEach((v) => {
@@ -89,14 +51,10 @@ export const DancerFacesTimeline = React.memo(
       });
     }, [dancerFaces]);
 
-    const [selectedTrackIndex, setSelectedTrackIndex] = useState<number | null>(
-      null
-    );
+    const [selectedTrackIndex, setSelectedTrackIndex] = useState<number | null>(null);
 
     // State for selected events: [{trackIndex, beatIndex}]
-    const [selectedEvents, setSelectedEvents] = useState<
-      { trackIndex: number; beatIndex: number }[]
-    >([]);
+    const [selectedEvents, setSelectedEvents] = useState<{ trackIndex: number; beatIndex: number }[]>([]);
 
     const [editDialog, setEditDialog] = useState<{
       open: boolean;
@@ -125,7 +83,7 @@ export const DancerFacesTimeline = React.memo(
         setSelectedTrackIndex(visemeTracks.length);
         setShowVisemeImport(false);
       },
-      [visemeTracks]
+      [visemeTracks],
     );
 
     // Remove viseme track
@@ -134,9 +92,7 @@ export const DancerFacesTimeline = React.memo(
         const name = visemeTracks[index];
         setVisemeTracks((prev) => prev.filter((_, i) => i !== index));
         // Remove all events for this viseme from the timeline
-        const eventsToRemove = dancerFaces
-          .map((ev, i) => ({ ...ev, i }))
-          .filter((ev) => ev.viseme === name);
+        const eventsToRemove = dancerFaces.map((ev, i) => ({ ...ev, i })).filter((ev) => ev.viseme === name);
         eventsToRemove.forEach((ev) => {
           removeDancerFaceEvent(difficulty, ev.i);
           addUndoAction({
@@ -150,23 +106,14 @@ export const DancerFacesTimeline = React.memo(
           setSelectedTrackIndex(selectedTrackIndex - 1);
         }
       },
-      [
-        visemeTracks,
-        dancerFaces,
-        removeDancerFaceEvent,
-        addUndoAction,
-        selectedTrackIndex,
-        difficulty,
-      ]
+      [visemeTracks, dancerFaces, removeDancerFaceEvent, addUndoAction, selectedTrackIndex, difficulty],
     );
 
     // Open dialog to add/edit event
     const openEditDialog = useCallback(
       (trackIndex: number, beat: number) => {
         const visemeName = visemeTracks[trackIndex];
-        const idx = dancerFaces.findIndex(
-          (ev) => ev.beat === beat && ev.viseme === visemeName
-        );
+        const idx = dancerFaces.findIndex((ev) => ev.beat === beat && ev.viseme === visemeName);
         if (idx !== -1) {
           const ev = dancerFaces[idx];
           setEditDialog({
@@ -186,16 +133,11 @@ export const DancerFacesTimeline = React.memo(
           });
         }
       },
-      [dancerFaces, visemeTracks]
+      [dancerFaces, visemeTracks],
     );
 
     const handleSave = useCallback(() => {
-      if (
-        editDialog.trackIndex === null ||
-        editDialog.beat === null ||
-        !visemeTracks[editDialog.trackIndex]
-      )
-        return;
+      if (editDialog.trackIndex === null || editDialog.beat === null || !visemeTracks[editDialog.trackIndex]) return;
       const event = {
         beat: editDialog.beat,
         value: editDialog.value,
@@ -221,22 +163,10 @@ export const DancerFacesTimeline = React.memo(
         });
       }
       setEditDialog({ ...editDialog, open: false });
-    }, [
-      editDialog,
-      addDancerFaceEvent,
-      updateDancerFaceEvent,
-      addUndoAction,
-      visemeTracks,
-      difficulty,
-    ]);
+    }, [editDialog, addDancerFaceEvent, updateDancerFaceEvent, addUndoAction, visemeTracks, difficulty]);
 
     const handleDelete = useCallback(() => {
-      if (
-        editDialog.trackIndex !== null &&
-        editDialog.eventIndex !== null &&
-        editDialog.beat !== null &&
-        visemeTracks[editDialog.trackIndex]
-      ) {
+      if (editDialog.trackIndex !== null && editDialog.eventIndex !== null && editDialog.beat !== null && visemeTracks[editDialog.trackIndex]) {
         removeDancerFaceEvent(difficulty, editDialog.eventIndex);
         addUndoAction({
           type: "visemes:remove",
@@ -251,28 +181,16 @@ export const DancerFacesTimeline = React.memo(
         });
       }
       setEditDialog({ ...editDialog, open: false });
-    }, [
-      editDialog,
-      removeDancerFaceEvent,
-      addUndoAction,
-      visemeTracks,
-      difficulty,
-    ]);
+    }, [editDialog, removeDancerFaceEvent, addUndoAction, visemeTracks, difficulty]);
 
     // Clipboard for copy/paste
-    const [clipboard, setClipboard] = useState<
-      { value: number; offset: number }[]
-    >([]);
-    const [clipboardSourceTrack, setClipboardSourceTrack] = useState<
-      number | null
-    >(null);
+    const [clipboard, setClipboard] = useState<{ value: number; offset: number }[]>([]);
+    const [clipboardSourceTrack, setClipboardSourceTrack] = useState<number | null>(null);
 
     // Copy: only from the currently selected track, copy values and offsets
     const handleCopy = useCallback(() => {
       if (selectedEvents.length === 0) return;
-      const sorted = [...selectedEvents].sort(
-        (a, b) => a.beatIndex - b.beatIndex
-      );
+      const sorted = [...selectedEvents].sort((a, b) => a.beatIndex - b.beatIndex);
       const trackIndex = sorted[0].trackIndex;
       // Only allow copying if all selected cells are from the same track
       if (!sorted.every((ev) => ev.trackIndex === trackIndex)) {
@@ -282,9 +200,7 @@ export const DancerFacesTimeline = React.memo(
       const minBeat = sorted[0].beatIndex;
       const copied = sorted.map(({ beatIndex }) => {
         const viseme = visemeTracks[trackIndex];
-        const event = dancerFaces.find(
-          (ev) => ev.beat === beatIndex && ev.viseme === viseme
-        );
+        const event = dancerFaces.find((ev) => ev.beat === beatIndex && ev.viseme === viseme);
         return {
           value: event ? event.value : null,
           offset: beatIndex - minBeat,
@@ -304,9 +220,7 @@ export const DancerFacesTimeline = React.memo(
           if (clip.value === null) return; // skip empty
           const beat = targetBeatIndex + clip.offset;
           if (beat < 0) return;
-          const eventIdx = dancerFaces.findIndex(
-            (ev) => ev.beat === beat && ev.viseme === viseme
-          );
+          const eventIdx = dancerFaces.findIndex((ev) => ev.beat === beat && ev.viseme === viseme);
           const event = {
             beat,
             value: clip.value,
@@ -320,24 +234,13 @@ export const DancerFacesTimeline = React.memo(
         });
         toast.success("Pasted viseme values");
       },
-      [
-        clipboard,
-        visemeTracks,
-        dancerFaces,
-        addDancerFaceEvent,
-        updateDancerFaceEvent,
-        difficulty,
-      ]
+      [clipboard, visemeTracks, dancerFaces, addDancerFaceEvent, updateDancerFaceEvent, difficulty],
     );
 
-    const totalWidth =
-      timelineData.measures.length * BEATS_PER_MEASURE * STEP_WIDTH;
+    const totalWidth = timelineData.measures.length * BEATS_PER_MEASURE * STEP_WIDTH;
 
     // Helper to check if a cell is selected
-    const isCellSelected = (trackIndex: number, beatIndex: number) =>
-      selectedEvents.some(
-        (sel) => sel.trackIndex === trackIndex && sel.beatIndex === beatIndex
-      );
+    const isCellSelected = (trackIndex: number, beatIndex: number) => selectedEvents.some((sel) => sel.trackIndex === trackIndex && sel.beatIndex === beatIndex);
 
     // Handler for selecting cells
     const handleCellSelect = useCallback(
@@ -359,17 +262,9 @@ export const DancerFacesTimeline = React.memo(
           return;
         } else if (e.ctrlKey || e.metaKey) {
           setSelectedEvents((prev) => {
-            const exists = prev.some(
-              (sel) =>
-                sel.trackIndex === trackIndex && sel.beatIndex === beatIndex
-            );
+            const exists = prev.some((sel) => sel.trackIndex === trackIndex && sel.beatIndex === beatIndex);
             if (exists) {
-              return prev.filter(
-                (sel) =>
-                  !(
-                    sel.trackIndex === trackIndex && sel.beatIndex === beatIndex
-                  )
-              );
+              return prev.filter((sel) => !(sel.trackIndex === trackIndex && sel.beatIndex === beatIndex));
             } else {
               return [...prev, { trackIndex, beatIndex }];
             }
@@ -381,7 +276,7 @@ export const DancerFacesTimeline = React.memo(
           openEditDialog(trackIndex, beatIndex);
         }
       },
-      [selectedEvents, openEditDialog]
+      [selectedEvents, openEditDialog],
     );
 
     return (
@@ -391,9 +286,7 @@ export const DancerFacesTimeline = React.memo(
           <Button size="sm" onClick={() => setShowVisemeImport(true)}>
             <Plus className="h-4 w-4 mr-1" /> Add Viseme Track
           </Button>
-          <div className="text-sm text-muted-foreground">
-            {visemeTracks.length} viseme tracks
-          </div>
+          <div className="text-sm text-muted-foreground">{visemeTracks.length} viseme tracks</div>
         </div>
 
         {/* Timeline Content */}
@@ -402,25 +295,18 @@ export const DancerFacesTimeline = React.memo(
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8">
               <Smile className="h-12 w-12 mb-4 opacity-20" />
               <h3 className="text-lg font-medium mb-2">No Viseme Tracks</h3>
-              <p className="text-sm text-center mb-4">
-                Add a viseme from the Visemes list to get started.
-              </p>
+              <p className="text-sm text-center mb-4">Add a viseme from the Visemes list to get started.</p>
               <Button onClick={() => setShowVisemeImport(true)}>
                 <Smile className="h-4 w-4 mr-1" /> Browse Visemes
               </Button>
             </div>
           ) : (
-            <div
-              className="h-full w-full overflow-auto"
-              ref={timelineScrollRef}
-            >
+            <div className="h-full w-full overflow-auto" ref={timelineScrollRef}>
               <div className="relative" style={{ width: totalWidth }}>
                 {/* Header */}
                 <div className="sticky top-0 z-20 flex bg-background">
                   <div className="sticky left-0 z-30 w-48 flex-shrink-0 bg-background border-r border-b flex items-center p-2">
-                    <span className="text-xs font-bold uppercase text-muted-foreground">
-                      Viseme Tracks ({difficulty})
-                    </span>
+                    <span className="text-xs font-bold uppercase text-muted-foreground">Viseme Tracks ({difficulty})</span>
                   </div>
                   {timelineData.measures.map((measure, measureIndex) => (
                     <div
@@ -432,9 +318,7 @@ export const DancerFacesTimeline = React.memo(
                       }}
                       onClick={() => handleSeek(measure.startTime)}
                     >
-                      <div className="h-6 flex items-center justify-center border-b text-sm font-medium">
-                        Measure {measure.number}
-                      </div>
+                      <div className="h-6 flex items-center justify-center border-b text-sm font-medium">Measure {measure.number}</div>
                     </div>
                   ))}
                 </div>
@@ -446,26 +330,11 @@ export const DancerFacesTimeline = React.memo(
                     {visemeTracks.map((viseme, trackIndex) => (
                       <div
                         key={trackIndex}
-                        className={cn(
-                          "h-12 border-b border-r flex items-center justify-between px-2 cursor-pointer",
-                          selectedTrackIndex === trackIndex
-                            ? "bg-accent"
-                            : "hover:bg-muted/50"
-                        )}
-                        onClick={() =>
-                          setSelectedTrackIndex(
-                            trackIndex === selectedTrackIndex
-                              ? null
-                              : trackIndex
-                          )
-                        }
+                        className={cn("h-12 border-b border-r flex items-center justify-between px-2 cursor-pointer", selectedTrackIndex === trackIndex ? "bg-accent" : "hover:bg-muted/50")}
+                        onClick={() => setSelectedTrackIndex(trackIndex === selectedTrackIndex ? null : trackIndex)}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <div
-                            className={`w-3 h-3 rounded-full ${
-                              TRACK_COLORS[trackIndex % TRACK_COLORS.length]
-                            }`}
-                          />
+                          <div className={`w-3 h-3 rounded-full ${TRACK_COLORS[trackIndex % TRACK_COLORS.length]}`} />
                           <span className="text-sm truncate">{viseme}</span>
                         </div>
                         <Button
@@ -493,77 +362,39 @@ export const DancerFacesTimeline = React.memo(
                             {Array.from({
                               length: BEATS_PER_MEASURE,
                             }).map((__, beatPosition) => {
-                              const beatIndex =
-                                measureIndex * BEATS_PER_MEASURE + beatPosition;
-                              const eventIdx = dancerFaces.findIndex(
-                                (ev) =>
-                                  ev.beat === beatIndex && ev.viseme === viseme
-                              );
+                              const beatIndex = measureIndex * BEATS_PER_MEASURE + beatPosition;
+                              const eventIdx = dancerFaces.findIndex((ev) => ev.beat === beatIndex && ev.viseme === viseme);
                               const hasEvent = eventIdx !== -1;
                               const isQuarter = true; // All beats are now quarter notes
-                              const event = hasEvent
-                                ? dancerFaces[eventIdx]
-                                : null;
+                              const event = hasEvent ? dancerFaces[eventIdx] : null;
                               return (
                                 <ContextMenu key={beatIndex}>
                                   <ContextMenuTrigger asChild>
                                     <div
                                       className={cn(
                                         "w-[80px] h-full flex flex-col items-center justify-center border-r cursor-pointer relative",
-                                        isQuarter
-                                          ? "bg-muted/10"
-                                          : "bg-transparent",
+                                        isQuarter ? "bg-muted/10" : "bg-transparent",
                                         "hover:bg-muted/30",
-                                        isCellSelected(trackIndex, beatIndex) &&
-                                          "ring-2 ring-primary"
+                                        isCellSelected(trackIndex, beatIndex) && "ring-2 ring-primary",
                                       )}
                                       onClick={(e) => {
-                                        handleCellSelect(
-                                          trackIndex,
-                                          beatIndex,
-                                          e
-                                        );
+                                        handleCellSelect(trackIndex, beatIndex, e);
                                         // Prevent dialog popup if shift, ctrl, or meta is held
-                                        if (
-                                          e.shiftKey ||
-                                          e.ctrlKey ||
-                                          e.metaKey
-                                        )
-                                          return;
+                                        if (e.shiftKey || e.ctrlKey || e.metaKey) return;
                                         openEditDialog(trackIndex, beatIndex);
                                       }}
                                     >
                                       {/* Visual representation for existing event */}
                                       {hasEvent && (
                                         <>
-                                          <div
-                                            className={`w-5 h-5 rounded-full flex items-center justify-center`}
-                                            title={`${Math.round(
-                                              (event?.value ?? 1) * 100
-                                            )}%`}
-                                          >
-                                            <span className="text-xs font-bold">
-                                              {Math.round(
-                                                (event?.value ?? 1) * 100
-                                              )}
-                                              %
-                                            </span>
+                                          <div className={`w-5 h-5 rounded-full flex items-center justify-center`} title={`${Math.round((event?.value ?? 1) * 100)}%`}>
+                                            <span className="text-xs font-bold">{Math.round((event?.value ?? 1) * 100)}%</span>
                                           </div>
                                           {/* Add a bar below to show intensity */}
                                           <div
-                                            className={cn(
-                                              "h-1 rounded",
-                                              TRACK_COLORS[
-                                                trackIndex % TRACK_COLORS.length
-                                              ]
-                                            )}
+                                            className={cn("h-1 rounded", TRACK_COLORS[trackIndex % TRACK_COLORS.length])}
                                             style={{
-                                              width: `${Math.max(
-                                                8,
-                                                Math.round(
-                                                  (event?.value ?? 1) * 100
-                                                )
-                                              )}%`,
+                                              width: `${Math.max(8, Math.round((event?.value ?? 1) * 100))}%`,
                                               maxWidth: "70px",
                                             }}
                                           />
@@ -572,18 +403,10 @@ export const DancerFacesTimeline = React.memo(
                                     </div>
                                   </ContextMenuTrigger>
                                   <ContextMenuContent>
-                                    <ContextMenuItem
-                                      onClick={() =>
-                                        openEditDialog(trackIndex, beatIndex)
-                                      }
-                                    >
-                                      {hasEvent ? "Edit" : "Add"} Viseme
-                                    </ContextMenuItem>
+                                    <ContextMenuItem onClick={() => openEditDialog(trackIndex, beatIndex)}>{hasEvent ? "Edit" : "Add"} Viseme</ContextMenuItem>
                                     <ContextMenuItem
                                       onClick={() => {
-                                        setSelectedEvents([
-                                          { trackIndex, beatIndex },
-                                        ]);
+                                        setSelectedEvents([{ trackIndex, beatIndex }]);
                                         handleCopy();
                                       }}
                                     >
@@ -591,9 +414,7 @@ export const DancerFacesTimeline = React.memo(
                                     </ContextMenuItem>
                                     <ContextMenuItem
                                       onClick={() => {
-                                        setSelectedEvents([
-                                          { trackIndex, beatIndex },
-                                        ]);
+                                        setSelectedEvents([{ trackIndex, beatIndex }]);
                                         handlePaste(trackIndex, beatIndex);
                                       }}
                                       disabled={clipboard.length === 0}
@@ -603,10 +424,7 @@ export const DancerFacesTimeline = React.memo(
                                     {hasEvent && (
                                       <ContextMenuItem
                                         onClick={() => {
-                                          removeDancerFaceEvent(
-                                            difficulty,
-                                            eventIdx
-                                          );
+                                          removeDancerFaceEvent(difficulty, eventIdx);
                                           addUndoAction({
                                             type: "visemes:remove",
                                             data: {
@@ -647,34 +465,20 @@ export const DancerFacesTimeline = React.memo(
           <DialogContent className="max-w-3xl h-[80vh]">
             <DialogHeader>
               <DialogTitle>Add Viseme Track</DialogTitle>
-              <DialogDescription>
-                Click on a viseme name to add it as a new track.
-              </DialogDescription>
+              <DialogDescription>Click on a viseme name to add it as a new track.</DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-hidden">
-              <VisemesBanks
-                onAddVisemeTrack={addVisemeAsTrack}
-                className="h-[calc(80vh-100px)]"
-              />
+              <VisemesBanks onAddVisemeTrack={addVisemeAsTrack} className="h-[calc(80vh-100px)]" />
             </div>
           </DialogContent>
         </Dialog>
 
         {/* Edit/Add Dialog */}
-        <Dialog
-          open={editDialog.open}
-          onOpenChange={(open) => setEditDialog((d) => ({ ...d, open }))}
-        >
+        <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog((d) => ({ ...d, open }))}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>
-                {editDialog.eventIndex !== null
-                  ? "Edit Viseme Event"
-                  : "Add Viseme Event"}
-              </DialogTitle>
-              <DialogDescription>
-                Set the viseme value for this beat (0% = off, 100% = full).
-              </DialogDescription>
+              <DialogTitle>{editDialog.eventIndex !== null ? "Edit Viseme Event" : "Add Viseme Event"}</DialogTitle>
+              <DialogDescription>Set the viseme value for this beat (0% = off, 100% = full).</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4">
               <label className="flex flex-col gap-2">
@@ -708,11 +512,7 @@ export const DancerFacesTimeline = React.memo(
               </label>
               <div className="flex gap-2 justify-end">
                 {editDialog.eventIndex !== null && (
-                  <Button
-                    variant="destructive"
-                    onClick={handleDelete}
-                    type="button"
-                  >
+                  <Button variant="destructive" onClick={handleDelete} type="button">
                     Delete
                   </Button>
                 )}
@@ -731,9 +531,8 @@ export const DancerFacesTimeline = React.memo(
       prevProps.currentTime === nextProps.currentTime &&
       prevProps.isPlaying === nextProps.isPlaying &&
       prevProps.autoScroll === nextProps.autoScroll &&
-      prevProps.timelineData.measures.length ===
-        nextProps.timelineData.measures.length &&
+      prevProps.timelineData.measures.length === nextProps.timelineData.measures.length &&
       prevProps.difficulty === nextProps.difficulty
     );
-  }
+  },
 );

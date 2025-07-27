@@ -8,79 +8,79 @@ A comprehensive Electron-based editor for Dance Central 3 song files with timeli
 
 ### Core Technologies
 
--   **Electron + React + TypeScript**: Main application framework
--   **Zustand**: State management for songs and timeline
--   **Tone.js**: Audio processing and MIDI handling
--   **shadcn/ui**: UI component library
--   **Vite**: Build tooling with automatic JSX runtime
+- **Electron + React + TypeScript**: Main application framework
+- **Zustand**: State management for songs and timeline
+- **Tone.js**: Audio processing and MIDI handling
+- **shadcn/ui**: UI component library
+- **Vite**: Build tooling with automatic JSX runtime
 
 ### Key Features Implemented
 
 #### 1. Secure IPC Architecture
 
--   **Preload Script** (`src/preload.ts`): Secure bridge between main and renderer
--   **IPC Handlers** (`src/main/ipcHandlers.ts`): File system operations in main process
--   **APIs Available**: File read/write, directory operations, JSON parsing, external URLs
+- **Preload Script** (`src/preload.ts`): Secure bridge between main and renderer
+- **IPC Handlers** (`src/main/ipcHandlers.ts`): File system operations in main process
+- **APIs Available**: File read/write, directory operations, JSON parsing, external URLs
 
 #### 2. State Management
 
--   **Song Store** (`src/store/songStore.ts`):
-    -   Song CRUD operations
-    -   Move library management
-    -   Timeline data for easy/medium/expert difficulties
-    -   Auto-save functionality
--   **Timeline Store** (`src/store/timelineStore.ts`):
-    -   Audio/MIDI integration with Tone.js
-    -   Playback controls and timeline navigation
-    -   Measure-based editing with BPM sync
+- **Song Store** (`src/store/songStore.ts`):
+  - Song CRUD operations
+  - Move library management
+  - Timeline data for easy/medium/expert difficulties
+  - Auto-save functionality
+- **Timeline Store** (`src/store/timelineStore.ts`):
+  - Audio/MIDI integration with Tone.js
+  - Playback controls and timeline navigation
+  - Measure-based editing with BPM sync
 
 #### 3. Type System
 
--   **Song Types** (`src/types/song.d.ts`):
-    -   Move, MoveEvent, CameraEvent interfaces
-    -   Timeline structure for all difficulty levels
-    -   Move library integration types
--   **Timeline Types** (`src/types/timeline.d.ts`):
-    -   Audio/MIDI data structures
-    -   Track and event management
-    -   Playback and viewport state
+- **Song Types** (`src/types/song.d.ts`):
+  - Move, MoveEvent, CameraEvent interfaces
+  - Timeline structure for all difficulty levels
+  - Move library integration types
+- **Timeline Types** (`src/types/timeline.d.ts`):
+  - Audio/MIDI data structures
+  - Track and event management
+  - Playback and viewport state
 
 #### 4. Move Library System
 
--   **Move Library Browser** (`src/app/MoveLibrary.tsx`):
-    -   CAT > SONG > MOVE folder structure navigation
-    -   JSON move file parsing and preview
-    -   Search and filter functionality
-    -   Import moves to timeline
+- **Move Library Browser** (`src/app/MoveLibrary.tsx`):
+  - CAT > SONG > MOVE folder structure navigation
+  - JSON move file parsing and preview
+  - Search and filter functionality
+  - Import moves to timeline
 
 #### 5. Timeline Editor
 
--   **Main Timeline** (`src/app/timeline/TimelineEditor.tsx`):
-    -   Professional DAW-style interface
-    -   Transport controls (play/pause/stop/seek)
-    -   Difficulty selection (Easy/Medium/Expert)
-    -   Track type switching (Moves/Cameras)
-    -   Zoom controls and time display
--   **Timeline Ruler** (`src/app/timeline/TimelineRuler.tsx`):
-    -   Measure and beat markers
-    -   Time scale display
-    -   Click-to-seek functionality
--   **Timeline Tracks** (`src/app/timeline/TimelineTracks.tsx`):
-    -   Visual event representation
-    -   Beat-based event positioning
-    -   Move and camera event rendering
--   **Track List** (`src/app/timeline/TrackList.tsx`):
-    -   Track properties and statistics
-    -   Event count and range display
-    -   Track visibility controls
+- **Main Timeline** (`src/app/timeline/TimelineEditor.tsx`):
+  - Professional DAW-style interface
+  - Transport controls (play/pause/stop/seek)
+  - Difficulty selection (Easy/Medium/Expert)
+  - Track type switching (Moves/Cameras)
+  - Zoom controls and time display
+- **Timeline Ruler** (`src/app/timeline/TimelineRuler.tsx`):
+  - Measure and beat markers
+  - Time scale display
+  - Click-to-seek functionality
+- **Timeline Tracks** (`src/app/timeline/TimelineTracks.tsx`):
+  - Visual event representation
+  - Beat-based event positioning
+  - Move and camera event rendering
+- **Track List** (`src/app/timeline/TrackList.tsx`):
+  - Track properties and statistics
+  - Event count and range display
+  - Track visibility controls
 
 #### 6. Editor Workspace
 
--   **Main Workspace** (`src/app/EditorWorkspace.tsx`):
-    -   Tabbed interface with sidebar
-    -   Move Library, Choreography, and Camera tabs
-    -   Song information header
-    -   Integrated timeline editor
+- **Main Workspace** (`src/app/EditorWorkspace.tsx`):
+  - Tabbed interface with sidebar
+  - Move Library, Choreography, and Camera tabs
+  - Song information header
+  - Integrated timeline editor
 
 ## File Structure
 

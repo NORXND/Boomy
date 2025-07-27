@@ -1,9 +1,5 @@
 import { ImportedMoves } from "@/components/ImportedMoves";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { TimelineProvider } from "../contexts/TimelineContext";
 import { SharedMovePreview } from "../components/SharedMovePreview";
 import { NewTimelineRoot } from "./timeline_new/NewTimelineRoot";
@@ -18,11 +14,7 @@ export function VisemesEditor() {
       <div className="p-4 h-full max-w-[calc(100vw-260px)]">
         <ResizablePanelGroup direction="vertical">
           <ResizablePanel>
-            <SharedMovePreview
-              onDifficultyChange={(difficulty: "easy" | "medium" | "expert") =>
-                setDiff(difficulty)
-              }
-            />
+            <SharedMovePreview onDifficultyChange={(difficulty: "easy" | "medium" | "expert") => setDiff(difficulty)} />
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel>
