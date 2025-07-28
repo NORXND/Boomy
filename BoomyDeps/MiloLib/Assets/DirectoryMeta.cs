@@ -1270,6 +1270,10 @@ namespace MiloLib.Assets
                     Debug.WriteLine("Reading entry WorldReflection " + entry.name.value);
                     entry.obj = new WorldReflection().Read(reader, true, this, entry);
                     break;
+                case "CharLipSync":
+                    Debug.WriteLine("Reading entry CharLipSync " + entry.name.value);
+                    entry.obj = new CharLipSync().Read(reader, true, this, entry);
+                    break;
                 // re-enable when the class is 100%
                 //case "CharClip":
                 //    Debug.WriteLine("Reading entry CharClip " + entry.name.value);
@@ -1769,6 +1773,9 @@ namespace MiloLib.Assets
                     break;
                 case "HamSupereasyData":
                     ((HamSupereasyData)entry.obj).Write(writer, true, this, entry);
+                    break;
+                case "CharLipSync":
+                    ((CharLipSync)entry.obj).Write(writer, true, this, entry);
                     break;
                 // re-enable when the class is 100%
                 //case "CharClip":

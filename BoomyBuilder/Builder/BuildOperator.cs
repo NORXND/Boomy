@@ -61,9 +61,15 @@ namespace BoomyBuilder.Builder
             MovesDir = WorkingMilo.dirMeta.entries.First(static d => d.name == "moves").dir ?? throw new Exception("moves dir not found");
             EasyDir = WorkingMilo.dirMeta.entries.First(static d => d.name == "easy").dir ?? throw new Exception("easy dir not found");
             RndPropAnim easyAnim = (RndPropAnim)(EasyDir.entries.First(static d => d.name == "song.anim").obj ?? throw new Exception("Easy song.anim not found"));
+            RndPropAnim easyDancerFaceAnim = (RndPropAnim)(EasyDir.entries.First(static d => d.name == "dancer_face.anim").obj ?? throw new Exception("Easy dancer_face.anim not found"));
+            CharLipSync easyLipSync = (CharLipSync)(EasyDir.entries.First(static d => d.name == "dancer_face.lipsync").obj ?? throw new Exception("Easy dancer_face.lipsync not found"));
             MediumDir = WorkingMilo.dirMeta.entries.First(static d => d.name == "medium").dir ?? throw new Exception("medium dir not found");
             RndPropAnim mediumAnim = (RndPropAnim)(MediumDir.entries.First(static d => d.name == "song.anim").obj ?? throw new Exception("Medium song.anim not found"));
+            RndPropAnim mediumDancerFaceAnim = (RndPropAnim)(MediumDir.entries.First(static d => d.name == "dancer_face.anim").obj ?? throw new Exception("Medium dancer_face.anim not found"));
+            CharLipSync mediumLipSync = (CharLipSync)(MediumDir.entries.First(static d => d.name == "dancer_face.lipsync").obj ?? throw new Exception("Medium dancer_face.lipsync not found"));
             ExpertDir = WorkingMilo.dirMeta.entries.First(static d => d.name == "expert").dir ?? throw new Exception("expert dir not found");
+            RndPropAnim expertDancerFaceAnim = (RndPropAnim)(ExpertDir.entries.First(static d => d.name == "dancer_face.anim").obj ?? throw new Exception("Expert dancer_face.anim not found"));
+            CharLipSync expertLipSync = (CharLipSync)(ExpertDir.entries.First(static d => d.name == "dancer_face.lipsync").obj ?? throw new Exception("Expert dancer_face.lipsync not found"));
             RndPropAnim expertAnim = (RndPropAnim)(ExpertDir.entries.First(static d => d.name == "song.anim").obj ?? throw new Exception("Expert song.anim not found"));
             MoveDataDir = MovesDir.entries.First(static d => d.name == "move_data").dir ?? throw new Exception("move_data dir not found");
             MoveGraph graph = (MoveGraph)(MoveDataDir.entries.First(static d => d.name == "move_graph").obj ?? throw new Exception("move_graph obj not found"));
@@ -88,10 +94,12 @@ namespace BoomyBuilder.Builder
             BattleMaster.CreateBattle(Request.BattleSteps, battleData, Request.TotalMeasures);
             BattleMaster.CreateBattle(Request.PartyBattleSteps, partyBattleData, Request.TotalMeasures);
             BAMPhraser.CreateBAMPhrases(this, bustAMoveData);
+            DancerFaceMaker.MakeDancerFace(this, easyLipSync, mediumLipSync, expertLipSync);
 
             Sequentioner.Sequentioner.CreateSequences(this, MovesDir, MoveDataDir, choreography, practiceSections);
             TempoMapConverter tempoMapConverter = new(tempoMap: Request.TempoChange);
-            Animator.Animator.BuildSongAnim(easyAnim, mediumAnim, expertAnim, choreography, camPositions, practiceSections, tempoMapConverter);
+            Animator.Animator.BuildSongAnim(easyAnim, mediumAnim, expertAnim, choreography, camPositions, practiceSections, tempoMapConverter,
+            easyDancerFaceAnim, mediumDancerFaceAnim, expertDancerFaceAnim, Request.Visemes.Easy, Request.Visemes.Medium, Request.Visemes.Expert);
 
 
             // Save milo file

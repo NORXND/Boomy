@@ -301,4 +301,80 @@ namespace BoomyBuilder.Builder.Models
         [EnumMember(Value = "fallback")]
         Fallback,
     }
+
+    public enum VisemesType
+    {
+        [EnumMember(Value = "Angry")]
+        Angry,
+        [EnumMember(Value = "Concentrate")]
+        Concentrate,
+        [EnumMember(Value = "Excited")]
+        Excited,
+        [EnumMember(Value = "Grin")]
+        Grin,
+        [EnumMember(Value = "Mouth_Open")]
+        MouthOpen,
+        [EnumMember(Value = "O_Face")]
+        OFace,
+        [EnumMember(Value = "Open_Smile")]
+        OpenSmile,
+        [EnumMember(Value = "Open_Smile_02")]
+        OpenSmile02,
+        [EnumMember(Value = "Pursed")]
+        Pursed,
+        [EnumMember(Value = "Sexy")]
+        Sexy,
+        [EnumMember(Value = "Smile")]
+        Smile,
+        [EnumMember(Value = "Smirk")]
+        Smirk,
+        [EnumMember(Value = "Squash_High")]
+        SquashHigh,
+        [EnumMember(Value = "Squash_Low")]
+        SquashLow,
+        [EnumMember(Value = "brow_angry_left")]
+        BrowAngryLeft,
+        [EnumMember(Value = "brow_angry_right")]
+        BrowAngryRight,
+        [EnumMember(Value = "brow_down_left")]
+        BrowDownLeft,
+        [EnumMember(Value = "brow_down_right")]
+        BrowDownRight,
+        [EnumMember(Value = "brow_sad_left")]
+        BrowSadLeft,
+        [EnumMember(Value = "brow_sad_right")]
+        BrowSadRight,
+        [EnumMember(Value = "brow_up_left")]
+        BrowUpLeft,
+        [EnumMember(Value = "brow_up_right")]
+        BrowUpRight,
+        [EnumMember(Value = "eye_squint_left")]
+        EyeSquintLeft,
+        [EnumMember(Value = "eye_squint_right")]
+        EyeSquintRight,
+        [EnumMember(Value = "eye_wide_left")]
+        EyeWideLeft,
+        [EnumMember(Value = "eye_wide_right")]
+        EyeWideRight,
+        [EnumMember(Value = "talkBlinkLeft")]
+        TalkBlinkLeft,
+        [EnumMember(Value = "talkBlinkRight")]
+        TalkBlinkRight,
+        [EnumMember(Value = "talkCockedLeft")]
+        TalkCockedLeft,
+        [EnumMember(Value = "talkCkockedRight")]
+        TalkCkockedRight,
+        [EnumMember(Value = "talkEyesWide")]
+        TalkEyesWide,
+        [EnumMember(Value = "talkFurrowed")]
+        TalkFurrowed,
+        [EnumMember(Value = "talkPleading")]
+        TalkPleading,
+        [EnumMember(Value = "talkRaised")]
+        TalkRaised,
+        [EnumMember(Value = "talkSquintLeft")]
+        TalkSquintLeft,
+        [EnumMember(Value = "talkSquintRight")]
+        TalkSquintRight,
+    }
 }

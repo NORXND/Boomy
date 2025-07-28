@@ -10,6 +10,7 @@ namespace BoomyBuilder.Builder.BuildRequest
     using BoomyBuilder.Builder.Models.SongEvent;
     using BoomyBuilder.Builder.Models.SongMeta;
     using BoomyBuilder.Builder.Models.Timeline;
+    using BoomyBuilder.Builder.Models.Visemes;
     using BoomyBuilder.Builder.Utils;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
@@ -61,6 +62,8 @@ namespace BoomyBuilder.Builder.BuildRequest
         [JsonProperty("battle_steps", Required = Required.Always)]
         public required List<BattleEvent> BattleSteps { get; set; }
 
+        [JsonProperty("dancer_faces", Required = Required.Always)]
+        public required VisemesEvents Visemes { get; set; }
 
         [JsonProperty("party_battle_steps", Required = Required.Always)]
         public required List<BattleEvent> PartyBattleSteps { get; set; }

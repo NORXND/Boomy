@@ -1,16 +1,19 @@
+using BoomyBuilder.Builder.Extensions;
 using BoomyBuilder.Builder.Models;
 using BoomyBuilder.Builder.Models.Move;
+using BoomyBuilder.Builder.Models.Visemes;
 using BoomyBuilder.Builder.Utils;
 using MiloLib.Assets.Ham;
 using MiloLib.Assets.Rnd;
 using static BoomyBuilder.Builder.PracticeSectioner.PracticeSectioner;
+using static MiloLib.Assets.ObjectFields;
 using static MiloLib.Assets.Rnd.RndPropAnim.PropKey;
 
 namespace BoomyBuilder.Builder.Animator
 {
     public class Animator
     {
-        public static void BuildSongAnim(RndPropAnim easy, RndPropAnim medium, RndPropAnim expert, Dictionary<Difficulty, Dictionary<int, Move>> choreography, Dictionary<Difficulty, Dictionary<int, CameraPosition>> camPositions, Dictionary<Difficulty, List<PracticeStepResult>> practiceSections, TempoMapConverter tempoConverter)
+        public static void BuildSongAnim(RndPropAnim easy, RndPropAnim medium, RndPropAnim expert, Dictionary<Difficulty, Dictionary<int, Move>> choreography, Dictionary<Difficulty, Dictionary<int, CameraPosition>> camPositions, Dictionary<Difficulty, List<PracticeStepResult>> practiceSections, TempoMapConverter tempoConverter, RndPropAnim visEasy, RndPropAnim visMedium, RndPropAnim visExpert, List<Models.Visemes.VisemesEvent> visEasyEvents, List<Models.Visemes.VisemesEvent> visMediumEvents, List<Models.Visemes.VisemesEvent> visExpertEvents)
         {
             Dictionary<float, Symbol> easyMovePoints = new Dictionary<float, Symbol>();
             Dictionary<float, Symbol> mediumMovePoints = new Dictionary<float, Symbol>();
@@ -162,6 +165,61 @@ namespace BoomyBuilder.Builder.Animator
                 }
             }
 
+
+            void CreateFaces(RndPropAnim anim, List<VisemesEvent> events)
+            {
+                Dictionary<VisemesType, List<(int, float)>> visemeKeys = new Dictionary<VisemesType, List<(int, float)>>();
+
+                foreach (var viseme in events)
+                {
+                    if (!visemeKeys.ContainsKey(viseme.Viseme))
+                    {
+                        visemeKeys[viseme.Viseme] = new List<(int, float)>();
+                    }
+                    visemeKeys[viseme.Viseme].Add((viseme.Beat, viseme.Value));
+                }
+
+                foreach (var viseme in visemeKeys.Keys)
+                {
+                    List<(int, float)> evt = visemeKeys[viseme];
+                    if (evt.Count == 0)
+                        continue;
+
+                    RndPropAnim.PropKey key = new RndPropAnim.PropKey()
+                    {
+                        dtb = new DTBParent()
+                        {
+                            hasTree = true,
+                            children = new List<DTBNode>()
+                            {
+                                new DTBNode()
+                                {
+                                    type = NodeType.Symbol,
+                                    value = (Symbol)EnumExtensions.GetEnumMemberValue(viseme),
+                                }
+                            }
+                        },
+                        type1 = PropType.kPropFloat,
+                        type2 = PropType.kPropFloat,
+                        target = (Symbol)"dancer_face.lipsync",
+                        interpolation = Interpolation.kLinear,
+                        exceptionType = ExceptionID.kNoException,
+                    };
+
+                    foreach (var (beat, value) in evt)
+                    {
+                        float time = (float)tempoConverter.BeatToFrame(beat);
+                        key.keys.Add(new AnimEventFloat()
+                        {
+                            Pos = time,
+                            Value = value
+                        });
+                    }
+
+                    anim.propKeys.Add(key);
+                }
+            }
+
             CreateClips(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "clip").First(), choreography[Difficulty.Easy]);
             CreateClips(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "clip").First(), choreography[Difficulty.Medium]);
             CreateExpertClips(expert.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "clip").First(), choreography[Difficulty.Expert]);
@@ -177,6 +235,10 @@ namespace BoomyBuilder.Builder.Animator
             CreatePractice(easy.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Easy], practiceSections[Difficulty.Easy]);
             CreatePractice(medium.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Medium], practiceSections[Difficulty.Medium]);
             CreatePractice(expert.propKeys.Where(key => ((Symbol)key.dtb.children[0].value).value == "practice").First(), choreography[Difficulty.Expert], practiceSections[Difficulty.Expert]);
+
+            CreateFaces(visEasy, visEasyEvents);
+            CreateFaces(visMedium, visMediumEvents);
+            CreateFaces(visExpert, visExpertEvents);
         }
     }
 }

@@ -204,6 +204,7 @@ export function EditorSidebar() {
         battle_steps: currentSong.battleSteps,
         party_battle_steps: currentSong.partyBattleSteps,
         bam_phrases: currentSong.bamPhrases,
+        dancer_faces: currentSong.dancerFaces,
         total_measures: totalMeasures,
         compress: compression,
         package: packageSong, // Always false for now
