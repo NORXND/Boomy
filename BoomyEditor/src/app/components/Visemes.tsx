@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Search, Plus, Music } from "lucide-react";
+import { X, Search, Plus, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSongStore } from "../store/songStore";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ export function VisemesBanks({ onSelect, onAddVisemeTrack, className }: VisemesB
                     onSelect?.(viseme);
                   }}
                 >
-                  <Music className="h-4 w-4 mr-2" />
+                  <Smile className="h-4 w-4 mr-2" />
                   <span className="truncate">{viseme}</span>
                   {onAddVisemeTrack && (
                     <Button

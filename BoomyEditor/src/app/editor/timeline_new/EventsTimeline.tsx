@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Clock, Flag, Music, Play, X, Plus, Settings, Edit, PersonStanding } from "lucide-react";
+import { Clock, Flag, Music, Play, X, Plus, Settings, Edit, PersonStanding, WandSparkles } from "lucide-react";
 import { useSongStore } from "../../store/songStore";
 import { useBattleSteps } from "../../store/songStore";
 import { usePartyJumps } from "../../store/songStore";
@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// Import the exported functions from songStore
 import { TempoChange } from "@/types/song";
+import { generateBattleEvents } from "./Generators";
 
 export interface EventsTimelineProps {
   timelineData: TimelineData;
@@ -85,6 +85,7 @@ export const EventsTimeline = React.memo(
       removepartyBattleSteps,
       updatepartyBattleSteps,
     } = useSongStore();
+    const songState = useSongStore();
 
     const battleSteps = useBattleSteps();
     const partyJumps = usePartyJumps();
@@ -120,7 +121,7 @@ export const EventsTimeline = React.memo(
 
         return (currentSong.events || []).map((event, index) => ({ ...event, originalIndex: index })).filter((event) => event.beat === beat);
       },
-      [currentSong],
+      [currentSong]
     );
 
     // Fix getPartyJumpEventsForBeat to get event by measure number
@@ -129,7 +130,7 @@ export const EventsTimeline = React.memo(
         if (!partyJumps) return null;
         return partyJumps.find((ev) => ev.measure === measureNumber) || null;
       },
-      [partyJumps],
+      [partyJumps]
     );
 
     // Handle click to add event (opens dialog)
@@ -251,7 +252,7 @@ export const EventsTimeline = React.memo(
           },
         });
       },
-      [removeBattleStep],
+      [removeBattleStep]
     );
 
     // Open dialog to add a party jump event
@@ -297,7 +298,7 @@ export const EventsTimeline = React.memo(
           removePartyJump(idx);
         }
       },
-      [partyJumps, removePartyJump],
+      [partyJumps, removePartyJump]
     );
 
     // Open dialog to add a party battle event
@@ -342,6 +343,63 @@ export const EventsTimeline = React.memo(
       setShowAddPartyBattleDialog(false);
     }, [selectedPartyBattleBeat, selectedPartyBattleType, addpartyBattleSteps, partyBattleSteps, removepartyBattleSteps]);
 
+    // Handle random battle events generation
+    const handleBattleGeneration = async (party: boolean = false) => {
+      const partyData: Array<[number, number]> = [];
+      if (party) {
+        // Collect all jump periods as [start, end] pairs from partyJumps
+        let currentStart: number | null = null;
+        for (const jump of partyJumps) {
+          if (jump.type === "start") {
+            currentStart = jump.measure;
+          } else if (jump.type === "end" && currentStart !== null) {
+            partyData.push([currentStart, jump.measure]);
+            currentStart = null;
+          }
+        }
+      }
+
+      const generatedEvents = await generateBattleEvents(songState, party ? partyData : undefined);
+      console.log("Generated Battle Events:", generatedEvents);
+
+      if (generatedEvents) {
+        // Find the first battle_reset in current battleSteps
+        const firstResetIdx = battleSteps.findIndex((e) => e.type === "battle_reset");
+        if (firstResetIdx === -1) return;
+
+        // Keep only the first battle_reset
+        const eventsToRemove = battleSteps.map((event, idx) => ({ event, idx })).filter((_, idx) => idx !== firstResetIdx);
+
+        // Remove all except the first reset
+        for (const { idx } of eventsToRemove.reverse()) {
+          removeBattleStep(idx);
+        }
+        if (eventsToRemove.length > 0) {
+          addUndoAction({
+            type: "battle:bulkremove",
+            data: {
+              removed: eventsToRemove.map(({ event }) => event),
+            },
+          });
+        }
+
+        // Add all new events except the first battle_reset (already present)
+        const eventsToAdd = generatedEvents;
+
+        for (const event of eventsToAdd) {
+          addBattleStep(event);
+        }
+        if (eventsToAdd.length > 0) {
+          addUndoAction({
+            type: "battle:bulkadd",
+            data: {
+              added: eventsToAdd,
+            },
+          });
+        }
+      }
+    };
+
     // Remove a party battle event
     const handleRemovePartyBattleEvent = useCallback(
       (index: number) => {
@@ -354,7 +412,7 @@ export const EventsTimeline = React.memo(
           },
         });
       },
-      [removepartyBattleSteps],
+      [removepartyBattleSteps]
     );
 
     // Get the icon for an event type
@@ -756,8 +814,9 @@ export const EventsTimeline = React.memo(
           {/* Battle Track with merged cells (one per measure) */}
           <div className="h-[90px] border-b flex">
             {/* Track Label */}
-            <div className="flex-shrink-0 border-r bg-muted/30 flex items-center px-3" style={{ width: trackHeaderWidth }}>
+            <div className="flex-shrink-0 border-r bg-muted/30 flex items-center justify-between px-3" style={{ width: trackHeaderWidth }}>
               <span className="text-sm font-medium">Battle</span>
+              <WandSparkles onClick={() => handleBattleGeneration(false)} className="h-4 w-4" />
             </div>
             {/* One cell per measure */}
             {timelineData.measures.map((measure) => {
@@ -886,8 +945,9 @@ export const EventsTimeline = React.memo(
           {/* Party Battle Track with merged cells (one per measure) */}
           <div className="h-[90px] border-b flex">
             {/* Track Label */}
-            <div className="flex-shrink-0 border-r bg-muted/30 flex items-center px-3" style={{ width: trackHeaderWidth }}>
+            <div className="flex-shrink-0 border-r bg-muted/30 flex items-center justify-between px-3" style={{ width: trackHeaderWidth }}>
               <span className="text-sm font-medium">Party Battle</span>
+              <WandSparkles onClick={() => handleBattleGeneration(true)} className="h-4 w-4" />
             </div>
             {/* One cell per measure */}
             {timelineData.measures.map((measure) => {
@@ -1042,6 +1102,7 @@ export const EventsTimeline = React.memo(
                   </Select>
                 </div>
               </div>
+
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowAddPartyJumpDialog(false)}>
                   Cancel
@@ -1130,5 +1191,5 @@ export const EventsTimeline = React.memo(
       // Deep comparison of timelineData would be expensive, so compare just measures length
       prevProps.timelineData.measures.length === nextProps.timelineData.measures.length
     );
-  },
+  }
 );
