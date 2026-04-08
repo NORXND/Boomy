@@ -525,15 +525,16 @@ export const EventsTimeline = React.memo(
     // Open the BPM dialog for a measure
     const openBpmChangeDialog = useCallback((measure: Measure) => {
       setBpmDialogMeasure(measure);
-      setBpmDialogValue(measure.bpm);
+      // Use the measure's BPM if available, otherwise use 120 as default
+      setBpmDialogValue(measure.bpm ?? 120);
       setOpenBpmDialog(true);
     }, []);
 
     // Save the BPM change
     const handleBpmDialogSave = useCallback(() => {
       if (bpmDialogMeasure) {
-        // Find if a tempo change already exists at this measure's start time
-        const existingIndex = tempoChanges.findIndex((tc) => tc.measure === bpmDialogMeasure.startTime);
+        // Find if a tempo change already exists at this measure's start beat
+        const existingIndex = tempoChanges.findIndex((tc) => tc.measure === bpmDialogMeasure.startBeat);
 
         if (existingIndex !== -1) {
           // Update existing tempo change
@@ -542,7 +543,7 @@ export const EventsTimeline = React.memo(
           // Add a new tempo change
           addTempoChange({
             bpm: bpmDialogValue,
-            measure: bpmDialogMeasure.startTime, // Assuming tick is time
+            measure: bpmDialogMeasure.startBeat, // Use beat number, not time in seconds
           });
         }
       }
@@ -1165,7 +1166,7 @@ export const EventsTimeline = React.memo(
               </DialogHeader>
               <div className="py-4">
                 <label className="text-sm font-medium mb-2 block">BPM (Beats Per Minute)</label>
-                <Input type="number" min="20" max="300" value={bpmDialogValue} onChange={(e) => setBpmDialogValue(Number(e.target.value))} />
+                <Input type="number" min="20" max="300" step="0.01" value={bpmDialogValue} onChange={(e) => setBpmDialogValue(parseFloat(e.target.value) || 120)} />
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpenBpmDialog(false)}>
