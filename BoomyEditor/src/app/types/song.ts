@@ -159,6 +159,7 @@ export enum Venue {
   Studio675 = "dclive",
   DCIHQ = "dci",
   CrowsNest = "throneroom",
+  HouseParty = "houseparty",
 }
 
 export enum Character {

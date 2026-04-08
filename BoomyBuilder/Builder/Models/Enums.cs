@@ -37,6 +37,8 @@ namespace BoomyBuilder.Builder.Models
         DCIHQ,
         [EnumMember(Value = "throneroom")]
         CrowsNest,
+        [EnumMember(Value = "houseparty")]
+        HouseParty,
     }
 
     public enum Character
