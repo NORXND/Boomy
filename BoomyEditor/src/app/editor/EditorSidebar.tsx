@@ -14,6 +14,7 @@ import { useState } from "react";
 import { runAllTests, getTestIcon, allTestsPassed, TestResult } from "./tests";
 import { ExperimentalFeaturesWarning, type ExperimentalFeatureLog } from "@/components/ExperimentalFeaturesWarning";
 import { HamBuildDtaBuilder } from "@/utils/hambuildDtaBuilder";
+import { loadPreferences } from "@/lib/preferencesManager";
 
 export function EditorSidebar() {
   const { activeSection, setActiveSection } = useEditor();
@@ -64,12 +65,21 @@ export function EditorSidebar() {
     }
   };
 
-  const handleHamBuildDialog = () => {
+  const handleHamBuildDialog = async () => {
     if (currentSong && !isSaving) {
       // Set default output path to song directory (no subdirectory)
       setHamBuildPath(songPath);
       setRunHamBuild(false);
-      setHamBuildExePath("");
+      
+      // Load default hambuild executable path from preferences
+      try {
+        const prefs = await loadPreferences();
+        setHamBuildExePath(prefs.defaultHambuildPath || "");
+      } catch (error) {
+        console.error("Failed to load preferences:", error);
+        setHamBuildExePath("");
+      }
+      
       setHamBuildDialogOpen(true);
     }
   };

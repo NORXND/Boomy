@@ -1,6 +1,8 @@
-# Boomy
+# Boomy | Legacy
 
-Song Editor for Dance Central 3
+The first Song Editor for Dance Central 3.
+
+As of now (or at least after stable v0.5.0 release), this project will not receive any feature updates (eventually some bug fixes). Thanks to the ongoing [decompilation project](https://github.com/rjkiv/dc3-decomp), soon we will be able to make a more feature-rich and stable editor which will replace this legacy version in the future.
 
 ---
 
@@ -8,7 +10,7 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 
 ## Modules
 
-**Boomy Editor** - React Native interactive editor for creating choreographies.
+**Boomy Editor** - Electron-based interactive editor for creating choreographies.
 **Boomy Builder** - Song builder backend API, builds the song milo.
 **Boomy Deps** - Dependencies including modified `MiloLib` and stripped `xbox360-lib`.
 **Boomy Exporter** - Exporter of DC stock songs. (currently only exports for move library)
@@ -23,17 +25,17 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 -   [x] MIDI Editing
 -   [x] Creating MOGG files
 -   [x] Packaging into Xbox Packages
--   [x] Exporting moves from DC3 songs
--   [x] Exporting moves from DC1 / DC2 songs
--   [ ] Dancer Faces editing
--   [ ] Automatic routine generation
--   [ ] Automatic practice sections generation
--   [ ] Automatic camera shots generation
--   [ ] Automatic events generation
--   [ ] Importing existing DC3 songs
--   [ ] Importing existing DC1 / DC2 songs
--   [ ] Flipping moves
--   [ ] Advanced Transitions between moves
+-   [ ] Exporting moves from DC3 songs
+-   [ ] Exporting moves from DC1 / DC2 songs
+-   [x] Dancer Faces editing / EXPERIMENTAL
+-   [x] Automatic routine generation / EXPERIMENTAL
+-   [x] Automatic practice sections generation / EXPERIMENTAL
+-   [x] Automatic camera shots generation / EXPERIMENTAL
+-   [x] Automatic events generation / EXPERIMENTAL
+-   [ ] Importing existing DC3 songs / WON'T ADD
+-   [ ] Importing existing DC1 / DC2 songs / WON'T ADD
+-   [ ] Flipping moves / WON'T ADD
+-   [ ] Advanced Transitions between moves / WON'T ADD
 
 ## Song Compatibility
 
@@ -47,7 +49,11 @@ All in one tool allowing to create full fledged Dance Central 3 songs from scrat
 
 ### Tutorial
 
-Soon™
+~~Soon™~~
+
+Well... Laura223 made an awesome video tutorial on making DC3 customs featuring Boomy, go watch it here:
+https://www.youtube.com/watch?v=Hp3kjwQYVCQ
+
 
 ## Support
 
@@ -73,3 +79,5 @@ Boomy also uses parts, snippets based on many awesome open source projects like:
 [makemogg](https://github.com/maxton/makemogg)
 [moggulator](https://github.com/LocalH/moggulator)
 [nautilus](https://github.com/trojannemo/Nautilus)
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND - please respect the authors and don't hate on them for bugs.

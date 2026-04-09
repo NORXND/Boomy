@@ -319,25 +319,29 @@ export function setupHamBuildHandlers() {
 
           const platform = process.platform;
           let hamChild;
-          let errorDetails = "";
 
           if (platform === "win32") {
-            // Windows: run exe directly
+            // Windows: run exe directly in visible window
             hamChild = spawn(hamBuildExePath, [dtaFilePath], {
               cwd: outputPath,
+              detached: true,
+              windowsHide: false,
+              stdio: "inherit",
             });
           } else if (platform === "linux") {
-            // Linux: try to run exe with Wine
+            // Linux: try to run exe with Wine in own process
             hamChild = spawn("wine", [hamBuildExePath, dtaFilePath], {
               cwd: outputPath,
+              detached: true,
+              stdio: "inherit",
             });
-            errorDetails = " (attempted via Wine)";
           } else if (platform === "darwin") {
-            // macOS: try wine or crossover if installed
+            // macOS: try wine or crossover if installed in own process
             hamChild = spawn("wine", [hamBuildExePath, dtaFilePath], {
               cwd: outputPath,
+              detached: true,
+              stdio: "inherit",
             });
-            errorDetails = " (attempted via Wine - macOS support is limited)";
           } else {
             return {
               success: true,
@@ -347,46 +351,16 @@ export function setupHamBuildHandlers() {
             };
           }
 
-          return await new Promise((resolve) => {
-            let stdoutData = "";
-            let stderrData = "";
-
-            hamChild.stdout?.on("data", (data) => {
-              stdoutData += data.toString();
-            });
-
-            hamChild.stderr?.on("data", (data) => {
-              stderrData += data.toString();
-            });
-
-            hamChild.on("error", (err) => {
-              resolve({
-                success: true,
-                dtaPath: dtaFilePath,
-                hamBuildRan: false,
-                error: `Failed to execute HamBuild${errorDetails}: ${err.message}`,
-              });
-            });
-
-            hamChild.on("close", (code) => {
-              const result: any = {
-                success: true,
-                dtaPath: dtaFilePath,
-                hamBuildRan: true,
-                hamBuildExitCode: code,
-                platform: platform,
-              };
-
-              if (stdoutData) result.stdout = stdoutData;
-              if (stderrData) result.stderr = stderrData;
-
-              if (code !== 0) {
-                result.warning = `HamBuild exited with code ${code}`;
-              }
-
-              resolve(result);
-            });
-          });
+          // Unref the process so it runs independently
+          hamChild.unref();
+          
+          // Return immediately without waiting for hambuild to finish
+          return {
+            success: true,
+            dtaPath: dtaFilePath,
+            hamBuildRan: true,
+            message: "HamBuild launched in separate window",
+          };
         } catch (error) {
           return {
             success: true,
@@ -553,6 +527,71 @@ export function setupAudioHandlers() {
   });
 }
 
+// Preferences handlers
+export function setupPreferencesHandlers() {
+  const os = require("os");
+  const prefsFileName = ".boomy-prefs";
+
+  function getPrefsFilePath(): string {
+    const homeDir = os.homedir();
+    return path.join(homeDir, prefsFileName);
+  }
+
+  // Load preferences
+  ipcMain.handle("prefs:load", async () => {
+    try {
+      const prefsPath = getPrefsFilePath();
+      const exists = await fs.access(prefsPath).then(() => true).catch(() => false);
+      if (!exists) {
+        throw new Error("Prefs file does not exist");
+      }
+      const content = await fs.readFile(prefsPath, "utf-8");
+      return content;
+    } catch (error) {
+      // Return default preferences if file doesn't exist (with pref1 header)
+      const defaultPrefs = {
+        defaultMiloMovePath: "",
+        defaultHambuildPath: "",
+        lastOpenedProjects: [],
+      };
+      return `pref1\n${JSON.stringify(defaultPrefs, null, 2)}`;
+    }
+  });
+
+  // Save preferences
+  ipcMain.handle("prefs:save", async (_, content: string) => {
+    try {
+      const prefsPath = getPrefsFilePath();
+      await fs.writeFile(prefsPath, content, "utf-8");
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: `Failed to save preferences: ${error}` };
+    }
+  });
+
+  // Delete preferences
+  ipcMain.handle("prefs:delete", async () => {
+    try {
+      const prefsPath = getPrefsFilePath();
+      await fs.unlink(prefsPath);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: `Failed to delete preferences: ${error}` };
+    }
+  });
+
+  // Check if preferences file exists
+  ipcMain.handle("prefs:exists", async () => {
+    try {
+      const prefsPath = getPrefsFilePath();
+      await fs.access(prefsPath);
+      return { success: true, exists: true };
+    } catch {
+      return { success: true, exists: false };
+    }
+  });
+}
+
 // Setup all handlers
 export function setupAllHandlers() {
   setupDialogHandlers();
@@ -561,4 +600,5 @@ export function setupAllHandlers() {
   setupEdgeHandlers();
   setupHamBuildHandlers();
   setupAudioHandlers();
+  setupPreferencesHandlers();
 }

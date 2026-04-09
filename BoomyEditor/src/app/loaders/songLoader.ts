@@ -3,6 +3,7 @@ import path from "path-browserify";
 import { Character, GameOrigin, Gender, Song, Venue } from "@/types/song";
 import { hashRandomId } from "@/RandomIdGenerator";
 import loadSong3 from "./song3loader";
+import { addToLastOpened, getEffectiveMiloMovePath, loadPreferences } from "@/lib/preferencesManager";
 
 function cleanAsciiAlphanumericLower(str: string): string {
   // Remove everything except ASCII letters and numbers, then lowercase
@@ -15,6 +16,14 @@ export async function openSong(songPath: string, imported: boolean = false) {
   if (!dotBoomyExists) {
     toast.error("No .boomy file found in the song directory.");
     return null;
+  }
+
+  // Add to last opened projects
+  try {
+    await addToLastOpened(songPath);
+  } catch (error) {
+    console.error("Failed to add project to history:", error);
+    // Silently fail - this shouldn't block project opening
   }
 
   const dotBoomyContent = await window.electronAPI.readFile(path.join(songPath, ".boomy"));

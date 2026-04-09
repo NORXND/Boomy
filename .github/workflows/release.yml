@@ -176,18 +176,37 @@ jobs:
               with:
                   path: ./artifacts
 
-            - name: Extract version from tag
-              id: version
+            - name: Extract version and notes from CHANGELOG
+              id: changelog
               shell: bash
               run: |
+                  # Extract version from tag
                   tag="${{ github.ref }}"
                   version=${tag#refs/tags/v}
                   echo "version=$version" >> $GITHUB_OUTPUT
+                  
+                  # Extract release notes from CHANGELOG.md
+                  # Find the first version header and extract content until the next version or end of file
+                  awk '
+                    /^# v[0-9]/ {
+                      if (found) { exit }
+                      found = 1
+                      next
+                    }
+                    found && /^# v[0-9]/ { exit }
+                    found { print }
+                  ' CHANGELOG.md | sed '/^[[:space:]]*$/d' > release_notes.txt
+                  
+                  # If no notes found, use a default message
+                  if [ ! -s release_notes.txt ]; then
+                    echo "Release $version" > release_notes.txt
+                  fi
+                  echo "Release notes extracted"
 
             - name: Create GitHub Release
               uses: softprops/action-gh-release@v1
               with:
-                  generate_release_notes: true
+                  body_path: ./release_notes.txt
                   files: |
                       ./artifacts/**/*.zip
                       ./artifacts/**/*.deb

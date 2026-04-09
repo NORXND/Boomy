@@ -228,6 +228,11 @@ const electronAPI = {
       throw new Error(`Failed to select save path: ${error}`);
     }
   },
+
+  // Direct IPC invoke for custom handlers
+  invoke: async (channel: string, ...args: any[]): Promise<any> => {
+    return await ipcRenderer.invoke(channel, ...args);
+  },
 };
 
 // Expose the API to the renderer process

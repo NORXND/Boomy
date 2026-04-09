@@ -1,6 +1,7 @@
 import { BattleEvent, SongEvent } from "@/types/song";
 import path from "path-browserify";
 import { toast } from "sonner";
+import { getEffectiveMiloMovePath } from "@/lib/preferencesManager";
 
 function getLastPathSegment(path: string): string {
   return path.replace(/\\/g, "/").split("/").filter(Boolean).pop() || "";
@@ -27,7 +28,12 @@ export default async function loadSong3(songPath: string, imported: boolean = fa
 
   // Checks
   if (!song.move_lib) {
-    if (!imported) {
+    // Try to use default move library from preferences
+    const defaultMoveLib = await getEffectiveMiloMovePath();
+    
+    if (defaultMoveLib) {
+      song.move_lib = defaultMoveLib;
+    } else if (!imported) {
       reportCorrupted();
       return;
     } else {
@@ -40,8 +46,22 @@ export default async function loadSong3(songPath: string, imported: boolean = fa
     }
   }
 
-  // Move library check
-  const moveLibExists = await window.electronAPI.pathExists(path.join(song.move_lib, ".boomy"));
+  // Move library check - if path doesn't exist, try default
+  let moveLibExists = await window.electronAPI.pathExists(path.join(song.move_lib, ".boomy"));
+  
+  if (!moveLibExists) {
+    const defaultMoveLib = await getEffectiveMiloMovePath();
+    if (defaultMoveLib && defaultMoveLib !== song.move_lib) {
+      const defaultLibExists = await window.electronAPI.pathExists(path.join(defaultMoveLib, ".boomy"));
+      if (defaultLibExists) {
+        toast.success("Using default Milo Move Library", {
+          description: "Original path not found, using your default preference.",
+        });
+        song.move_lib = defaultMoveLib;
+        moveLibExists = true;
+      }
+    }
+  }
 
   if (!moveLibExists) {
     toast.error("Move Library not found!", {
