@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { PersonStanding, Copy, Clipboard, Trash, X, ScissorsLineDashed, WandSparkles } from "lucide-react";
+import { PersonStanding, Copy, Clipboard, Trash, X, ScissorsLineDashed, WandSparkles, AlertTriangle } from "lucide-react";
 import { useSongStore } from "../../store/songStore";
 import type { TimelineData, Measure } from "./NewTimelineRoot";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from "@/components/ui/context-menu";
 import { generateDifficultyMoves } from "./Generators";
 
 export interface ChoreographyTimelineProps {
@@ -33,9 +33,11 @@ export const ChoreographyTimeline = React.memo(
     const currentSong = useSongStore((state) => state.currentSong);
     const addMoveEvent = useSongStore((state) => state.addMoveEvent);
     const removeMoveEvent = useSongStore((state) => state.removeMoveEvent);
+    const updateMoveEvent = useSongStore((state) => state.updateMoveEvent);
     const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
     const [dragOverCell, setDragOverCell] = useState<string | null>(null);
     const [clipboardData, setClipboardData] = useState<any[]>([]);
+    const [contextMenuMove, setContextMenuMove] = useState<{ difficulty: string; index: number } | null>(null);
     const selectionStartRef = useRef<SelectedCell | null>(null);
     const isShiftKeyPressed = useRef(false);
     const isCtrlKeyPressed = useRef(false);
@@ -586,6 +588,34 @@ export const ChoreographyTimeline = React.memo(
       console.log("Rerendering ChoreographyTimeline");
     }
 
+    // Handler for toggling experimental features on a move
+    const handleToggleExperimentalFeature = useCallback(
+      (difficulty: "supereasy" | "easy" | "medium" | "expert", eventIndex: number, feature: string, enabled: boolean) => {
+        if (!currentSong) return;
+
+        let moveEvent;
+        if (difficulty === "supereasy") {
+          moveEvent = currentSong.supereasy[eventIndex];
+        } else {
+          moveEvent = currentSong.timeline[difficulty].moves[eventIndex];
+        }
+
+        if (!moveEvent) return;
+
+        // Create updated event with experimental features
+        const experimentalFeatures = {
+          ...(moveEvent.experimentalFeatures || {}),
+          [feature]: enabled,
+        };
+
+        // Only update the experimental features, no other changes to existing data
+        updateMoveEvent(difficulty, eventIndex, {
+          experimentalFeatures,
+        });
+      },
+      [currentSong, updateMoveEvent],
+    );
+
     return (
       <div className="flex h-full">
         <div className="flex-1 overflow-hidden flex flex-col">
@@ -688,6 +718,13 @@ export const ChoreographyTimeline = React.memo(
                                     <div className="text-xs font-medium truncate w-full leading-tight">{moveEvent.move}</div>
                                     <div className="text-xs text-muted-foreground truncate w-full leading-tight">{moveEvent.clip}</div>
 
+                                    {/* Experimental features indicator */}
+                                    {moveEvent.experimentalFeatures && Object.values(moveEvent.experimentalFeatures).some(v => v) && (
+                                      <div className="absolute top-1 left-1 text-amber-500">
+                                        <AlertTriangle className="h-3 w-3" fill="currentColor" />
+                                      </div>
+                                    )}
+
                                     {/* Delete button */}
                                     <button
                                       data-delete-button
@@ -736,6 +773,137 @@ export const ChoreographyTimeline = React.memo(
                           <ScissorsLineDashed className="mr-2 h-4 w-4" />
                           Cut
                         </ContextMenuItem>
+                        
+                        {/* HamBuild Move Features Submenu */}
+                        {events.length > 0 && (
+                          <>
+                            <ContextMenuSeparator />
+                            <ContextMenuSub>
+                              <ContextMenuSubTrigger>
+                                <AlertTriangle className="mr-2 h-4 w-4" />
+                                <span>Move Features</span>
+                              </ContextMenuSubTrigger>
+                              <ContextMenuSubContent className="max-h-96 overflow-y-auto">
+                                {events.map((event, idx) => {
+                                  const moveEvent = event as any;
+                                  const features = moveEvent.experimentalFeatures || {};
+                                  
+                                  return (
+                                    <div key={`${moveEvent.originalIndex}-${idx}`} className="space-y-0">
+                                      {/* Clear Footik Commands */}
+                                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Clear Footik</div>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.clear_left_footik_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "clear_left_footik_in", checked)}
+                                      >
+                                        Left In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.clear_left_footik_out ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "clear_left_footik_out", checked)}
+                                      >
+                                        Left Out
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.clear_right_footik_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "clear_right_footik_in", checked)}
+                                      >
+                                        Right In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.clear_right_footik_out ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "clear_right_footik_out", checked)}
+                                      >
+                                        Right Out
+                                      </ContextMenuCheckboxItem>
+                                      
+                                      <ContextMenuSeparator className="my-1" />
+                                      
+                                      {/* Set Footik Commands */}
+                                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Set Footik</div>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.set_left_footik_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "set_left_footik_in", checked)}
+                                      >
+                                        Left In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.set_left_footik_out ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "set_left_footik_out", checked)}
+                                      >
+                                        Left Out
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.set_right_footik_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "set_right_footik_in", checked)}
+                                      >
+                                        Right In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.set_right_footik_out ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "set_right_footik_out", checked)}
+                                      >
+                                        Right Out
+                                      </ContextMenuCheckboxItem>
+                                      
+                                      <ContextMenuSeparator className="my-1" />
+                                      
+                                      {/* General Move Modifiers */}
+                                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Move Modifier</div>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.flip ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "flip", checked)}
+                                      >
+                                        Flip
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.merge_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "merge_in", checked)}
+                                      >
+                                        Merge In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.sequence ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "sequence", checked)}
+                                      >
+                                        Sequence
+                                      </ContextMenuCheckboxItem>
+                                      
+                                      <ContextMenuSeparator className="my-1" />
+                                      
+                                      {/* Loop Transitions */}
+                                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Loop Transitions</div>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.loop_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "loop_in", checked)}
+                                      >
+                                        Loop In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.loop_out ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "loop_out", checked)}
+                                      >
+                                        Loop Out
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.loop_symmetric_in ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "loop_symmetric_in", checked)}
+                                      >
+                                        Loop Symmetric In
+                                      </ContextMenuCheckboxItem>
+                                      <ContextMenuCheckboxItem
+                                        checked={features.loop_symmetric_out ?? false}
+                                        onCheckedChange={(checked) => handleToggleExperimentalFeature(track, moveEvent.originalIndex, "loop_symmetric_out", checked)}
+                                      >
+                                        Loop Symmetric Out
+                                      </ContextMenuCheckboxItem>
+                                    </div>
+                                  );
+                                })}
+                              </ContextMenuSubContent>
+                            </ContextMenuSub>
+                          </>
+                        )}
                       </ContextMenuContent>
                     </ContextMenu>
                   );

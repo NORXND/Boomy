@@ -4,11 +4,35 @@ export interface MoveEvent {
   move_origin: string;
   move_song: string;
   move: string;
+  experimentalFeatures?: {
+    // Footkit clearing commands
+    clear_left_footik_in?: boolean;
+    clear_left_footik_out?: boolean;
+    clear_right_footik_in?: boolean;
+    clear_right_footik_out?: boolean;
+    // Footkit setting commands
+    set_left_footik_in?: boolean;
+    set_left_footik_out?: boolean;
+    set_right_footik_in?: boolean;
+    set_right_footik_out?: boolean;
+    // General move modifiers
+    flip?: boolean;
+    loop_in?: boolean;
+    loop_out?: boolean;
+    loop_symmetric_in?: boolean;
+    loop_symmetric_out?: boolean;
+    merge_in?: boolean;
+    sequence?: boolean;
+  };
 }
 
 export enum CameraPosition {
   Venue = "VENUE",
   Closeup = "CLOSEUP",
+  Far = "FAR",
+  Movement = "MOVEMENT",
+  Near = "NEAR",
+  Wide = "WIDE",
   Area1Near = "Area1_NEAR",
   Area1Movement = "Area1_MOVEMENT",
   Area1Wide = "Area1_WIDE",

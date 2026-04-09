@@ -51,6 +51,9 @@ namespace BoomyBuilder.Builder.Models.Timeline
 
         [JsonProperty("move", Required = Required.Always)]
         public required string MovePath { get; set; }
+
+        [JsonProperty("experimentalFeatures", Required = Required.DisallowNull)]
+        public Dictionary<string, bool>? ExperimentalFeatures { get; set; }
     }
 
     public partial class Timeline

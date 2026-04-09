@@ -220,6 +220,14 @@ namespace BoomyBuilder.Builder.Models
         Venue,
         [EnumMember(Value = "CLOSEUP")]
         Closeup,
+        [EnumMember(Value = "FAR")]
+        Far,
+        [EnumMember(Value = "MOVEMENT")]
+        Movement,
+        [EnumMember(Value = "NEAR")]
+        Near,
+        [EnumMember(Value = "WIDE")]
+        Wide,
         [EnumMember(Value = "Area1_NEAR")]
         Area1Near,
         [EnumMember(Value = "Area1_MOVEMENT")]

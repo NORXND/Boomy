@@ -12,6 +12,8 @@ import JSZip from "jszip";
 import { dirname, join } from "path-browserify";
 import { useState } from "react";
 import { runAllTests, getTestIcon, allTestsPassed, TestResult } from "./tests";
+import { ExperimentalFeaturesWarning, type ExperimentalFeatureLog } from "@/components/ExperimentalFeaturesWarning";
+import { HamBuildDtaBuilder } from "@/utils/hambuildDtaBuilder";
 
 export function EditorSidebar() {
   const { activeSection, setActiveSection } = useEditor();
@@ -33,6 +35,18 @@ export function EditorSidebar() {
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [testsCompleted, setTestsCompleted] = useState(false);
 
+  // Experimental features warning state
+  const [experimentalFeaturesWarningOpen, setExperimentalFeaturesWarningOpen] = useState(false);
+  const [experimentalFeatures, setExperimentalFeatures] = useState<ExperimentalFeatureLog[]>([]);
+  const [pendingBuildPath, setPendingBuildPath] = useState<string | null>(null);
+  const [pendingCompression, setPendingCompression] = useState<"none" | "default" | "fallback">("default");
+
+  // HamBuild dialog state
+  const [hamBuildDialogOpen, setHamBuildDialogOpen] = useState(false);
+  const [hamBuildPath, setHamBuildPath] = useState("");
+  const [runHamBuild, setRunHamBuild] = useState(false);
+  const [hamBuildExePath, setHamBuildExePath] = useState("");
+
   const handleSave = () => {
     if (currentSong && !isSaving) {
       saveSong();
@@ -50,6 +64,89 @@ export function EditorSidebar() {
     }
   };
 
+  const handleHamBuildDialog = () => {
+    if (currentSong && !isSaving) {
+      // Set default output path to song directory (no subdirectory)
+      setHamBuildPath(songPath);
+      setRunHamBuild(false);
+      setHamBuildExePath("");
+      setHamBuildDialogOpen(true);
+    }
+  };
+
+  const handleSelectHamBuildPath = async () => {
+    const selectedPath = await window.electronAPI.selectDirectoryPath();
+    if (selectedPath) {
+      setHamBuildPath(selectedPath);
+    }
+  };
+
+  const handleSelectHamBuildExe = async () => {
+    const selectedPath = await window.electronAPI.selectFilePath({ fileTypes: [{ name: "Executable", extensions: ["exe"] }] });
+    if (selectedPath) {
+      setHamBuildExePath(selectedPath);
+    }
+  };
+
+  const handleHamBuildConfirm = async () => {
+    if (!hamBuildPath) {
+      toast.error("Please select an output path");
+      return;
+    }
+
+    if (runHamBuild && !hamBuildExePath) {
+      toast.error("Please select HamBuild.exe path");
+      return;
+    }
+
+    try {
+      const { currentSong } = useSongStore.getState();
+      if (!currentSong) return;
+
+      useSongStore.getState().setLoading(true);
+      toast.loading("Converting to HamBuild format...", { id: "hambuild" });
+
+      // Save song first
+      await useSongStore.getState().saveSong();
+
+      // Get audio path and cover image path from store and song meta
+      const { audioPath } = useSongStore.getState();
+      const coverImagePath = currentSong.meta?.cover_image_path || null;
+
+      // Generate DTA content from song data using HamBuildDtaBuilder
+      const dtaBuilder = new HamBuildDtaBuilder(currentSong, audioPath || null, coverImagePath);
+      const dtaContent = dtaBuilder.generateDta();
+
+      // Call the HamBuild converter via IPC
+      const result = await window.electronAPI.convertToHamBuild({
+        songPath: songPath,
+        songName: songName,
+        outputPath: hamBuildPath,
+        songData: {
+          dta: dtaContent, // Pass the generated DTA content
+        },
+        runHamBuild: runHamBuild,
+        hamBuildExePath: hamBuildExePath,
+      });
+
+      useSongStore.getState().setLoading(false);
+      setHamBuildDialogOpen(false);
+
+      if (result.success) {
+        toast.success("HamBuild conversion completed!", {
+          id: "hambuild",
+          description: `Output: ${hamBuildPath}\nDTA file: ${result.dtaPath}`,
+        });
+      } else {
+        throw new Error(result.error || "Unknown conversion error");
+      }
+    } catch (error) {
+      const errorMsg = `Failed to convert to HamBuild: ${error}`;
+      useSongStore.getState().setLoading(false);
+      toast.error(errorMsg, { id: "hambuild" });
+    }
+  };
+
   const handleSelectBuildPath = async () => {
     const result = (await window.electronAPI.selectDirectoryPath({
       title: "Select Build Output Directory",
@@ -60,8 +157,99 @@ export function EditorSidebar() {
     }
   };
 
+  const scanForExperimentalFeatures = (): ExperimentalFeatureLog[] => {
+    if (!currentSong) return [];
+
+    const experimental: ExperimentalFeatureLog[] = [];
+
+    // Scan all difficulty levels
+    ["supereasy", "easy", "medium", "expert"].forEach((difficulty) => {
+      const moves =
+        difficulty === "supereasy"
+          ? currentSong.supereasy
+          : currentSong.timeline[difficulty as "easy" | "medium" | "expert"].moves;
+
+      moves.forEach((move) => {
+        if (move.experimentalFeatures && Object.keys(move.experimentalFeatures).length > 0) {
+          const enabledFeatures = Object.entries(move.experimentalFeatures)
+            .filter(([_, enabled]) => enabled)
+            .map(([key, _]) => key);
+
+          if (enabledFeatures.length > 0) {
+            experimental.push({
+              difficulty: difficulty as "supereasy" | "easy" | "medium" | "expert",
+              measure: move.measure,
+              move: move.move,
+              features: enabledFeatures,
+            });
+          }
+        }
+      });
+    });
+
+    return experimental;
+  };
+
   const handleBuildConfirm = async () => {
     if (!currentSong || !buildPath) return;
+
+    try {
+      // Check for experimental features
+      const experimentalFeaturesList = scanForExperimentalFeatures();
+      if (experimentalFeaturesList.length > 0) {
+        setExperimentalFeatures(experimentalFeaturesList);
+        setPendingBuildPath(buildPath);
+        setPendingCompression(compressOutput);
+        setExperimentalFeaturesWarningOpen(true);
+        return;
+      }
+
+      // If tests should be run before building, run them first
+      if (performTestsBeforeBuilding) {
+        if (!testsCompleted) {
+          // Run tests automatically
+          setIsRunningTests(true);
+          toast.loading("Running tests before building...", {
+            id: "test-run",
+          });
+
+          const results = await runAllTests(songStore);
+          setTestResults(results);
+          setTestsCompleted(true);
+          setIsRunningTests(false);
+
+          const hasErrors = !allTestsPassed(results);
+          if (hasErrors) {
+            toast.error("Cannot build: tests failed with errors", {
+              id: "test-run",
+            });
+            return;
+          } else {
+            toast.success("Tests passed! Proceeding with build...", {
+              id: "test-run",
+            });
+          }
+        } else {
+          // Tests already completed, check if they passed
+          if (testResults && !allTestsPassed(testResults)) {
+            toast.error("Cannot build: tests failed with errors");
+            return;
+          }
+        }
+      }
+
+      // Proceed with build
+      await buildAndSaveWithCustomPath(buildPath, compressOutput);
+    } catch (error) {
+      toast.error("Build failed", {
+        description: error.toString(),
+      });
+      setIsRunningTests(false);
+    }
+  };
+
+  const handleExperimentalFeaturesContinue = async () => {
+    if (!pendingBuildPath) return;
 
     try {
       // If tests should be run before building, run them first
@@ -99,7 +287,7 @@ export function EditorSidebar() {
       }
 
       // Proceed with build
-      await buildAndSaveWithCustomPath(buildPath, compressOutput);
+      await buildAndSaveWithCustomPath(pendingBuildPath, pendingCompression);
     } catch (error) {
       toast.error("Build failed", {
         description: error.toString(),
@@ -367,6 +555,9 @@ export function EditorSidebar() {
                 <SidebarMenuButton size="lg" onClick={handleExportAndSave} disabled={!currentSong}>
                   <h1 className="font-bold">Export & Save</h1>
                 </SidebarMenuButton>
+                <SidebarMenuButton size="lg" onClick={handleHamBuildDialog} disabled={!currentSong || isSaving}>
+                  <h1 className="font-bold">Convert to HamBuild</h1>
+                </SidebarMenuButton>
                 <SidebarMenuButton size="lg" onClick={handleExit} disabled={!currentSong}>
                   <h1 className="font-bold">Exit (without saving)</h1>
                 </SidebarMenuButton>
@@ -376,6 +567,75 @@ export function EditorSidebar() {
         </SidebarContent>
         <SidebarFooter />
       </Sidebar>
+
+      {/* HamBuild Dialog */}
+      <Dialog open={hamBuildDialogOpen} onOpenChange={setHamBuildDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Convert to HamBuild</DialogTitle>
+            <DialogDescription>Configure HamBuild export settings for your song.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {/* Output Path Input */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="hamBuildPath" className="text-right">
+                Output Path
+              </Label>
+              <div className="col-span-3 flex gap-2">
+                <Input
+                  id="hamBuildPath"
+                  value={hamBuildPath}
+                  onChange={(e) => setHamBuildPath(e.target.value)}
+                  placeholder="Select output directory for DTA file..."
+                  className="flex-1"
+                />
+                <Button onClick={handleSelectHamBuildPath} variant="outline">
+                  Browse
+                </Button>
+              </div>
+            </div>
+
+            {/* Run HamBuild Checkbox */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="runHamBuild"
+                checked={runHamBuild}
+                onCheckedChange={(checked) => setRunHamBuild(checked === true)}
+              />
+              <Label htmlFor="runHamBuild">Run HamBuild after conversion</Label>
+            </div>
+
+            {/* HamBuild.exe Path Input */}
+            {runHamBuild && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="hamBuildExePath" className="text-right">
+                  HamBuild.exe
+                </Label>
+                <div className="col-span-3 flex gap-2">
+                  <Input
+                    id="hamBuildExePath"
+                    value={hamBuildExePath}
+                    onChange={(e) => setHamBuildExePath(e.target.value)}
+                    placeholder="Path to HamBuild.exe..."
+                    className="flex-1"
+                  />
+                  <Button onClick={handleSelectHamBuildExe} variant="outline">
+                    Browse
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHamBuildDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleHamBuildConfirm} disabled={!hamBuildPath || (runHamBuild && !hamBuildExePath)}>
+              Convert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Build Dialog */}
       <Dialog open={buildDialogOpen} onOpenChange={setBuildDialogOpen}>
@@ -458,6 +718,14 @@ export function EditorSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Experimental Features Warning */}
+      <ExperimentalFeaturesWarning
+        open={experimentalFeaturesWarningOpen}
+        onOpenChange={setExperimentalFeaturesWarningOpen}
+        features={experimentalFeatures}
+        onContinue={handleExperimentalFeaturesContinue}
+      />
     </>
   );
 }

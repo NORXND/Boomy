@@ -194,6 +194,12 @@ const electronAPI = {
     return result;
   },
 
+  // Convert to HamBuild DTA format
+  convertToHamBuild: async (hamBuildRequest: any): Promise<any> => {
+    const result = await ipcRenderer.invoke("converter:convertToHamBuild", hamBuildRequest);
+    return result;
+  },
+
   // Convert OGG to MOGG using makemogg.exe (Windows only)
   convertToMogg: async (
     audioPath: string,

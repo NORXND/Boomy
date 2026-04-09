@@ -279,6 +279,138 @@ export function setupEdgeHandlers() {
   });
 }
 
+// HamBuild converter handlers
+export function setupHamBuildHandlers() {
+  ipcMain.handle("converter:convertToHamBuild", async (_, hamBuildRequest: any) => {
+    try {
+      const { outputPath, songName, songData, runHamBuild, hamBuildExePath } = hamBuildRequest;
+
+      if (!outputPath || !songName || !songData) {
+        return {
+          success: false,
+          error: "Missing required parameters: outputPath, songName, or songData",
+        };
+      }
+
+      // Create output directory if it doesn't exist
+      await fs.mkdir(outputPath, { recursive: true });
+
+      // Generate DTA content from songData (this is done on client side)
+      // We just need to write it to disk here
+      const dtaFilePath = path.join(outputPath, `${songName}.hamproj`);
+      
+      // songData.dta contains the generated DTA content from client
+      if (!songData.dta) {
+        return {
+          success: false,
+          error: "DTA content not provided",
+        };
+      }
+
+      // Write the DTA file
+      await fs.writeFile(dtaFilePath, songData.dta, "utf-8");
+
+      console.log(`Written HamBuild project file to: ${dtaFilePath}`);
+
+      // If user wants to run HamBuild, execute it now
+      if (runHamBuild && hamBuildExePath) {
+        try {
+          await fs.access(hamBuildExePath);
+
+          const platform = process.platform;
+          let hamChild;
+          let errorDetails = "";
+
+          if (platform === "win32") {
+            // Windows: run exe directly
+            hamChild = spawn(hamBuildExePath, [dtaFilePath], {
+              cwd: outputPath,
+            });
+          } else if (platform === "linux") {
+            // Linux: try to run exe with Wine
+            hamChild = spawn("wine", [hamBuildExePath, dtaFilePath], {
+              cwd: outputPath,
+            });
+            errorDetails = " (attempted via Wine)";
+          } else if (platform === "darwin") {
+            // macOS: try wine or crossover if installed
+            hamChild = spawn("wine", [hamBuildExePath, dtaFilePath], {
+              cwd: outputPath,
+            });
+            errorDetails = " (attempted via Wine - macOS support is limited)";
+          } else {
+            return {
+              success: true,
+              dtaPath: dtaFilePath,
+              hamBuildRan: false,
+              error: `Unsupported platform: ${platform}. HamBuild.exe can only run on Windows, or on Linux/macOS with Wine installed.`,
+            };
+          }
+
+          return await new Promise((resolve) => {
+            let stdoutData = "";
+            let stderrData = "";
+
+            hamChild.stdout?.on("data", (data) => {
+              stdoutData += data.toString();
+            });
+
+            hamChild.stderr?.on("data", (data) => {
+              stderrData += data.toString();
+            });
+
+            hamChild.on("error", (err) => {
+              resolve({
+                success: true,
+                dtaPath: dtaFilePath,
+                hamBuildRan: false,
+                error: `Failed to execute HamBuild${errorDetails}: ${err.message}`,
+              });
+            });
+
+            hamChild.on("close", (code) => {
+              const result: any = {
+                success: true,
+                dtaPath: dtaFilePath,
+                hamBuildRan: true,
+                hamBuildExitCode: code,
+                platform: platform,
+              };
+
+              if (stdoutData) result.stdout = stdoutData;
+              if (stderrData) result.stderr = stderrData;
+
+              if (code !== 0) {
+                result.warning = `HamBuild exited with code ${code}`;
+              }
+
+              resolve(result);
+            });
+          });
+        } catch (error) {
+          return {
+            success: true,
+            dtaPath: dtaFilePath,
+            hamBuildRan: false,
+            error: `Failed to run HamBuild: ${error}`,
+          };
+        }
+      } else {
+        return {
+          success: true,
+          dtaPath: dtaFilePath,
+          hamBuildRan: false,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `HamBuild conversion failed: ${error}`,
+      };
+    }
+  });
+}
+
 // Audio processing handlers
 export function setupAudioHandlers() {
   // Convert OGG to MOGG using makemogg.exe (Windows only)
@@ -427,5 +559,6 @@ export function setupAllHandlers() {
   setupFileSystemHandlers();
   setupShellHandlers();
   setupEdgeHandlers();
+  setupHamBuildHandlers();
   setupAudioHandlers();
 }

@@ -11,6 +11,10 @@ export function CameraPredefinedPositions() {
   const cameraDisplayNames: Record<CameraPosition, string> = {
     [CameraPosition.Venue]: "Venue",
     [CameraPosition.Closeup]: "Close-up",
+    [CameraPosition.Far]: "Far",
+    [CameraPosition.Movement]: "Movement",
+    [CameraPosition.Near]: "Near",
+    [CameraPosition.Wide]: "Wide",
     [CameraPosition.Area1Near]: "Area 1 Near",
     [CameraPosition.Area1Movement]: "Area 1 Movement",
     [CameraPosition.Area1Wide]: "Area 1 Wide",
