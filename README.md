@@ -2,7 +2,7 @@
 
 The first Song Editor for Dance Central 3.
 
-As of now (or at least after stable v0.5.0 release), this project will not receive any feature updates (eventually some bug fixes). Thanks to the ongoing [decompilation project](https://github.com/rjkiv/dc3-decomp), soon we will be able to make a more feature-rich and stable editor which will replace this legacy version in the future.
+As of now, this project will not receive any feature updates (eventually some bug fixes). Thanks to the ongoing [decompilation project](https://github.com/rjkiv/dc3-decomp), soon we will be able to make a more feature-rich and stable editor which will replace this legacy version in the future.
 
 ---
 

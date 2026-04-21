@@ -76,7 +76,7 @@ export function Homepage() {
           Preferences
         </Button>
       </div>
-      <h2 className="text-4xl">v0.5.0-rc1</h2>
+      <h2 className="text-4xl">v0.5.0</h2>
       <div className="h-8"></div>
       <div className="flex gap-4">
         <RandomIdGenerator open={idGeneratorOpen} setOpen={setIdGeneratorOpen} />
